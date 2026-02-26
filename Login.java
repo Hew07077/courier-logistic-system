@@ -1,9 +1,11 @@
 package logistics.login;
 
-import logistics.login.admin.AdminDashboard;
-
 import javax.swing.*;
 import javax.swing.Timer;
+
+import logistics.login.admin.AdminDashboard;
+import sender.SenderDashboard;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
@@ -53,32 +55,34 @@ public class Login extends JFrame {
     }
     
     static class CourierAccount implements Serializable {
-        private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 2L; // Updated version
         String fullName;
         String email;
         String phone;
-        String driverLicense;
-        String vehicleType;
-        String vehiclePlate;
+        String licenseType;
+        String icNumber;
+        String licensePhotoPath;
+        String icPhotoPath;
         String userId;
         String passwordHash;
         String registrationDate;
         String lastLogin;
         String status;
         
-        public CourierAccount(String fullName, String email, String phone, String driverLicense,
-                            String vehicleType, String vehiclePlate, String userId, String password) {
+        public CourierAccount(String fullName, String email, String phone, String userId, String password) {
             this.fullName = fullName;
             this.email = email;
             this.phone = phone;
-            this.driverLicense = driverLicense;
-            this.vehicleType = vehicleType;
-            this.vehiclePlate = vehiclePlate;
             this.userId = userId;
             this.passwordHash = hashPassword(password);
             this.registrationDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             this.lastLogin = null;
             this.status = "Pending Approval";
+            // Initialize new fields
+            this.licenseType = "";
+            this.icNumber = "";
+            this.licensePhotoPath = "";
+            this.icPhotoPath = "";
         }
     }
     
@@ -159,9 +163,10 @@ public class Login extends JFrame {
         }
         if (!courierDatabase.containsKey("courier")) {
             CourierAccount courier = new CourierAccount(
-                "Demo Courier", "courier@example.com", "0987654321",
-                "DL123456", "Motorcycle", "ABC-123", "courier", "courier123");
+                "Demo Courier", "courier@example.com", "0987654321", "courier", "courier123");
             courier.status = "Approved";
+            courier.licenseType = "D";
+            courier.icNumber = "123456-12-1234";
             courierDatabase.put("courier", courier);
             saveCourierData();
         }
@@ -190,12 +195,6 @@ public class Login extends JFrame {
     private JTextField courierRegNameField;
     private JTextField courierRegEmailField;
     private JTextField courierRegPhoneField;
-    private JTextField courierRegLicenseField;
-    private JTextField courierRegVehicleTypeField;
-    private JTextField courierRegVehiclePlateField;
-    private JTextField courierRegUserIdField;
-    private JPasswordField courierRegPasswordField;
-    private JPasswordField courierRegConfirmPwdField;
     
     private JPanel mainCardPanel;
     private CardLayout cardLayout;
@@ -207,6 +206,7 @@ public class Login extends JFrame {
     private final Color ORANGE_WHITE = new Color(255, 245, 235);
     private final Color WHITE_PURE = Color.WHITE;
     private final Color BLACK_TEXT = Color.BLACK;
+    private final Color GREY_BUTTON = new Color(128, 128, 128);
     
     private final Color ADMIN_COLOR = ORANGE_PRIMARY;
     private final Color SENDER_COLOR = new Color(52, 152, 219);
@@ -534,6 +534,11 @@ public class Login extends JFrame {
         forgotLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         forgotLabel.setForeground(SENDER_COLOR);
         forgotLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        forgotLabel.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                processSenderForgotPassword();
+            }
+        });
         panel.add(forgotLabel, gbc);
         
         // Register link
@@ -772,12 +777,66 @@ public class Login extends JFrame {
         courierRegNameField = new JTextField(15);
         courierRegEmailField = new JTextField(15);
         courierRegPhoneField = new JTextField(15);
-        courierRegLicenseField = new JTextField(15);
-        courierRegVehicleTypeField = new JTextField(15);
-        courierRegVehiclePlateField = new JTextField(15);
-        courierRegUserIdField = new JTextField(15);
-        courierRegPasswordField = new JPasswordField(15);
-        courierRegConfirmPwdField = new JPasswordField(15);
+        
+        // New fields for license type, IC number, and file upload buttons
+        JComboBox<String> licenseTypeCombo = new JComboBox<>(new String[]{
+            "A", "A1", "B", "B1", "B2", "C", "D", "DA"
+        });
+        JTextField icNumberField = new JTextField(15);
+        JButton uploadLicenseBtn = new JButton("Upload License Photo");
+        JButton uploadICBtn = new JButton("Upload IC Photo");
+        JLabel licenseFileNameLabel = new JLabel("No file chosen");
+        JLabel icFileNameLabel = new JLabel("No file chosen");
+        
+        // Style the upload buttons - GREY
+        uploadLicenseBtn.setBackground(GREY_BUTTON);
+        uploadLicenseBtn.setForeground(Color.WHITE);
+        uploadLicenseBtn.setFocusPainted(false);
+        uploadLicenseBtn.setBorderPainted(false);
+        
+        uploadICBtn.setBackground(GREY_BUTTON);
+        uploadICBtn.setForeground(Color.WHITE);
+        uploadICBtn.setFocusPainted(false);
+        uploadICBtn.setBorderPainted(false);
+        
+        licenseFileNameLabel.setFont(new Font("Arial", Font.ITALIC, 11));
+        icFileNameLabel.setFont(new Font("Arial", Font.ITALIC, 11));
+        
+        // File selection variables
+        final String[] licensePhotoPath = {null};
+        final String[] icPhotoPath = {null};
+        
+        // License photo upload action
+        uploadLicenseBtn.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                "Image Files (jpg, png, jpeg)", "jpg", "png", "jpeg"));
+            
+            int result = fileChooser.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                licensePhotoPath[0] = selectedFile.getAbsolutePath();
+                licenseFileNameLabel.setText(selectedFile.getName());
+                licenseFileNameLabel.setForeground(new Color(0, 100, 0));
+            }
+        });
+        
+        // IC photo upload action
+        uploadICBtn.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                "Image Files (jpg, png, jpeg)", "jpg", "png", "jpeg"));
+            
+            int result = fileChooser.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File selectedFile = fileChooser.getSelectedFile();
+                icPhotoPath[0] = selectedFile.getAbsolutePath();
+                icFileNameLabel.setText(selectedFile.getName());
+                icFileNameLabel.setForeground(new Color(0, 100, 0));
+            }
+        });
         
         // Full Name
         gbc.gridy = 1; gbc.gridx = 0;
@@ -800,52 +859,42 @@ public class Login extends JFrame {
         courierRegPhoneField.setPreferredSize(new Dimension(200, 30));
         panel.add(courierRegPhoneField, gbc);
         
-        // License
+        // IC Number
         gbc.gridy = 4; gbc.gridx = 0;
-        panel.add(new JLabel("License:*"), gbc);
+        panel.add(new JLabel("IC Number:*"), gbc);
         gbc.gridx = 1;
-        courierRegLicenseField.setPreferredSize(new Dimension(200, 30));
-        panel.add(courierRegLicenseField, gbc);
+        icNumberField.setPreferredSize(new Dimension(200, 30));
+        panel.add(icNumberField, gbc);
         
-        // Vehicle Type
+        // IC Photo Upload
         gbc.gridy = 5; gbc.gridx = 0;
-        panel.add(new JLabel("Vehicle Type:*"), gbc);
+        panel.add(new JLabel("Upload IC:*"), gbc);
         gbc.gridx = 1;
-        courierRegVehicleTypeField.setPreferredSize(new Dimension(200, 30));
-        panel.add(courierRegVehicleTypeField, gbc);
+        JPanel icUploadPanel = new JPanel(new BorderLayout(5, 0));
+        icUploadPanel.setBackground(Color.WHITE);
+        icUploadPanel.add(uploadICBtn, BorderLayout.WEST);
+        icUploadPanel.add(icFileNameLabel, BorderLayout.CENTER);
+        panel.add(icUploadPanel, gbc);
         
-        // Vehicle Plate
+        // License Type
         gbc.gridy = 6; gbc.gridx = 0;
-        panel.add(new JLabel("Vehicle Plate:*"), gbc);
+        panel.add(new JLabel("License Type:*"), gbc);
         gbc.gridx = 1;
-        courierRegVehiclePlateField.setPreferredSize(new Dimension(200, 30));
-        panel.add(courierRegVehiclePlateField, gbc);
+        licenseTypeCombo.setPreferredSize(new Dimension(200, 30));
+        panel.add(licenseTypeCombo, gbc);
         
-        // User ID
+        // License Photo Upload
         gbc.gridy = 7; gbc.gridx = 0;
-        panel.add(new JLabel("User ID:*"), gbc);
+        panel.add(new JLabel("Upload License:*"), gbc);
         gbc.gridx = 1;
-        courierRegUserIdField.setPreferredSize(new Dimension(200, 30));
-        panel.add(courierRegUserIdField, gbc);
-        
-        // Password
-        gbc.gridy = 8; gbc.gridx = 0;
-        panel.add(new JLabel("Password:*"), gbc);
-        gbc.gridx = 1;
-        courierRegPasswordField.setPreferredSize(new Dimension(200, 30));
-        courierRegPasswordField.setEchoChar('•');
-        panel.add(courierRegPasswordField, gbc);
-        
-        // Confirm
-        gbc.gridy = 9; gbc.gridx = 0;
-        panel.add(new JLabel("Confirm:*"), gbc);
-        gbc.gridx = 1;
-        courierRegConfirmPwdField.setPreferredSize(new Dimension(200, 30));
-        courierRegConfirmPwdField.setEchoChar('•');
-        panel.add(courierRegConfirmPwdField, gbc);
+        JPanel licenseUploadPanel = new JPanel(new BorderLayout(5, 0));
+        licenseUploadPanel.setBackground(Color.WHITE);
+        licenseUploadPanel.add(uploadLicenseBtn, BorderLayout.WEST);
+        licenseUploadPanel.add(licenseFileNameLabel, BorderLayout.CENTER);
+        panel.add(licenseUploadPanel, gbc);
         
         // Submit button
-        gbc.gridy = 10; gbc.gridx = 0; gbc.gridwidth = 2;
+        gbc.gridy = 8; gbc.gridx = 0; gbc.gridwidth = 2;
         gbc.insets = new Insets(20, 5, 5, 5);
         
         JButton submitBtn = new JButton("SUBMIT APPLICATION");
@@ -854,10 +903,255 @@ public class Login extends JFrame {
         submitBtn.setBackground(COURIER_COLOR);
         submitBtn.setPreferredSize(new Dimension(220, 45));
         submitBtn.setBorderPainted(false);
-        submitBtn.addActionListener(e -> processCourierRegistration());
+        submitBtn.addActionListener(e -> {
+            processCourierRegistration(
+                licenseTypeCombo.getSelectedItem().toString(),
+                icNumberField.getText().trim(),
+                licensePhotoPath[0],
+                icPhotoPath[0]
+            );
+        });
         panel.add(submitBtn, gbc);
         
         return panel;
+    }
+
+    private void processSenderForgotPassword() {
+        // Create a dialog for password recovery
+        JDialog forgotDialog = new JDialog(this, "Forgot Password", true);
+        forgotDialog.setSize(400, 350);
+        forgotDialog.setLocationRelativeTo(this);
+        forgotDialog.setLayout(new BorderLayout());
+        
+        // Main panel
+        JPanel mainPanel = new JPanel(new GridBagLayout());
+        mainPanel.setBackground(Color.WHITE);
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        
+        // Title
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        JLabel titleLabel = new JLabel("Reset Password", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 20));
+        titleLabel.setForeground(SENDER_COLOR);
+        mainPanel.add(titleLabel, gbc);
+        
+        // Instructions
+        gbc.gridy = 1;
+        JLabel instructionLabel = new JLabel("<html>Enter your User ID and registered email address.<br>We will verify your identity.</html>", SwingConstants.CENTER);
+        instructionLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        mainPanel.add(instructionLabel, gbc);
+        
+        gbc.gridwidth = 1;
+        
+        // User ID field
+        gbc.gridy = 2; gbc.gridx = 0;
+        mainPanel.add(new JLabel("User ID:"), gbc);
+        
+        gbc.gridx = 1;
+        JTextField userIdField = new JTextField(15);
+        userIdField.setPreferredSize(new Dimension(200, 30));
+        mainPanel.add(userIdField, gbc);
+        
+        // Email field
+        gbc.gridy = 3; gbc.gridx = 0;
+        mainPanel.add(new JLabel("Email:"), gbc);
+        
+        gbc.gridx = 1;
+        JTextField emailField = new JTextField(15);
+        emailField.setPreferredSize(new Dimension(200, 30));
+        mainPanel.add(emailField, gbc);
+        
+        // Buttons panel
+        gbc.gridy = 4; gbc.gridx = 0; gbc.gridwidth = 2;
+        gbc.insets = new Insets(20, 8, 8, 8);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        buttonPanel.setBackground(Color.WHITE);
+        
+        JButton verifyBtn = new JButton("VERIFY");
+        verifyBtn.setBackground(SENDER_COLOR);
+        verifyBtn.setForeground(Color.WHITE);
+        verifyBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        verifyBtn.setPreferredSize(new Dimension(100, 35));
+        verifyBtn.setBorderPainted(false);
+        
+        JButton cancelBtn = new JButton("CANCEL");
+        cancelBtn.setBackground(Color.GRAY);
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        cancelBtn.setPreferredSize(new Dimension(100, 35));
+        cancelBtn.setBorderPainted(false);
+        cancelBtn.addActionListener(e -> forgotDialog.dispose());
+        
+        buttonPanel.add(verifyBtn);
+        buttonPanel.add(cancelBtn);
+        mainPanel.add(buttonPanel, gbc);
+        
+        forgotDialog.add(mainPanel, BorderLayout.CENTER);
+        
+        // Verify button action
+        verifyBtn.addActionListener(e -> {
+            String userId = userIdField.getText().trim();
+            String email = emailField.getText().trim();
+            
+            if (userId.isEmpty() || email.isEmpty()) {
+                JOptionPane.showMessageDialog(forgotDialog, 
+                    "Please enter both User ID and Email!", 
+                    "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Check if user exists
+            if (senderDatabase.containsKey(userId)) {
+                SenderAccount account = senderDatabase.get(userId);
+                
+                // Verify email matches
+                if (account.email.equals(email)) {
+                    forgotDialog.dispose();
+                    showResetPasswordDialog(userId);
+                } else {
+                    JOptionPane.showMessageDialog(forgotDialog, 
+                        "Email does not match our records!", 
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(forgotDialog, 
+                    "User ID not found!", 
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        
+        forgotDialog.setVisible(true);
+    }
+
+    // Add this method to reset password
+    private void showResetPasswordDialog(String userId) {
+        JDialog resetDialog = new JDialog(this, "Reset Password", true);
+        resetDialog.setSize(380, 280);
+        resetDialog.setLocationRelativeTo(this);
+        resetDialog.setLayout(new BorderLayout());
+        
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        
+        // Title
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        JLabel titleLabel = new JLabel("Set New Password", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        titleLabel.setForeground(SENDER_COLOR);
+        panel.add(titleLabel, gbc);
+        
+        gbc.gridwidth = 1;
+        
+        // New Password
+        gbc.gridy = 1; gbc.gridx = 0;
+        panel.add(new JLabel("New Password:"), gbc);
+        
+        gbc.gridx = 1;
+        JPasswordField newPwdField = new JPasswordField(15);
+        newPwdField.setPreferredSize(new Dimension(180, 30));
+        panel.add(newPwdField, gbc);
+        
+        // Confirm Password
+        gbc.gridy = 2; gbc.gridx = 0;
+        panel.add(new JLabel("Confirm:"), gbc);
+        
+        gbc.gridx = 1;
+        JPasswordField confirmPwdField = new JPasswordField(15);
+        confirmPwdField.setPreferredSize(new Dimension(180, 30));
+        panel.add(confirmPwdField, gbc);
+        
+        // Show password checkbox
+        gbc.gridy = 3; gbc.gridx = 0; gbc.gridwidth = 2;
+        JCheckBox showPwdCheck = new JCheckBox("Show Password");
+        showPwdCheck.setBackground(Color.WHITE);
+        showPwdCheck.addActionListener(e -> {
+            char echoChar = showPwdCheck.isSelected() ? (char)0 : '•';
+            newPwdField.setEchoChar(echoChar);
+            confirmPwdField.setEchoChar(echoChar);
+        });
+        panel.add(showPwdCheck, gbc);
+        
+        // Buttons
+        gbc.gridy = 4; gbc.gridx = 0; gbc.gridwidth = 2;
+        gbc.insets = new Insets(20, 8, 8, 8);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        buttonPanel.setBackground(Color.WHITE);
+        
+        JButton resetBtn = new JButton("RESET PASSWORD");
+        resetBtn.setBackground(SENDER_COLOR);
+        resetBtn.setForeground(Color.WHITE);
+        resetBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        resetBtn.setPreferredSize(new Dimension(150, 35));
+        resetBtn.setBorderPainted(false);
+        
+        JButton cancelBtn = new JButton("CANCEL");
+        cancelBtn.setBackground(Color.GRAY);
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        cancelBtn.setPreferredSize(new Dimension(100, 35));
+        cancelBtn.setBorderPainted(false);
+        cancelBtn.addActionListener(e -> resetDialog.dispose());
+        
+        buttonPanel.add(resetBtn);
+        buttonPanel.add(cancelBtn);
+        panel.add(buttonPanel, gbc);
+        
+        resetDialog.add(panel, BorderLayout.CENTER);
+        
+        // Reset button action
+        resetBtn.addActionListener(e -> {
+            String newPwd = new String(newPwdField.getPassword());
+            String confirmPwd = new String(confirmPwdField.getPassword());
+            
+            if (newPwd.isEmpty() || confirmPwd.isEmpty()) {
+                JOptionPane.showMessageDialog(resetDialog, 
+                    "Please enter and confirm your new password!", 
+                    "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            if (!newPwd.equals(confirmPwd)) {
+                JOptionPane.showMessageDialog(resetDialog, 
+                    "Passwords do not match!", 
+                    "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            if (newPwd.length() < 6) {
+                JOptionPane.showMessageDialog(resetDialog, 
+                    "Password must be at least 6 characters long!", 
+                    "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Update password
+            SenderAccount account = senderDatabase.get(userId);
+            account.passwordHash = hashPassword(newPwd);
+            saveSenderData();
+            
+            JOptionPane.showMessageDialog(resetDialog, 
+                "Password reset successful!\nYou can now login with your new password.", 
+                "Success", JOptionPane.INFORMATION_MESSAGE);
+            
+            resetDialog.dispose();
+            
+            // Clear login fields and set user ID
+            senderUserIdField.setText(userId);
+            senderPasswordField.setText("");
+        });
+        
+        resetDialog.setVisible(true);
     }
     
     // ========== PROCESS METHODS ==========
@@ -907,57 +1201,105 @@ public class Login extends JFrame {
         senderUserIdField.setText(userId);
     }
     
-    private void processCourierRegistration() {
+    private void processCourierRegistration(String licenseType, String icNumber, String licensePhotoPath, String icPhotoPath) {
         String name = courierRegNameField.getText().trim();
         String email = courierRegEmailField.getText().trim();
         String phone = courierRegPhoneField.getText().trim();
-        String license = courierRegLicenseField.getText().trim();
-        String vehicleType = courierRegVehicleTypeField.getText().trim();
-        String vehiclePlate = courierRegVehiclePlateField.getText().trim();
-        String userId = courierRegUserIdField.getText().trim();
-        String password = new String(courierRegPasswordField.getPassword());
-        String confirmPwd = new String(courierRegConfirmPwdField.getPassword());
         
-        if (name.isEmpty() || email.isEmpty() || phone.isEmpty() || license.isEmpty() || 
-            vehicleType.isEmpty() || vehiclePlate.isEmpty() || userId.isEmpty() || password.isEmpty()) {
+        // Validation
+        if (name.isEmpty() || email.isEmpty() || phone.isEmpty() || icNumber.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Please fill in all required fields!", 
                 "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         
-        if (!password.equals(confirmPwd)) {
-            JOptionPane.showMessageDialog(this, "Passwords do not match!", 
+        // Validate email format
+        if (!email.contains("@") || !email.contains(".")) {
+            JOptionPane.showMessageDialog(this, "Please enter a valid email address!", 
                 "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         
-        if (courierDatabase.containsKey(userId)) {
-            JOptionPane.showMessageDialog(this, "User ID already exists!", 
+        // Validate phone number (basic validation)
+        if (phone.length() < 10 || phone.length() > 15) {
+            JOptionPane.showMessageDialog(this, "Please enter a valid phone number!", 
                 "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         
-        CourierAccount newCourier = new CourierAccount(name, email, phone, license, vehicleType, vehiclePlate, userId, password);
-        courierDatabase.put(userId, newCourier);
+        // Validate IC number format (basic validation)
+        if (!icNumber.matches("\\d{6}-\\d{2}-\\d{4}") && !icNumber.matches("\\d{12}")) {
+            int confirm = JOptionPane.showConfirmDialog(this, 
+                "IC number format may be incorrect. Expected format: 123456-12-1234 or 12 digits.\nContinue anyway?", 
+                "Warning", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+        }
+        
+        // Check if files are uploaded
+        if (licensePhotoPath == null || icPhotoPath == null) {
+            JOptionPane.showMessageDialog(this, 
+                "Please upload both License photo and IC photo!", 
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        // Check file sizes (optional - limit to 5MB)
+        File licenseFile = new File(licensePhotoPath);
+        File icFile = new File(icPhotoPath);
+        long maxSize = 5 * 1024 * 1024; // 5MB
+        
+        if (licenseFile.length() > maxSize || icFile.length() > maxSize) {
+            JOptionPane.showMessageDialog(this, 
+                "File size too large! Maximum size is 5MB per file.", 
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        // Generate a user ID automatically (using email prefix + timestamp)
+        String emailPrefix = email.substring(0, email.indexOf('@'));
+        // Remove special characters from email prefix
+        emailPrefix = emailPrefix.replaceAll("[^a-zA-Z0-9]", "");
+        String generatedUserId = emailPrefix + System.currentTimeMillis() % 10000;
+        
+        // Generate a random password for initial login
+        String generatedPassword = "courier" + (int)(Math.random() * 9000 + 1000);
+        
+        // Create account with generated credentials
+        CourierAccount newCourier = new CourierAccount(
+            name, email, phone, generatedUserId, generatedPassword);
+        
+        // Add additional fields
+        newCourier.licenseType = licenseType;
+        newCourier.icNumber = icNumber;
+        newCourier.licensePhotoPath = licensePhotoPath;
+        newCourier.icPhotoPath = icPhotoPath;
+        
+        courierDatabase.put(generatedUserId, newCourier);
         saveCourierData();
         
-        JOptionPane.showMessageDialog(this, 
-            "Application submitted! Pending admin approval.", 
-            "Success", JOptionPane.INFORMATION_MESSAGE);
+        // Show success message with generated credentials
+        String message = String.format(
+            "Application submitted successfully!\n\n" +
+            "Your User ID: %s\n" +
+            "Your Password: %s\n\n" +
+            "Please save these credentials for future login.\n" +
+            "Your application is pending admin approval.",
+            generatedUserId, generatedPassword);
+        
+        JOptionPane.showMessageDialog(this, message, 
+            "Application Submitted", JOptionPane.INFORMATION_MESSAGE);
         
         // Clear fields
         courierRegNameField.setText("");
         courierRegEmailField.setText("");
         courierRegPhoneField.setText("");
-        courierRegLicenseField.setText("");
-        courierRegVehicleTypeField.setText("");
-        courierRegVehiclePlateField.setText("");
-        courierRegUserIdField.setText("");
-        courierRegPasswordField.setText("");
-        courierRegConfirmPwdField.setText("");
         
-        // Switch to login tab
+        // Switch to login tab and pre-fill the generated user ID
         courierTabbedPane.setSelectedIndex(0);
+        courierUserIdField.setText(generatedUserId);
+        courierPasswordField.setText("");
     }
     
     private void processSenderLogin() {
@@ -975,10 +1317,15 @@ public class Login extends JFrame {
             if (verifyPassword(password, account.passwordHash)) {
                 account.lastLogin = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
                 saveSenderData();
+                
+                // Close login window and open sender dashboard
                 JOptionPane.showMessageDialog(this, "Login successful! Welcome, " + account.fullName + "!", 
                     "Success", JOptionPane.INFORMATION_MESSAGE);
-                senderUserIdField.setText("");
-                senderPasswordField.setText("");
+                
+                // Open SenderDashboard with sender information
+                new SenderDashboard(account.fullName, account.email).setVisible(true);
+                this.dispose(); // Close the login window
+                
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid password!", 
                     "Error", JOptionPane.ERROR_MESSAGE);
@@ -1051,7 +1398,6 @@ public class Login extends JFrame {
             e.printStackTrace();
         }
         
-        // 确保在事件调度线程中创建GUI
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 new Login().setVisible(true);
