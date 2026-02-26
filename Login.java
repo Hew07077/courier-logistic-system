@@ -1,6 +1,6 @@
-package LogisticAdmin.gui;
+package logistics.login;
 
-import LogisticAdmin.gui.admin.AdminDashboard;
+import logistics.login.admin.AdminDashboard;
 
 import javax.swing.*;
 import javax.swing.Timer;

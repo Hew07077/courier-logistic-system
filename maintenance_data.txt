@@ -1,0 +1,7 @@
+// Format: MaintenanceID|VehicleID|Description|Status|ScheduledDate|Notes
+MNT001|TRK001|Oil Change|Scheduled|2024-01-20|Regular maintenance - 5000 miles
+MNT002|VAN001|Brake Repair|In Progress|2024-01-15|Front brake pads replacement
+MNT003|TRK002|Tire Replacement|Completed|2024-01-10|All 6 tires replaced
+MNT005|VAN002|Battery Replacement|Completed|2024-01-18|Battery showing low voltage
+MNT006|TRK003|Transmission Service|In Progress|2024-01-12|Fluid change and inspection
+MNT007|MTC001|Chain Replacement|Completed|2024-01-08|Drive chain and sprockets

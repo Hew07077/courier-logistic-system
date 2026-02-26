@@ -1,0 +1,5 @@
+// Type counters for generating new IDs
+Truck=4
+Van=4
+Car=1
+Motorcycle=1
