@@ -9,7 +9,6 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -24,9 +23,6 @@ public class MaintenanceManagement {
     private TableRowSorter<DefaultTableModel> rowSorter;
     private List<MaintenanceRecord> maintenanceRecords;
     
-    // File for data persistence
-    private static final String MAINTENANCE_FILE = "maintenance_data.txt";
-    
     // UI Components
     private JTextField searchField;
     private JComboBox<String> statusFilter;
@@ -35,14 +31,12 @@ public class MaintenanceManagement {
     private JLabel completedCountLabel;
     private JLabel totalCountLabel;
     
-    // Color scheme - matching VehicleManagement
+    // Color scheme
     private static final Color PRIMARY_COLOR = new Color(25, 118, 210);
-    private static final Color SECONDARY_COLOR = new Color(255, 160, 0);
     private static final Color SUCCESS_COLOR = new Color(46, 125, 50);
     private static final Color WARNING_COLOR = new Color(237, 108, 2);
     private static final Color DANGER_COLOR = new Color(198, 40, 40);
     private static final Color INFO_COLOR = new Color(2, 136, 209);
-    private static final Color PURPLE_COLOR = new Color(156, 39, 176);
     private static final Color LIGHT_BG = new Color(250, 250, 250);
     private static final Color BORDER_COLOR = new Color(224, 224, 224);
     private static final Color TEXT_PRIMARY = new Color(33, 33, 33);
@@ -52,98 +46,55 @@ public class MaintenanceManagement {
     
     public MaintenanceManagement() {
         maintenanceRecords = new ArrayList<>();
-        loadDataFromFile();
+        initializeSampleData();
         createMainPanel();
     }
     
-    private void loadDataFromFile() {
-        maintenanceRecords.clear();
-        File file = new File(MAINTENANCE_FILE);
-        
-        if (!file.exists()) {
-            createSampleDataFile();
-            loadDataFromFile();
-            return;
-        }
-        
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!line.trim().isEmpty() && !line.startsWith("//")) {
-                    MaintenanceRecord record = parseRecordFromLine(line);
-                    if (record != null) {
-                        maintenanceRecords.add(record);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            showErrorDialog("Error loading maintenance data: " + e.getMessage());
-        }
-    }
-    
-    private MaintenanceRecord parseRecordFromLine(String line) {
+    private void initializeSampleData() {
         try {
-            String[] parts = line.split("\\|");
-            if (parts.length >= 6) {
-                String maintenanceId = parts[0].trim();
-                String vehicleId = parts[1].trim();
-                String description = parts[2].trim();
-                String status = parts[3].trim();
-                Date scheduledDate = dateFormat.parse(parts[4].trim());
-                String notes = parts[5].trim();
-                
-                return new MaintenanceRecord(maintenanceId, vehicleId, description, status, scheduledDate, notes);
-            }
-        } catch (Exception e) {
-            System.err.println("Error parsing line: " + line);
-        }
-        return null;
-    }
-    
-    private void createSampleDataFile() {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(MAINTENANCE_FILE))) {
-            writer.write("// Format: MaintenanceID|VehicleID|Description|Status|ScheduledDate|Notes");
-            writer.newLine();
-            writer.write("MNT001|TRK001|Oil Change|Scheduled|2024-01-20|Regular maintenance - 5000 miles");
-            writer.newLine();
-            writer.write("MNT002|VAN001|Brake Repair|In Progress|2024-01-15|Front brake pads replacement");
-            writer.newLine();
-            writer.write("MNT003|TRK002|Tire Replacement|Completed|2024-01-10|All 6 tires replaced");
-            writer.newLine();
-            writer.write("MNT004|CAR001|Engine Check|Scheduled|2024-01-22|Check engine light on");
-            writer.newLine();
-            writer.write("MNT005|VAN002|Battery Replacement|Scheduled|2024-01-18|Battery showing low voltage");
-            writer.newLine();
-            writer.write("MNT006|TRK003|Transmission Service|In Progress|2024-01-12|Fluid change and inspection");
-            writer.newLine();
-            writer.write("MNT007|MTC001|Chain Replacement|Completed|2024-01-08|Drive chain and sprockets");
-            writer.newLine();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    
-    private void saveDataToFile() {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(MAINTENANCE_FILE))) {
-            writer.write("// Format: MaintenanceID|VehicleID|Description|Status|ScheduledDate|Notes");
-            writer.newLine();
+            // Create sample maintenance records
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT001", "TRK001", "Oil Change", "Scheduled", 
+                dateFormat.parse("2024-01-20"), "Regular maintenance - 5000 miles"));
             
-            for (MaintenanceRecord record : maintenanceRecords) {
-                String line = String.format("%s|%s|%s|%s|%s|%s",
-                    record.getMaintenanceId(),
-                    record.getVehicleId(),
-                    record.getDescription(),
-                    record.getStatus(),
-                    dateFormat.format(record.getScheduledDate()),
-                    record.getNotes()
-                );
-                writer.write(line);
-                writer.newLine();
-            }
-        } catch (IOException e) {
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT002", "VAN001", "Brake Repair", "In Progress", 
+                dateFormat.parse("2024-01-15"), "Front brake pads replacement"));
+            
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT003", "TRK002", "Tire Replacement", "Completed", 
+                dateFormat.parse("2024-01-10"), "All 6 tires replaced"));
+            
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT004", "CAR001", "Engine Check", "Scheduled", 
+                dateFormat.parse("2024-01-22"), "Check engine light on"));
+            
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT005", "VAN002", "Battery Replacement", "Scheduled", 
+                dateFormat.parse("2024-01-18"), "Battery showing low voltage"));
+            
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT006", "TRK003", "Transmission Service", "In Progress", 
+                dateFormat.parse("2024-01-12"), "Fluid change and inspection"));
+            
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT007", "MTC001", "Chain Replacement", "Completed", 
+                dateFormat.parse("2024-01-08"), "Drive chain and sprockets"));
+                
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT008", "TRK001", "Air Filter Replacement", "Scheduled", 
+                dateFormat.parse("2024-01-25"), "Regular maintenance check"));
+                
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT009", "BUS001", "AC Repair", "Scheduled", 
+                dateFormat.parse("2024-01-23"), "AC not cooling properly"));
+                
+            maintenanceRecords.add(new MaintenanceRecord(
+                "MNT010", "VAN003", "Alignment Check", "Completed", 
+                dateFormat.parse("2024-01-05"), "Wheel alignment and balancing"));
+                
+        } catch (Exception e) {
             e.printStackTrace();
-            showErrorDialog("Error saving maintenance data: " + e.getMessage());
         }
     }
     
@@ -556,7 +507,6 @@ public class MaintenanceManagement {
             completeButton.setPreferredSize(new Dimension(140, 35));
             completeButton.addActionListener(e -> {
                 record.setStatus("Completed");
-                saveDataToFile();
                 refreshData();
                 dialog.dispose();
                 showSuccessDialog("Maintenance marked as completed!");
@@ -683,8 +633,6 @@ public class MaintenanceManagement {
                     maintenanceId, vehicleId, description, status, scheduledDate, notes);
                 maintenanceRecords.add(newRecord);
                 
-                saveDataToFile();
-                
                 showSuccessDialog("Maintenance scheduled successfully!\nID: " + maintenanceId);
                 refreshData();
                 dialog.dispose();
@@ -804,8 +752,6 @@ public class MaintenanceManagement {
                 record.setStatus((String) statusCombo.getSelectedItem());
                 record.setNotes(notesArea.getText());
                 
-                saveDataToFile();
-                
                 showSuccessDialog("Maintenance record updated successfully!");
                 refreshData();
                 dialog.dispose();
@@ -841,9 +787,7 @@ public class MaintenanceManagement {
             
         if (confirm == JOptionPane.YES_OPTION) {
             int modelRow = maintenanceTable.convertRowIndexToModel(selectedRow);
-            MaintenanceRecord record = maintenanceRecords.get(modelRow);
             maintenanceRecords.remove(modelRow);
-            saveDataToFile();
             refreshData();
             showSuccessDialog("Maintenance record deleted successfully!");
         }
@@ -861,7 +805,6 @@ public class MaintenanceManagement {
         
         if (!"Completed".equals(record.getStatus())) {
             record.setStatus("Completed");
-            saveDataToFile();
             refreshData();
             showSuccessDialog("Maintenance marked as completed!");
         } else {
@@ -881,7 +824,6 @@ public class MaintenanceManagement {
         
         if ("Scheduled".equals(record.getStatus())) {
             record.setStatus("In Progress");
-            saveDataToFile();
             refreshData();
             showSuccessDialog("Maintenance marked as In Progress!");
         } else {
@@ -942,7 +884,6 @@ public class MaintenanceManagement {
     }
     
     public void refreshData() {
-        loadDataFromFile();
         refreshTableData();
         updateStats();
     }

@@ -45,7 +45,6 @@ public class VehicleManagement {
     
     // Color scheme - Modern Professional
     private static final Color PRIMARY_COLOR = new Color(25, 118, 210);
-    private static final Color SECONDARY_COLOR = new Color(255, 160, 0);
     private static final Color SUCCESS_COLOR = new Color(46, 125, 50);
     private static final Color WARNING_COLOR = new Color(237, 108, 2);
     private static final Color DANGER_COLOR = new Color(198, 40, 40);
@@ -366,12 +365,9 @@ public class VehicleManagement {
         topPanel.setBackground(LIGHT_BG);
         topPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
-        // Title with icon
+        // Title
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         titlePanel.setBackground(LIGHT_BG);
-        
-        JLabel titleIcon = new JLabel("🚛");
-        titleIcon.setFont(new Font("Segoe UI", Font.PLAIN, 32));
         
         JLabel titleLabel = new JLabel("Fleet Management System");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
@@ -381,7 +377,6 @@ public class VehicleManagement {
         subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitleLabel.setForeground(TEXT_SECONDARY);
         
-        titlePanel.add(titleIcon);
         titlePanel.add(titleLabel);
         titlePanel.add(Box.createHorizontalStrut(10));
         titlePanel.add(subtitleLabel);
@@ -420,11 +415,11 @@ public class VehicleManagement {
         JPanel statsPanel = new JPanel(new GridLayout(1, 5, 15, 0));
         statsPanel.setBackground(LIGHT_BG);
         
-        activeCountLabel = createStatCard("Active Vehicles", String.valueOf(getActiveCount()), SUCCESS_COLOR, "🚚");
-        maintenanceCountLabel = createStatCard("In Maintenance", String.valueOf(getMaintenanceCount()), WARNING_COLOR, "🔧");
-        expiredRoadTaxLabel = createStatCard("Expired Tax", String.valueOf(getExpiredRoadTaxCount()), DANGER_COLOR, "⚠️");
-        totalCountLabel = createStatCard("Total Vehicles", String.valueOf(getTotalCount()), PRIMARY_COLOR, "📊");
-        availableDriversLabel = createStatCard("Available Drivers", String.valueOf(getAvailableDriversCount()), INFO_COLOR, "👤");
+        activeCountLabel = createStatCard("Active Vehicles", String.valueOf(getActiveCount()), SUCCESS_COLOR);
+        maintenanceCountLabel = createStatCard("In Maintenance", String.valueOf(getMaintenanceCount()), WARNING_COLOR);
+        expiredRoadTaxLabel = createStatCard("Expired Tax", String.valueOf(getExpiredRoadTaxCount()), DANGER_COLOR);
+        totalCountLabel = createStatCard("Total Vehicles", String.valueOf(getTotalCount()), PRIMARY_COLOR);
+        availableDriversLabel = createStatCard("Available Drivers", String.valueOf(getAvailableDriversCount()), INFO_COLOR);
         
         statsPanel.add(activeCountLabel);
         statsPanel.add(maintenanceCountLabel);
@@ -435,7 +430,7 @@ public class VehicleManagement {
         return statsPanel;
     }
     
-    private JLabel createStatCard(String title, String value, Color color, String icon) {
+    private JLabel createStatCard(String title, String value, Color color) {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBackground(Color.WHITE);
@@ -443,10 +438,6 @@ public class VehicleManagement {
             new LineBorder(BORDER_COLOR, 1, true),
             BorderFactory.createEmptyBorder(10, 15, 10, 15)
         ));
-        
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 20));
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         JLabel valueLabel = new JLabel(value);
         valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
@@ -458,8 +449,6 @@ public class VehicleManagement {
         titleLabel.setForeground(TEXT_SECONDARY);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        card.add(iconLabel);
-        card.add(Box.createVerticalStrut(5));
         card.add(valueLabel);
         card.add(Box.createVerticalStrut(5));
         card.add(titleLabel);
@@ -479,12 +468,9 @@ public class VehicleManagement {
             BorderFactory.createEmptyBorder(10, 15, 10, 15)
         ));
         
-        // Search Field with icon
+        // Search Field
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         searchPanel.setBackground(Color.WHITE);
-        
-        JLabel searchIcon = new JLabel("🔍");
-        searchIcon.setFont(new Font("Segoe UI", Font.PLAIN, 16));
         
         searchField = new JTextField(20);
         searchField.putClientProperty("JTextField.placeholderText", "Search vehicles...");
@@ -500,7 +486,6 @@ public class VehicleManagement {
             public void insertUpdate(javax.swing.event.DocumentEvent e) { filterTable(); }
         });
         
-        searchPanel.add(searchIcon);
         searchPanel.add(searchField);
         filterPanel.add(searchPanel);
         
@@ -551,7 +536,6 @@ public class VehicleManagement {
     }
     
     private void createVehicleTable() {
-        // Removed Actions column
         String[] columns = {"ID", "Model", "Type", "Plate", "Road Tax", "Fuel", "Status", "Driver"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -583,7 +567,7 @@ public class VehicleManagement {
         header.setPreferredSize(new Dimension(100, 45));
         header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY_COLOR));
         
-        // Set column widths - adjusted without Actions column
+        // Set column widths
         vehiclesTable.getColumnModel().getColumn(0).setPreferredWidth(80);
         vehiclesTable.getColumnModel().getColumn(1).setPreferredWidth(180);
         vehiclesTable.getColumnModel().getColumn(2).setPreferredWidth(80);
@@ -617,7 +601,14 @@ public class VehicleManagement {
                             String driverName = vehicle.getDriverName();
                             
                             if (driverName != null && !driverName.equals("Unassigned")) {
-                                showDriverProfile(driverName);
+                                if (driverProfileListener != null) {
+                                    driverProfileListener.onDriverProfileClicked(driverName);
+                                } else {
+                                    JOptionPane.showMessageDialog(mainPanel, 
+                                        "Driver: " + driverName,
+                                        "Driver Information",
+                                        JOptionPane.INFORMATION_MESSAGE);
+                                }
                             }
                         } else {
                             showVehicleDetails(row);
@@ -635,29 +626,26 @@ public class VehicleManagement {
         buttonPanel.setBackground(LIGHT_BG);
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
         
-        JButton addButton = createModernButton("➕ Add Vehicle", PRIMARY_COLOR);
-        JButton assignButton = createModernButton("👤 Assign Driver", SUCCESS_COLOR);
-        JButton unassignButton = createModernButton("🚫 Unassign", DANGER_COLOR);
-        JButton maintenanceButton = createModernButton("🔧 Maintenance", WARNING_COLOR);
-        JButton roadTaxButton = createModernButton("📅 Update Tax", INFO_COLOR);
-        JButton viewDriversButton = createModernButton("👥 Driver List", new Color(156, 39, 176));
-        JButton refreshButton = createModernButton("🔄 Refresh", TEXT_SECONDARY);
+        JButton addButton = createModernButton("Add Vehicle", PRIMARY_COLOR);
+        JButton editButton = createModernButton("Edit Vehicle", new Color(255, 152, 0));
+        JButton assignButton = createModernButton("Assign Driver", SUCCESS_COLOR);
+        JButton unassignButton = createModernButton("Unassign", DANGER_COLOR);
+        JButton maintenanceButton = createModernButton("Maintenance", WARNING_COLOR);
+        JButton roadTaxButton = createModernButton("Update Tax", INFO_COLOR);
         
         addButton.addActionListener(this::showAddVehicleDialog);
+        editButton.addActionListener(this::showEditVehicleDialog);
         assignButton.addActionListener(this::showAssignDriverDialog);
         unassignButton.addActionListener(this::unassignDriver);
         maintenanceButton.addActionListener(this::toggleMaintenanceStatus);
         roadTaxButton.addActionListener(this::showUpdateRoadTaxDialog);
-        viewDriversButton.addActionListener(e -> showDriversList());
-        refreshButton.addActionListener(e -> refreshData());
         
         buttonPanel.add(addButton);
+        buttonPanel.add(editButton);
         buttonPanel.add(assignButton);
         buttonPanel.add(unassignButton);
         buttonPanel.add(maintenanceButton);
         buttonPanel.add(roadTaxButton);
-        buttonPanel.add(viewDriversButton);
-        buttonPanel.add(refreshButton);
         
         return buttonPanel;
     }
@@ -671,7 +659,7 @@ public class VehicleManagement {
         button.setBorderPainted(false);
         button.setOpaque(true);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setPreferredSize(new Dimension(120, 38));
+        button.setPreferredSize(new Dimension(110, 38));
         
         button.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         
@@ -759,226 +747,14 @@ public class VehicleManagement {
     }
     
     private void showDriverProfile(String driverName) {
-        Driver driver = findDriverByName(driverName);
-        if (driver != null) {
-            showDriverProfileDialog(driver);
-            if (driverProfileListener != null) {
-                driverProfileListener.onDriverProfileClicked(driverName);
-            }
+        if (driverProfileListener != null) {
+            driverProfileListener.onDriverProfileClicked(driverName);
+        } else {
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Driver: " + driverName,
+                "Driver Information",
+                JOptionPane.INFORMATION_MESSAGE);
         }
-    }
-    
-    private void showDriverProfileDialog(Driver driver) {
-        JDialog dialog = createModernDialog("Driver Profile - " + driver.getName(), 500, 500);
-        
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBackground(Color.WHITE);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
-        
-        // Header with avatar
-        JPanel headerPanel = new JPanel(new BorderLayout(15, 0));
-        headerPanel.setBackground(Color.WHITE);
-        
-        JLabel avatarLabel = new JLabel("👤");
-        avatarLabel.setFont(new Font("Segoe UI", Font.PLAIN, 64));
-        avatarLabel.setForeground(PRIMARY_COLOR);
-        
-        JPanel namePanel = new JPanel();
-        namePanel.setLayout(new BoxLayout(namePanel, BoxLayout.Y_AXIS));
-        namePanel.setBackground(Color.WHITE);
-        
-        JLabel nameLabel = new JLabel(driver.getName());
-        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        nameLabel.setForeground(TEXT_PRIMARY);
-        
-        JLabel statusLabel = new JLabel(driver.getStatus());
-        statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        statusLabel.setForeground(getStatusColor(driver.getStatus()));
-        statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
-        
-        namePanel.add(nameLabel);
-        namePanel.add(statusLabel);
-        
-        headerPanel.add(avatarLabel, BorderLayout.WEST);
-        headerPanel.add(namePanel, BorderLayout.CENTER);
-        
-        mainPanel.add(headerPanel, BorderLayout.NORTH);
-        
-        // Details panel
-        JPanel detailsPanel = new JPanel(new GridBagLayout());
-        detailsPanel.setBackground(Color.WHITE);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(10, 10, 10, 10);
-        gbc.gridwidth = 1;
-        
-        addDetailRow(detailsPanel, gbc, "License Number:", driver.getLicenseNumber(), 0);
-        addDetailRow(detailsPanel, gbc, "Phone:", driver.getPhone(), 1);
-        addDetailRow(detailsPanel, gbc, "Email:", driver.getEmail(), 2);
-        addDetailRow(detailsPanel, gbc, "Joined Date:", dateFormat.format(driver.getJoinedDate()), 3);
-        
-        String vehicleInfo = "None";
-        if (driver.getCurrentVehicle() != null) {
-            Vehicle vehicle = findVehicleById(driver.getCurrentVehicle());
-            vehicleInfo = vehicle != null ? 
-                vehicle.getVehicleId() + " - " + vehicle.getModel() : 
-                driver.getCurrentVehicle();
-        }
-        addDetailRow(detailsPanel, gbc, "Current Vehicle:", vehicleInfo, 4);
-        
-        JScrollPane scrollPane = new JScrollPane(detailsPanel);
-        scrollPane.setBorder(null);
-        scrollPane.setBackground(Color.WHITE);
-        mainPanel.add(scrollPane, BorderLayout.CENTER);
-        
-        // Button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setBackground(Color.WHITE);
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 0, 0));
-        
-        JButton closeButton = createModernButton("Close", TEXT_SECONDARY);
-        closeButton.setPreferredSize(new Dimension(100, 35));
-        closeButton.addActionListener(e -> dialog.dispose());
-        
-        if (driver.getCurrentVehicle() != null) {
-            JButton viewVehicleButton = createModernButton("View Vehicle", PRIMARY_COLOR);
-            viewVehicleButton.setPreferredSize(new Dimension(120, 35));
-            viewVehicleButton.addActionListener(e -> {
-                Vehicle vehicle = findVehicleById(driver.getCurrentVehicle());
-                if (vehicle != null) {
-                    dialog.dispose();
-                    showVehicleDetails(vehicle);
-                }
-            });
-            buttonPanel.add(viewVehicleButton);
-        }
-        
-        buttonPanel.add(closeButton);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.add(mainPanel);
-        dialog.setVisible(true);
-    }
-    
-    private void addDetailRow(JPanel panel, GridBagConstraints gbc, String label, String value, int row) {
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.weightx = 0.3;
-        JLabel labelComp = new JLabel(label);
-        labelComp.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        labelComp.setForeground(TEXT_SECONDARY);
-        panel.add(labelComp, gbc);
-        
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        JLabel valueComp = new JLabel(value);
-        valueComp.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        valueComp.setForeground(TEXT_PRIMARY);
-        panel.add(valueComp, gbc);
-    }
-    
-    private Color getStatusColor(String status) {
-        switch (status) {
-            case "Active": return SUCCESS_COLOR;
-            case "Available": return INFO_COLOR;
-            case "Inactive": return TEXT_SECONDARY;
-            default: return TEXT_PRIMARY;
-        }
-    }
-    
-    private void showDriversList() {
-        JDialog dialog = createModernDialog("Driver Management", 800, 500);
-        
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBackground(Color.WHITE);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
-        // Title
-        JLabel titleLabel = new JLabel("👥 Driver Directory");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        titleLabel.setForeground(PRIMARY_COLOR);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
-        mainPanel.add(titleLabel, BorderLayout.NORTH);
-        
-        // Create table for drivers
-        String[] columns = {"Name", "License", "Phone", "Status", "Vehicle"};
-        DefaultTableModel driverTableModel = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        
-        JTable driverTable = new JTable(driverTableModel);
-        styleTable(driverTable);
-        
-        // Add drivers to table
-        for (Driver driver : drivers) {
-            if (!driver.getName().equals("Unassigned")) {
-                String vehicleInfo = "None";
-                if (driver.getCurrentVehicle() != null) {
-                    Vehicle vehicle = findVehicleById(driver.getCurrentVehicle());
-                    vehicleInfo = vehicle != null ? vehicle.getVehicleId() : driver.getCurrentVehicle();
-                }
-                
-                driverTableModel.addRow(new Object[]{
-                    driver.getName(),
-                    driver.getLicenseNumber(),
-                    driver.getPhone(),
-                    driver.getStatus(),
-                    vehicleInfo
-                });
-            }
-        }
-        
-        // Add mouse listener for double-click
-        driverTable.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    int row = driverTable.getSelectedRow();
-                    if (row != -1) {
-                        String name = (String) driverTable.getValueAt(row, 0);
-                        Driver selectedDriver = findDriverByName(name);
-                        if (selectedDriver != null) {
-                            showDriverProfileDialog(selectedDriver);
-                        }
-                    }
-                }
-            }
-        });
-        
-        JScrollPane scrollPane = new JScrollPane(driverTable);
-        scrollPane.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        mainPanel.add(scrollPane, BorderLayout.CENTER);
-        
-        // Button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setBackground(Color.WHITE);
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 0, 0));
-        
-        JButton closeButton = createModernButton("Close", TEXT_SECONDARY);
-        closeButton.addActionListener(e -> dialog.dispose());
-        buttonPanel.add(closeButton);
-        
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.add(mainPanel);
-        dialog.setVisible(true);
-    }
-    
-    private void styleTable(JTable table) {
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        table.setRowHeight(40);
-        table.setSelectionBackground(new Color(PRIMARY_COLOR.getRed(), PRIMARY_COLOR.getGreen(), PRIMARY_COLOR.getBlue(), 30));
-        table.setShowGrid(true);
-        table.setGridColor(BORDER_COLOR);
-        
-        JTableHeader header = table.getTableHeader();
-        header.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        header.setBackground(Color.WHITE);
-        header.setForeground(PRIMARY_COLOR);
-        header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY_COLOR));
     }
     
     private void showVehicleDetails(int row) {
@@ -991,19 +767,15 @@ public class VehicleManagement {
         String expiryStatus = vehicle.isRoadTaxExpired() ? "Expired" : "Valid";
         Color expiryColor = vehicle.isRoadTaxExpired() ? DANGER_COLOR : SUCCESS_COLOR;
         
-        JDialog dialog = createModernDialog("Vehicle Details - " + vehicle.getVehicleId(), 500, 600);
+        JDialog dialog = createModernDialog("Vehicle Details - " + vehicle.getVehicleId(), 500, 500);
         
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(Color.WHITE);
         mainPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
         
-        // Header with icon
+        // Header
         JPanel headerPanel = new JPanel(new BorderLayout(15, 0));
         headerPanel.setBackground(Color.WHITE);
-        
-        String typeIcon = getVehicleIcon(vehicle.getType());
-        JLabel iconLabel = new JLabel(typeIcon);
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 48));
         
         JPanel titlePanel = new JPanel();
         titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
@@ -1020,7 +792,6 @@ public class VehicleManagement {
         titlePanel.add(idLabel);
         titlePanel.add(modelLabel);
         
-        headerPanel.add(iconLabel, BorderLayout.WEST);
         headerPanel.add(titlePanel, BorderLayout.CENTER);
         
         mainPanel.add(headerPanel, BorderLayout.NORTH);
@@ -1082,36 +853,6 @@ public class VehicleManagement {
         driverValue.setForeground(vehicle.getDriverName() != null ? PRIMARY_COLOR : TEXT_SECONDARY);
         detailsPanel.add(driverValue, gbc);
         
-        // Add driver details if assigned
-        if (vehicle.getDriverName() != null && !vehicle.getDriverName().equals("Unassigned")) {
-            Driver driver = findDriverByName(vehicle.getDriverName());
-            if (driver != null) {
-                gbc.gridx = 0;
-                gbc.gridy = 6;
-                JLabel licenseLabel = new JLabel("Driver License:");
-                licenseLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-                licenseLabel.setForeground(TEXT_SECONDARY);
-                detailsPanel.add(licenseLabel, gbc);
-                
-                gbc.gridx = 1;
-                JLabel licenseValue = new JLabel(driver.getLicenseNumber());
-                licenseValue.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-                detailsPanel.add(licenseValue, gbc);
-                
-                gbc.gridx = 0;
-                gbc.gridy = 7;
-                JLabel phoneLabel = new JLabel("Driver Phone:");
-                phoneLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-                phoneLabel.setForeground(TEXT_SECONDARY);
-                detailsPanel.add(phoneLabel, gbc);
-                
-                gbc.gridx = 1;
-                JLabel phoneValue = new JLabel(driver.getPhone());
-                phoneValue.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-                detailsPanel.add(phoneValue, gbc);
-            }
-        }
-        
         JScrollPane scrollPane = new JScrollPane(detailsPanel);
         scrollPane.setBorder(null);
         mainPanel.add(scrollPane, BorderLayout.CENTER);
@@ -1122,8 +863,8 @@ public class VehicleManagement {
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 0, 0));
         
         if (vehicle.getDriverName() != null && !vehicle.getDriverName().equals("Unassigned")) {
-            JButton viewDriverButton = createModernButton("View Driver Profile", PRIMARY_COLOR);
-            viewDriverButton.setPreferredSize(new Dimension(160, 35));
+            JButton viewDriverButton = createModernButton("View Driver", PRIMARY_COLOR);
+            viewDriverButton.setPreferredSize(new Dimension(120, 35));
             viewDriverButton.addActionListener(e -> {
                 dialog.dispose();
                 showDriverProfile(vehicle.getDriverName());
@@ -1142,13 +883,29 @@ public class VehicleManagement {
         dialog.setVisible(true);
     }
     
-    private String getVehicleIcon(String type) {
-        switch (type) {
-            case "Truck": return "🚛";
-            case "Van": return "🚐";
-            case "Car": return "🚗";
-            case "Motorcycle": return "🏍️";
-            default: return "🚗";
+    private void addDetailRow(JPanel panel, GridBagConstraints gbc, String label, String value, int row) {
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = 0.3;
+        JLabel labelComp = new JLabel(label);
+        labelComp.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        labelComp.setForeground(TEXT_SECONDARY);
+        panel.add(labelComp, gbc);
+        
+        gbc.gridx = 1;
+        gbc.weightx = 0.7;
+        JLabel valueComp = new JLabel(value);
+        valueComp.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        valueComp.setForeground(TEXT_PRIMARY);
+        panel.add(valueComp, gbc);
+    }
+    
+    private Color getStatusColor(String status) {
+        switch (status) {
+            case "Active": return SUCCESS_COLOR;
+            case "Available": return INFO_COLOR;
+            case "Inactive": return TEXT_SECONDARY;
+            default: return TEXT_PRIMARY;
         }
     }
     
@@ -1195,7 +952,7 @@ public class VehicleManagement {
     }
     
     private void showAssignDriverDialog(Vehicle vehicle) {
-        JDialog dialog = createModernDialog("Assign Driver to Vehicle", 500, 500);
+        JDialog dialog = createModernDialog("Assign Driver to Vehicle", 500, 400);
         
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(Color.WHITE);
@@ -1208,9 +965,6 @@ public class VehicleManagement {
             BorderFactory.createLineBorder(BORDER_COLOR),
             BorderFactory.createEmptyBorder(15, 15, 15, 15)
         ));
-        
-        JLabel vehicleIcon = new JLabel(getVehicleIcon(vehicle.getType()));
-        vehicleIcon.setFont(new Font("Segoe UI", Font.PLAIN, 32));
         
         JPanel vehicleInfo = new JPanel();
         vehicleInfo.setLayout(new BoxLayout(vehicleInfo, BoxLayout.Y_AXIS));
@@ -1226,7 +980,6 @@ public class VehicleManagement {
         vehicleInfo.add(vehicleIdLabel);
         vehicleInfo.add(vehiclePlateLabel);
         
-        vehicleHeader.add(vehicleIcon, BorderLayout.WEST);
         vehicleHeader.add(vehicleInfo, BorderLayout.CENTER);
         
         mainPanel.add(vehicleHeader, BorderLayout.NORTH);
@@ -1253,52 +1006,38 @@ public class VehicleManagement {
         driverCombo.setPreferredSize(new Dimension(200, 35));
         selectionPanel.add(driverCombo, gbc);
         
-        // Driver details area
+        // Simple driver info area
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.gridwidth = 2;
-        gbc.weighty = 1.0;
+        gbc.weighty = 0.5;
         gbc.fill = GridBagConstraints.BOTH;
         
-        JPanel detailsCard = new JPanel(new BorderLayout());
-        detailsCard.setBackground(new Color(250, 250, 250));
-        detailsCard.setBorder(BorderFactory.createCompoundBorder(
+        JTextArea driverInfoArea = new JTextArea();
+        driverInfoArea.setEditable(false);
+        driverInfoArea.setBackground(new Color(250, 250, 250));
+        driverInfoArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        driverInfoArea.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(15, 15, 15, 15)
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
         
-        JLabel detailsTitle = new JLabel("Driver Details");
-        detailsTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        detailsTitle.setForeground(PRIMARY_COLOR);
-        detailsCard.add(detailsTitle, BorderLayout.NORTH);
-        
-        JTextArea driverDetailsArea = new JTextArea();
-        driverDetailsArea.setEditable(false);
-        driverDetailsArea.setBackground(new Color(250, 250, 250));
-        driverDetailsArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        driverDetailsArea.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
-        detailsCard.add(driverDetailsArea, BorderLayout.CENTER);
-        
-        selectionPanel.add(detailsCard, gbc);
-        
-        // Update driver details when selection changes
+        // Update driver info when selection changes
         driverCombo.addActionListener(comboEvent -> {
             String selectedDriver = (String) driverCombo.getSelectedItem();
             if (selectedDriver != null && !selectedDriver.equals("Unassigned")) {
                 Driver driver = findDriverByName(selectedDriver);
                 if (driver != null) {
-                    String details = String.format(
-                        "License: %s\nPhone: %s\nEmail: %s\nStatus: %s\nCurrent Vehicle: %s",
+                    String info = String.format(
+                        "License: %s\nPhone: %s\nStatus: %s",
                         driver.getLicenseNumber(),
                         driver.getPhone(),
-                        driver.getEmail(),
-                        driver.getStatus(),
-                        driver.getCurrentVehicle() != null ? driver.getCurrentVehicle() : "None"
+                        driver.getStatus()
                     );
-                    driverDetailsArea.setText(details);
+                    driverInfoArea.setText(info);
                 }
             } else {
-                driverDetailsArea.setText("No driver selected or Unassigned option.");
+                driverInfoArea.setText("No driver selected");
             }
         });
         
@@ -1307,17 +1046,19 @@ public class VehicleManagement {
             driverCombo.setSelectedIndex(0);
         }
         
-        JScrollPane scrollPane = new JScrollPane(selectionPanel);
-        scrollPane.setBorder(null);
-        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        JScrollPane scrollPane = new JScrollPane(driverInfoArea);
+        scrollPane.setPreferredSize(new Dimension(400, 80));
+        selectionPanel.add(scrollPane, gbc);
+        
+        mainPanel.add(selectionPanel, BorderLayout.CENTER);
         
         // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(Color.WHITE);
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 0, 0));
         
-        JButton assignButton = createModernButton("Assign Driver", SUCCESS_COLOR);
-        assignButton.setPreferredSize(new Dimension(130, 35));
+        JButton assignButton = createModernButton("Assign", SUCCESS_COLOR);
+        assignButton.setPreferredSize(new Dimension(100, 35));
         assignButton.addActionListener(assignEvent -> {
             String selectedDriver = (String) driverCombo.getSelectedItem();
             if (selectedDriver != null && !selectedDriver.equals("Unassigned")) {
@@ -1345,7 +1086,7 @@ public class VehicleManagement {
                 saveDriversToFile();
                 
                 showSuccessDialog("Driver assigned successfully!\nVehicle is now active.");
-                refreshData();
+                refreshTableData();
                 dialog.dispose();
             } else {
                 showWarningDialog("Please select a valid driver.");
@@ -1377,7 +1118,7 @@ public class VehicleManagement {
     }
     
     private void showUpdateRoadTaxDialog(Vehicle vehicle) {
-        JDialog dialog = createModernDialog("Update Road Tax", 400, 300);
+        JDialog dialog = createModernDialog("Update Road Tax", 400, 250);
         
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(Color.WHITE);
@@ -1445,7 +1186,7 @@ public class VehicleManagement {
             vehicle.setRoadTaxExpiry(newDate);
             saveVehiclesToFile();
             showSuccessDialog("Road tax expiry updated successfully!");
-            refreshData();
+            refreshTableData();
             dialog.dispose();
         });
         
@@ -1493,7 +1234,7 @@ public class VehicleManagement {
             saveDriversToFile();
             
             showSuccessDialog("Driver " + oldDriver + " has been unassigned from vehicle " + vehicle.getVehicleId());
-            refreshData();
+            refreshTableData();
         }
     }
     
@@ -1528,11 +1269,11 @@ public class VehicleManagement {
         
         saveVehiclesToFile();
         saveDriversToFile();
-        refreshData();
+        refreshTableData();
     }
     
     private void showAddVehicleDialog(ActionEvent e) {
-        JDialog dialog = createModernDialog("Add New Vehicle", 550, 550);
+        JDialog dialog = createModernDialog("Add New Vehicle", 550, 500);
         
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(Color.WHITE);
@@ -1609,8 +1350,8 @@ public class VehicleManagement {
         buttonPanel.setBackground(Color.WHITE);
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 0, 0));
         
-        JButton saveButton = createModernButton("Save Vehicle", SUCCESS_COLOR);
-        saveButton.setPreferredSize(new Dimension(130, 35));
+        JButton saveButton = createModernButton("Save", SUCCESS_COLOR);
+        saveButton.setPreferredSize(new Dimension(100, 35));
         saveButton.addActionListener(saveEvent -> {
             try {
                 String type = (String) typeCombo.getSelectedItem();
@@ -1645,7 +1386,7 @@ public class VehicleManagement {
                 saveDriversToFile();
                 
                 showSuccessDialog("Vehicle added successfully!\nVehicle ID: " + vehicleId);
-                refreshData();
+                refreshTableData();
                 dialog.dispose();
             } catch (Exception ex) {
                 showErrorDialog("Error adding vehicle: " + ex.getMessage());
@@ -1672,8 +1413,20 @@ public class VehicleManagement {
         ));
     }
     
+    private void showEditVehicleDialog(ActionEvent e) {
+        int selectedRow = vehiclesTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showWarningDialog("Please select a vehicle to edit.");
+            return;
+        }
+        
+        int modelRow = vehiclesTable.convertRowIndexToModel(selectedRow);
+        Vehicle vehicle = vehicles.get(modelRow);
+        showEditVehicleDialog(vehicle);
+    }
+    
     private void showEditVehicleDialog(Vehicle vehicle) {
-        JDialog dialog = createModernDialog("Edit Vehicle", 550, 500);
+        JDialog dialog = createModernDialog("Edit Vehicle - " + vehicle.getVehicleId(), 550, 450);
         
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(Color.WHITE);
@@ -1745,8 +1498,8 @@ public class VehicleManagement {
         buttonPanel.setBackground(Color.WHITE);
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 0, 0));
         
-        JButton saveButton = createModernButton("Save Changes", SUCCESS_COLOR);
-        saveButton.setPreferredSize(new Dimension(130, 35));
+        JButton saveButton = createModernButton("Save", SUCCESS_COLOR);
+        saveButton.setPreferredSize(new Dimension(100, 35));
         saveButton.addActionListener(saveEvent -> {
             try {
                 String oldStatus = vehicle.getStatus();
@@ -1758,6 +1511,7 @@ public class VehicleManagement {
                 vehicle.setFuelType((String) fuelCombo.getSelectedItem());
                 vehicle.setStatus(newStatus);
                 
+                // Handle status change to Maintenance
                 if (!oldStatus.equals(newStatus) && "Maintenance".equals(newStatus)) {
                     String driverName = vehicle.getDriverName();
                     if (driverName != null) {
@@ -1774,7 +1528,7 @@ public class VehicleManagement {
                 saveDriversToFile();
                 
                 showSuccessDialog("Vehicle updated successfully!");
-                refreshData();
+                refreshTableData();
                 dialog.dispose();
             } catch (Exception ex) {
                 showErrorDialog("Error updating vehicle: " + ex.getMessage());
@@ -1856,7 +1610,6 @@ public class VehicleManagement {
                 JLabel label = (JLabel) c;
                 String status = value.toString();
                 
-                String icon = "● ";
                 switch (status) {
                     case "Active":
                         label.setForeground(SUCCESS_COLOR);
@@ -1871,7 +1624,7 @@ public class VehicleManagement {
                         label.setForeground(TEXT_PRIMARY);
                 }
                 
-                label.setText(icon + status);
+                label.setText(status);
                 label.setFont(label.getFont().deriveFont(Font.BOLD));
             }
             
@@ -1892,13 +1645,13 @@ public class VehicleManagement {
                 String driverName = value.toString();
                 
                 if (!driverName.equals("Unassigned")) {
-                    label.setText("👤 " + driverName);
+                    label.setText(driverName);
                     label.setForeground(PRIMARY_COLOR);
                     label.setFont(label.getFont().deriveFont(Font.BOLD));
-                    label.setToolTipText("Double-click to view driver profile");
+                    label.setToolTipText("Double-click to view driver details");
                     label.setText("<html><u>" + label.getText() + "</u></html>");
                 } else {
-                    label.setText("🚫 " + driverName);
+                    label.setText(driverName);
                     label.setForeground(TEXT_SECONDARY);
                     label.setFont(label.getFont().deriveFont(Font.PLAIN));
                 }
@@ -1926,14 +1679,14 @@ public class VehicleManagement {
                 if (date.before(today)) {
                     label.setForeground(DANGER_COLOR);
                     label.setFont(label.getFont().deriveFont(Font.BOLD));
-                    label.setText("⚠️ " + label.getText() + " (Expired)");
+                    label.setText(label.getText() + " (Expired)");
                 } else {
                     long diff = date.getTime() - today.getTime();
                     long days = diff / (1000 * 60 * 60 * 24);
                     
                     if (days <= 30) {
                         label.setForeground(WARNING_COLOR);
-                        label.setText("⚠️ " + label.getText() + " (Soon)");
+                        label.setText(label.getText() + " (Soon)");
                     } else {
                         label.setForeground(TEXT_PRIMARY);
                     }

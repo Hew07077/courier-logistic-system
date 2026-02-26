@@ -1,8 +1,6 @@
 package logistics.login.admin;
 
 import logistics.login.admin.management.*;
-// Note: If you don't have the models package, comment out or remove this import
-// import logistics.models.*;
 
 import javax.swing.*;
 import java.awt.*;
