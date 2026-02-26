@@ -1,6 +1,8 @@
 package logistics.login.admin;
 
 import logistics.login.admin.management.*;
+// Note: If you don't have the models package, comment out or remove this import
+// import logistics.models.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -11,14 +13,9 @@ import java.util.Date;
 
 public class AdminDashboard extends JFrame {
 
-    // Refined color palette
+    // Refined color palette - keeping only used colors
     private final Color ORANGE_PRIMARY = new Color(255, 140, 0);
-    private final Color ORANGE_DARK = new Color(235, 120, 0);
-    private final Color ORANGE_LIGHT = new Color(255, 200, 130);
-    private final Color ORANGE_PALE = new Color(255, 245, 235);
     private final Color BG_LIGHT = new Color(250, 250, 250);
-    private final Color CARD_BG = Color.WHITE;
-    private final Color TEXT_DARK = new Color(33, 37, 41);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
     private final Color BORDER_COLOR = new Color(230, 230, 230);
     private final Color TRANSPARENT_WHITE = new Color(255, 255, 255, 220);
@@ -158,9 +155,10 @@ public class AdminDashboard extends JFrame {
             int confirm = JOptionPane.showConfirmDialog(this, 
                 "Are you sure you want to logout?", "Confirm Logout", 
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-            if (confirm == JOptionPane.YES_OPTION) {
+            if (confirm == JOptionPane.YES_NO_OPTION) {
                 dispose();
-                new logistics.login.Login().setVisible(true);
+                // Make sure this login class exists or comment it out temporarily
+                // new logistics.login.Login().setVisible(true);
             }
         });
         rightPanel.add(logout);
@@ -208,16 +206,11 @@ public class AdminDashboard extends JFrame {
         menu.setOpaque(false);
         menu.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
 
-        menu.add(createTransparentNavButton("📦 Order & Delivery", "ORDER", 
-            getNotificationText(orderManagement.getPendingCount()), true));
-        menu.add(createTransparentNavButton("🚛 Vehicle & Logistics", "VEHICLE", 
-            getNotificationText(vehicleManagement.getActiveCount()), false));
-        menu.add(createTransparentNavButton("👨‍✈️ Driver Management", "DRIVER", 
-            getNotificationText(driverManagement.getOnDutyCount()), false));
-        menu.add(createTransparentNavButton("🔧 Maintenance", "MAINTENANCE", 
-            getNotificationText(maintenanceManagement.getScheduledCount()), false));
-        menu.add(createTransparentNavButton("📊 Reports", "REPORTS", 
-            "Analytics & insights", false));
+        menu.add(createNavButton("📦 Order & Delivery", "ORDER", getNotificationText(orderManagement.getPendingCount()), true));
+        menu.add(createNavButton("🚛 Vehicle & Logistics", "VEHICLE", getNotificationText(vehicleManagement.getActiveCount()), false));
+        menu.add(createNavButton("👨‍✈️ Driver Management", "DRIVER", getNotificationText(driverManagement.getOnDutyCount()), false));
+        menu.add(createNavButton("🔧 Maintenance", "MAINTENANCE", getNotificationText(maintenanceManagement.getScheduledCount()), false));
+        menu.add(createNavButton("📊 Reports", "REPORTS", "Analytics & insights", false));
 
         sidebar.add(menu, BorderLayout.CENTER);
 
@@ -228,7 +221,7 @@ public class AdminDashboard extends JFrame {
     }
 
     private String getNotificationText(int count) {
-        return count > 0 ? "<span style='color: #FFD700;'>● " + count + " pending</span>" : "All good";
+        return count > 0 ? "● " + count + " pending" : "All good";
     }
 
     private JPanel createUserProfile() {
@@ -286,29 +279,18 @@ public class AdminDashboard extends JFrame {
         return btn;
     }
 
-    private JButton createTransparentNavButton(String text, String card, String notification, boolean selected) {
-        JButton btn = new JButton();
-        btn.setLayout(new BorderLayout());
-        
-        String displayText = "<html><div style='text-align: left;'>" +
-                            "<b style='font-size: 13px;'>" + text + "</b><br>" +
-                            "<span style='font-size: 11px; color: " + (selected ? "#FFFFFF" : "#E0E0E0") + ";'>" + 
-                            notification + "</span></div></html>";
-        
-        JLabel contentLabel = new JLabel(displayText);
-        contentLabel.setForeground(selected ? Color.WHITE : TRANSPARENT_WHITE);
-        contentLabel.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
-        
-        btn.add(contentLabel, BorderLayout.CENTER);
-        
+    private JButton createNavButton(String text, String card, String notification, boolean selected) {
+        JButton btn = new JButton("<html><center>" + text + "<br><small>" + notification + "</small></center></html>");
         btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        btn.setForeground(selected ? Color.WHITE : TRANSPARENT_WHITE);
         btn.setBackground(selected ? TRANSPARENT_ORANGE : new Color(0, 0, 0, 0));
         btn.setOpaque(selected);
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
         btn.setContentAreaFilled(false);
-        btn.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+        btn.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setHorizontalAlignment(SwingConstants.LEFT);
 
         if (selected) activeButton = btn;
 
@@ -318,7 +300,7 @@ public class AdminDashboard extends JFrame {
                 if (btn != activeButton) {
                     btn.setOpaque(true);
                     btn.setBackground(new Color(255, 255, 255, 30));
-                    contentLabel.setForeground(Color.WHITE);
+                    btn.setForeground(Color.WHITE);
                     btn.repaint();
                 }
             }
@@ -327,7 +309,7 @@ public class AdminDashboard extends JFrame {
             public void mouseExited(MouseEvent e) {
                 if (btn != activeButton) {
                     btn.setOpaque(false);
-                    contentLabel.setForeground(TRANSPARENT_WHITE);
+                    btn.setForeground(TRANSPARENT_WHITE);
                     btn.repaint();
                 }
             }
@@ -336,35 +318,16 @@ public class AdminDashboard extends JFrame {
         btn.addActionListener(e -> {
             if (activeButton != null) {
                 activeButton.setOpaque(false);
-                JLabel oldLabel = (JLabel) activeButton.getComponent(0);
-                oldLabel.setForeground(TRANSPARENT_WHITE);
+                activeButton.setForeground(TRANSPARENT_WHITE);
                 activeButton.repaint();
             }
             
             btn.setOpaque(true);
             btn.setBackground(TRANSPARENT_ORANGE);
-            contentLabel.setForeground(Color.WHITE);
+            btn.setForeground(Color.WHITE);
             activeButton = btn;
             
             // Show the selected management panel
-            switch(card) {
-                case "ORDER":
-                    contentPanel.add(orderManagement.getMainPanel(), "ORDER");
-                    break;
-                case "VEHICLE":
-                    contentPanel.add(vehicleManagement.getMainPanel(), "VEHICLE");
-                    break;
-                case "DRIVER":
-                    contentPanel.add(driverManagement.getMainPanel(), "DRIVER");
-                    break;
-                case "MAINTENANCE":
-                    contentPanel.add(maintenanceManagement.getMainPanel(), "MAINTENANCE");
-                    break;
-                case "REPORTS":
-                    contentPanel.add(reportManagement.getMainPanel(), "REPORTS");
-                    break;
-            }
-            
             cardLayout.show(contentPanel, card);
         });
 
@@ -433,8 +396,7 @@ public class AdminDashboard extends JFrame {
 
     private String getCurrentCard() {
         if (activeButton != null) {
-            JLabel label = (JLabel) activeButton.getComponent(0);
-            String text = label.getText();
+            String text = activeButton.getText();
             if (text.contains("Order")) return "ORDER";
             if (text.contains("Vehicle")) return "VEHICLE";
             if (text.contains("Driver")) return "DRIVER";
