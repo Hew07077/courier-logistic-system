@@ -1,0 +1,6 @@
+// Format: drivers_data.txt
+John Smith|DL12345|555-0101|john@email.com|Active|2026-02-28|TRK001
+Mike Johnson|DL12346|555-0102|mike@email.com|Active|2026-02-28|CAR001
+Robert Brown|DL12347|555-0103|robert@email.com|Available|2026-02-28|
+Sarah Wilson|DL12348|555-0104|sarah@email.com|Available|2026-02-28|
+Unassigned||||Available|2026-02-28|

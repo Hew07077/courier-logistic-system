@@ -1,0 +1,7 @@
+// Format: vehicles_data.txt
+TRK001|Freightliner Cascadia|Active|John Smith|Truck|ABC1234|2026-12-31|Diesel
+VAN001|Ford Transit|Maintenance||Van|DEF5678|2024-10-15|Gasoline
+TRK002|Peterbilt 579|Maintenance||Truck|GHI9012|2023-05-30|Diesel
+VAN002|Mercedes Sprinter|Active||Van|JKL3456|2024-08-20|Diesel
+TRK003|International LT|Active||Truck|MNO7890|2023-11-10|Diesel
+CAR001|Bezza|Active|Mike Johnson|Car|BTE4327|2025-06-15|Diesel
