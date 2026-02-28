@@ -2,7 +2,8 @@ package logistics.login;
 
 import javax.swing.*;
 import javax.swing.Timer;
-import logistics.login.admin.AdminDashboard;
+
+import admin.AdminDashboard;
 import sender.SenderDashboard;
 import courier.CourierDashboard;
 import java.awt.*;
