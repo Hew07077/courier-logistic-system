@@ -1,7 +1,8 @@
-package LogisticAdmin;
+package logistics;
 
-import LogisticAdmin.gui.Login;
 import javax.swing.*;
+
+import logistics.login.Login;
 
 public class Main {
     public static void main(String[] args) {
