@@ -3,26 +3,40 @@ package logistics.login.admin;
 import logistics.login.admin.management.*;
 
 import javax.swing.*;
+import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class AdminDashboard extends JFrame {
 
-    // Refined color palette - keeping only used colors
+    // Refined color palette
     private final Color ORANGE_PRIMARY = new Color(255, 140, 0);
+    private final Color ORANGE_DARK = new Color(235, 120, 0);
+    private final Color ORANGE_LIGHT = new Color(255, 200, 130);
+    private final Color ORANGE_PALE = new Color(255, 245, 235);
     private final Color BG_LIGHT = new Color(250, 250, 250);
+    private final Color CARD_BG = Color.WHITE;
+    private final Color TEXT_DARK = new Color(33, 37, 41);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
     private final Color BORDER_COLOR = new Color(230, 230, 230);
-    private final Color TRANSPARENT_WHITE = new Color(255, 255, 255, 220);
-    private final Color TRANSPARENT_ORANGE = new Color(255, 140, 0, 180);
+    
+    // 实心按钮颜色
+    private final Color BUTTON_SELECTED = new Color(255, 140, 0); // 实心橘色
+    private final Color BUTTON_HOVER = new Color(235, 120, 0); // 深一点的橘色用于悬停
+    private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0); // 透明
 
     private CardLayout cardLayout;
     private JPanel contentPanel;
     private JButton activeButton;
     private JLabel timeLabel;
+    
+    // 缓存面板，避免重复添加
+    private Map<String, JPanel> panelCache;
     
     // Management module references
     private OrderManagement orderManagement;
@@ -36,6 +50,8 @@ public class AdminDashboard extends JFrame {
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
+        
+        panelCache = new HashMap<>();
         
         // Initialize management modules
         initializeModules();
@@ -59,6 +75,13 @@ public class AdminDashboard extends JFrame {
         driverManagement = new DriverManagement();
         maintenanceManagement = new MaintenanceManagement();
         reportManagement = new ReportManagement();
+        
+        // 缓存面板
+        panelCache.put("ORDER", orderManagement.getMainPanel());
+        panelCache.put("VEHICLE", vehicleManagement.getMainPanel());
+        panelCache.put("DRIVER", driverManagement.getMainPanel());
+        panelCache.put("MAINTENANCE", maintenanceManagement.getMainPanel());
+        panelCache.put("REPORTS", reportManagement.getMainPanel());
     }
 
     private void refreshAllModules() {
@@ -89,7 +112,7 @@ public class AdminDashboard extends JFrame {
         leftPanel.setOpaque(false);
 
         // Load and resize logo
-        ImageIcon logoIcon = loadLogo("logo.jpg");
+        ImageIcon logoIcon = loadLogo("logo.jpeg");
         if (logoIcon != null) {
             Image img = logoIcon.getImage();
             Image resizedImg = img.getScaledInstance(50, 50, Image.SCALE_SMOOTH);
@@ -116,19 +139,6 @@ public class AdminDashboard extends JFrame {
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 20));
         rightPanel.setOpaque(false);
 
-        // Time panel with icon
-        JPanel timePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-        timePanel.setOpaque(false);
-        
-        JLabel clockIcon = new JLabel("🕒");
-        clockIcon.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        clockIcon.setForeground(Color.WHITE);
-        timePanel.add(clockIcon);
-
-        timeLabel = new JLabel();
-        timeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        timeLabel.setForeground(Color.WHITE);
-        timePanel.add(timeLabel);
 
         // Update time
         Timer timer = new Timer(1000, e -> 
@@ -139,7 +149,7 @@ public class AdminDashboard extends JFrame {
         rightPanel.add(timePanel);
 
         // Refresh button
-        JButton refreshBtn = createTransparentButton("🔄 Refresh", new Color(40, 167, 69));
+        JButton refreshBtn = createButton("Refresh", new Color(40, 167, 69));
         refreshBtn.addActionListener(e -> {
             refreshAllModules();
             refreshCurrentView();
@@ -148,15 +158,14 @@ public class AdminDashboard extends JFrame {
         rightPanel.add(refreshBtn);
 
         // Logout button
-        JButton logout = createTransparentButton("Logout", new Color(220, 53, 69));
+        JButton logout = createButton("Logout", new Color(220, 53, 69));
         logout.addActionListener(e -> {
             int confirm = JOptionPane.showConfirmDialog(this, 
                 "Are you sure you want to logout?", "Confirm Logout", 
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-            if (confirm == JOptionPane.YES_NO_OPTION) {
+            if (confirm == JOptionPane.YES_OPTION) {
                 dispose();
-                // Make sure this login class exists or comment it out temporarily
-                // new logistics.login.Login().setVisible(true);
+                new logistics.login.Login().setVisible(true);
             }
         });
         rightPanel.add(logout);
@@ -177,7 +186,7 @@ public class AdminDashboard extends JFrame {
         logoPanel.setOpaque(false);
         logoPanel.setBorder(BorderFactory.createEmptyBorder(30, 15, 25, 15));
 
-        ImageIcon mainLogoIcon = loadLogo("logo.jpg");
+        ImageIcon mainLogoIcon = loadLogo("logo.jpeg");
         if (mainLogoIcon != null) {
             Image img = mainLogoIcon.getImage();
             Image resizedImg = img.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
@@ -204,11 +213,16 @@ public class AdminDashboard extends JFrame {
         menu.setOpaque(false);
         menu.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
 
-        menu.add(createNavButton("📦 Order & Delivery", "ORDER", getNotificationText(orderManagement.getPendingCount()), true));
-        menu.add(createNavButton("🚛 Vehicle & Logistics", "VEHICLE", getNotificationText(vehicleManagement.getActiveCount()), false));
-        menu.add(createNavButton("👨‍✈️ Driver Management", "DRIVER", getNotificationText(driverManagement.getOnDutyCount()), false));
-        menu.add(createNavButton("🔧 Maintenance", "MAINTENANCE", getNotificationText(maintenanceManagement.getScheduledCount()), false));
-        menu.add(createNavButton("📊 Reports", "REPORTS", "Analytics & insights", false));
+        menu.add(createNavButton("Order & Delivery", "ORDER", 
+            getNotificationText(orderManagement.getPendingCount()), true));
+        menu.add(createNavButton("Vehicle & Logistics", "VEHICLE", 
+            getNotificationText(vehicleManagement.getActiveCount()), false));
+        menu.add(createNavButton("Driver Management", "DRIVER", 
+            getNotificationText(driverManagement.getOnDutyCount()), false));
+        menu.add(createNavButton("Maintenance", "MAINTENANCE", 
+            getNotificationText(maintenanceManagement.getScheduledCount()), false));
+        menu.add(createNavButton("Reports", "REPORTS", 
+            "Analytics & insights", false));
 
         sidebar.add(menu, BorderLayout.CENTER);
 
@@ -245,32 +259,28 @@ public class AdminDashboard extends JFrame {
         return profile;
     }
 
-    // ================= TRANSPARENT BUTTONS =================
-    private JButton createTransparentButton(String text, Color hoverColor) {
+    // ================= BUTTONS =================
+    private JButton createButton(String text, Color bgColor) {
         JButton btn = new JButton(text);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btn.setForeground(Color.WHITE);
-        btn.setBackground(new Color(0, 0, 0, 0));
-        btn.setOpaque(false);
+        btn.setBackground(bgColor);
+        btn.setOpaque(true);
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
-        btn.setContentAreaFilled(false);
         btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
+        
+        // 悬停效果
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                btn.setOpaque(true);
-                btn.setBackground(hoverColor);
-                btn.repaint();
+                btn.setBackground(bgColor.darker());
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                btn.setOpaque(false);
-                btn.setBackground(new Color(0, 0, 0, 0));
-                btn.repaint();
+                btn.setBackground(bgColor);
             }
         });
 
@@ -278,27 +288,47 @@ public class AdminDashboard extends JFrame {
     }
 
     private JButton createNavButton(String text, String card, String notification, boolean selected) {
-        JButton btn = new JButton("<html><center>" + text + "<br><small>" + notification + "</small></center></html>");
+        JButton btn = new JButton();
+        btn.setLayout(new BorderLayout());
+        
+        String displayText = "<html><div style='text-align: left;'>" +
+                            "<b style='font-size: 13px;'>" + text + "</b><br>" +
+                            "<span style='font-size: 11px; color: " + (selected ? "#FFFFFF" : "#E0E0E0") + ";'>" + 
+                            notification + "</span></div></html>";
+        
+        JLabel contentLabel = new JLabel(displayText);
+        contentLabel.setForeground(Color.WHITE);
+        contentLabel.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        
+        btn.add(contentLabel, BorderLayout.CENTER);
+        
         btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        btn.setForeground(selected ? Color.WHITE : TRANSPARENT_WHITE);
-        btn.setBackground(selected ? TRANSPARENT_ORANGE : new Color(0, 0, 0, 0));
-        btn.setOpaque(selected);
+        btn.setForeground(Color.WHITE);
+        
+        // 实心按钮设置
+        if (selected) {
+            btn.setBackground(BUTTON_SELECTED);
+            btn.setOpaque(true);
+        } else {
+            btn.setBackground(BUTTON_NORMAL);
+            btn.setOpaque(false);
+        }
+        
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
-        btn.setContentAreaFilled(false);
-        btn.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        btn.setContentAreaFilled(true);
+        btn.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setHorizontalAlignment(SwingConstants.LEFT);
 
         if (selected) activeButton = btn;
 
+        // 悬停效果
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
                 if (btn != activeButton) {
                     btn.setOpaque(true);
-                    btn.setBackground(new Color(255, 255, 255, 30));
-                    btn.setForeground(Color.WHITE);
+                    btn.setBackground(BUTTON_HOVER);
                     btn.repaint();
                 }
             }
@@ -307,25 +337,24 @@ public class AdminDashboard extends JFrame {
             public void mouseExited(MouseEvent e) {
                 if (btn != activeButton) {
                     btn.setOpaque(false);
-                    btn.setForeground(TRANSPARENT_WHITE);
+                    btn.setBackground(BUTTON_NORMAL);
                     btn.repaint();
                 }
             }
         });
 
         btn.addActionListener(e -> {
-            if (activeButton != null) {
+            if (activeButton != null && activeButton != btn) {
                 activeButton.setOpaque(false);
-                activeButton.setForeground(TRANSPARENT_WHITE);
+                activeButton.setBackground(BUTTON_NORMAL);
                 activeButton.repaint();
             }
             
             btn.setOpaque(true);
-            btn.setBackground(TRANSPARENT_ORANGE);
-            btn.setForeground(Color.WHITE);
+            btn.setBackground(BUTTON_SELECTED);
             activeButton = btn;
             
-            // Show the selected management panel
+            // 只切换面板，不重新添加
             cardLayout.show(contentPanel, card);
         });
 
@@ -357,51 +386,52 @@ public class AdminDashboard extends JFrame {
         contentPanel.setBackground(BG_LIGHT);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Initialize all management panels
-        contentPanel.add(orderManagement.getMainPanel(), "ORDER");
-        contentPanel.add(vehicleManagement.getMainPanel(), "VEHICLE");
-        contentPanel.add(driverManagement.getMainPanel(), "DRIVER");
-        contentPanel.add(maintenanceManagement.getMainPanel(), "MAINTENANCE");
-        contentPanel.add(reportManagement.getMainPanel(), "REPORTS");
+        // 只添加一次面板
+        for (Map.Entry<String, JPanel> entry : panelCache.entrySet()) {
+            contentPanel.add(entry.getValue(), entry.getKey());
+        }
+
+        // 默认显示ORDER
+        cardLayout.show(contentPanel, "ORDER");
 
         return contentPanel;
     }
 
     private void refreshCurrentView() {
-        // Refresh the currently visible panel
+        // 刷新当前视图的数据
         String currentCard = getCurrentCard();
         if (currentCard != null) {
             switch(currentCard) {
                 case "ORDER":
-                    contentPanel.add(orderManagement.getRefreshedPanel(), "ORDER");
+                    orderManagement.refreshData();
                     break;
                 case "VEHICLE":
-                    contentPanel.add(vehicleManagement.getRefreshedPanel(), "VEHICLE");
+                    vehicleManagement.refreshData();
                     break;
                 case "DRIVER":
-                    contentPanel.add(driverManagement.getRefreshedPanel(), "DRIVER");
+                    driverManagement.refreshData();
                     break;
                 case "MAINTENANCE":
-                    contentPanel.add(maintenanceManagement.getRefreshedPanel(), "MAINTENANCE");
+                    maintenanceManagement.refreshData();
                     break;
                 case "REPORTS":
-                    contentPanel.add(reportManagement.getRefreshedPanel(), "REPORTS");
+                    reportManagement.refreshData();
                     break;
             }
-            cardLayout.show(contentPanel, currentCard);
         }
     }
 
     private String getCurrentCard() {
         if (activeButton != null) {
-            String text = activeButton.getText();
+            JLabel label = (JLabel) activeButton.getComponent(0);
+            String text = label.getText();
             if (text.contains("Order")) return "ORDER";
             if (text.contains("Vehicle")) return "VEHICLE";
             if (text.contains("Driver")) return "DRIVER";
             if (text.contains("Maintenance")) return "MAINTENANCE";
             if (text.contains("Reports")) return "REPORTS";
         }
-        return "ORDER"; // Default
+        return "ORDER";
     }
 
     // ================= STATUS BAR =================
