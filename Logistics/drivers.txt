@@ -1,0 +1,6 @@
+# id|name|phone|email|licenseNumber|licenseExpiry|status|vehicleId|joinDate|totalDeliveries|rating|emergencyContact|emergencyPhone|address|notes|photoPath
+DRV001|Ahmad Bin Abdullah|012-3456789|ahmad.abdullah@logixpress.com|L12345678|2025-12-31|On Delivery|TRK001|2023-01-15|1245|4.9|Siti Aminah|012-9876543|No 15, Jalan SS2/72, 47300 Petaling Jaya, Selangor|Experienced in long-haul deliveries|
+DRV002|Tan Siew Ming|013-4567890|siewming.tan@logixpress.com|L87654321|2025-10-15|Available|TRK002|2023-03-20|892|4.7|Tan Siew Hong|013-4561237|No 8, Jalan SS15/4, 47500 Subang Jaya, Selangor||
+DRV003|Rajesh Kumar|014-5678901|rajesh.kumar@logixpress.com|L34567890|2024-08-20|On Delivery|VAN001|2023-06-10|567|4.5|Lakshmi Kumar|014-5671234|No 23, Jalan Ipoh, 51200 Kuala Lumpur||
+DRV004|Nurul Huda|015-6789012|nurul.huda@logixpress.com|L45678901|2026-02-28|Off Duty|VAN002|2023-09-05|234|4.8|Ahmad Faiz|015-6785432|No 45, Jalan Gasing, 46000 Petaling Jaya, Selangor|Prefers urban deliveries|
+DRV005|Chong Wei Ming|016-7890123|weiming.chong@logixpress.com|L56789012|2025-05-30|Available|VAN003|2024-01-12|78|5.0|Chong Wei Ling|016-7894321|No 67, Jalan SS21/56, 47400 Petaling Jaya, Selangor||

@@ -1,6 +1,7 @@
 package admin;
 
 import admin.management.*;
+import logistics.login.Login;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -16,19 +17,20 @@ public class AdminDashboard extends JFrame {
 
     // Refined color palette
     private final Color ORANGE_PRIMARY = new Color(255, 140, 0);
-    private final Color ORANGE_DARK = new Color(235, 120, 0);
+    private final Color ORANGE_DARK = new Color(215, 115, 0); // Darker for selected/hover
     private final Color ORANGE_LIGHT = new Color(255, 200, 130);
     private final Color ORANGE_PALE = new Color(255, 245, 235);
+    private final Color ORANGE_TOP_BAR = new Color(255, 160, 40); // Lighter orange for top bar
     private final Color BG_LIGHT = new Color(250, 250, 250);
     private final Color CARD_BG = Color.WHITE;
     private final Color TEXT_DARK = new Color(33, 37, 41);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
     private final Color BORDER_COLOR = new Color(230, 230, 230);
     
-    // 实心按钮颜色
-    private final Color BUTTON_SELECTED = new Color(255, 140, 0); // 实心橘色
-    private final Color BUTTON_HOVER = new Color(235, 120, 0); // 深一点的橘色用于悬停
-    private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0); // 透明
+    // Button colors
+    private final Color BUTTON_SELECTED = new Color(215, 115, 0); // Darker orange for selected
+    private final Color BUTTON_HOVER = new Color(235, 120, 0); // Medium orange for hover
+    private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0); // Transparent
 
     private CardLayout cardLayout;
     private JPanel contentPanel;
@@ -99,10 +101,10 @@ public class AdminDashboard extends JFrame {
         add(createStatusBar(), BorderLayout.SOUTH);
     }
 
-    // ================= TOP BAR =================
+    // ================= TOP BAR (Lighter Orange) =================
     private JPanel createTopBar() {
         JPanel bar = new JPanel(new BorderLayout());
-        bar.setBackground(ORANGE_PRIMARY);
+        bar.setBackground(ORANGE_TOP_BAR); // Lighter orange
         bar.setPreferredSize(new Dimension(getWidth(), 80));
         bar.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 25));
 
@@ -171,8 +173,13 @@ public class AdminDashboard extends JFrame {
                 "Are you sure you want to logout?", "Confirm Logout", 
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
             if (confirm == JOptionPane.YES_OPTION) {
-                dispose();
-                new logistics.login.Login().setVisible(true);
+                dispose(); // Close admin dashboard
+                
+                // Open login screen
+                SwingUtilities.invokeLater(() -> {
+                    Login login = new Login();
+                    login.setVisible(true);
+                });
             }
         });
         rightPanel.add(logout);
@@ -278,7 +285,7 @@ public class AdminDashboard extends JFrame {
         btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
-        // 悬停效果
+        // Hover effect
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -312,12 +319,12 @@ public class AdminDashboard extends JFrame {
         btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         btn.setForeground(Color.WHITE);
         
-        // 实心按钮设置
+        // Button styling - selected button gets DARKER
         if (selected) {
-            btn.setBackground(BUTTON_SELECTED);
+            btn.setBackground(BUTTON_SELECTED); // Darker orange for selected
             btn.setOpaque(true);
         } else {
-            btn.setBackground(BUTTON_NORMAL);
+            btn.setBackground(BUTTON_NORMAL); // Transparent for unselected
             btn.setOpaque(false);
         }
         
@@ -329,13 +336,13 @@ public class AdminDashboard extends JFrame {
 
         if (selected) activeButton = btn;
 
-        // 悬停效果
+        // Hover effect - becomes darker on hover
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
                 if (btn != activeButton) {
                     btn.setOpaque(true);
-                    btn.setBackground(BUTTON_HOVER);
+                    btn.setBackground(BUTTON_HOVER); // Medium orange for hover
                     btn.repaint();
                 }
             }
@@ -357,12 +364,14 @@ public class AdminDashboard extends JFrame {
                 activeButton.repaint();
             }
             
+            // Selected button gets DARKER color
             btn.setOpaque(true);
-            btn.setBackground(BUTTON_SELECTED);
+            btn.setBackground(BUTTON_SELECTED); // Darker orange
             activeButton = btn;
             
-            // 只切换面板，不重新添加
+            // Switch panel
             cardLayout.show(contentPanel, card);
+            refreshCurrentView();
         });
 
         return btn;
@@ -393,19 +402,19 @@ public class AdminDashboard extends JFrame {
         contentPanel.setBackground(BG_LIGHT);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // 只添加一次面板
+        // Add panels to card layout
         for (Map.Entry<String, JPanel> entry : panelCache.entrySet()) {
             contentPanel.add(entry.getValue(), entry.getKey());
         }
 
-        // 默认显示ORDER
+        // Default show ORDER
         cardLayout.show(contentPanel, "ORDER");
 
         return contentPanel;
     }
 
     private void refreshCurrentView() {
-        // 刷新当前视图的数据
+        // Refresh current view's data
         String currentCard = getCurrentCard();
         if (currentCard != null) {
             switch(currentCard) {
@@ -471,5 +480,11 @@ public class AdminDashboard extends JFrame {
         bar.add(version, BorderLayout.EAST);
 
         return bar;
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new AdminDashboard().setVisible(true);
+        });
     }
 }

@@ -1,16 +1,17 @@
 package admin.management;
 
 import javax.swing.*;
-import javax.swing.border.TitledBorder;
+import javax.swing.border.*;
 import javax.swing.table.*;
+import javax.swing.plaf.basic.BasicScrollBarUI;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.swing.Timer;
 
 public class VehicleManagement {
     private JPanel mainPanel;
@@ -21,33 +22,57 @@ public class VehicleManagement {
     private List<Driver> drivers = new ArrayList<>();
     private Map<String, Integer> typeCounters = new HashMap<>();
     
-    // Reference to MaintenanceManagement
     private MaintenanceManagement maintenanceManagement;
     
-    // File paths
     private static final String VEHICLES_FILE = "vehicles_data.txt";
     private static final String DRIVERS_FILE = "drivers_data.txt";
     private static final String COUNTERS_FILE = "counters_data.txt";
     
-    // UI Components
-    private JTextField searchField;
     private JComboBox<String> statusFilter, typeFilter;
     private JPanel statsPanel;
     private JLabel[] statValues = new JLabel[5];
+    private JPanel[] statCards = new JPanel[5];
     
-    // Colors - Modern Material Design palette
-    private static final Color PRIMARY = new Color(25, 118, 210);
-    private static final Color SUCCESS = new Color(46, 125, 50);
-    private static final Color WARNING = new Color(237, 108, 2);
-    private static final Color DANGER = new Color(198, 40, 40);
-    private static final Color INFO = new Color(2, 136, 209);
-    private static final Color BG_COLOR = new Color(250, 250, 250);
+    // Filter state
+    private String currentFilter = null;
+    private int currentFilterIndex = -1;
+    
+    // Modern color scheme matching MaintenanceManagement
+    private static final Color PRIMARY = new Color(41, 98, 255);
+    private static final Color PRIMARY_DARK = new Color(30, 70, 180);
+    private static final Color SUCCESS = new Color(40, 167, 69);
+    private static final Color SUCCESS_DARK = new Color(30, 126, 52);
+    private static final Color WARNING = new Color(255, 193, 7);
+    private static final Color WARNING_DARK = new Color(204, 154, 6);
+    private static final Color DANGER = new Color(220, 53, 69);
+    private static final Color DANGER_DARK = new Color(176, 42, 55);
+    private static final Color INFO = new Color(23, 162, 184);
+    private static final Color INFO_DARK = new Color(17, 122, 139);
+    private static final Color PURPLE = new Color(111, 66, 193);
+    
+    private static final Color BG_COLOR = new Color(248, 249, 250);
     private static final Color CARD_BG = Color.WHITE;
-    private static final Color BORDER_COLOR = new Color(224, 224, 224);
-    private static final Color TEXT_PRIMARY = new Color(33, 33, 33);
-    private static final Color TEXT_SECONDARY = new Color(117, 117, 117);
+    private static final Color BORDER_COLOR = new Color(222, 226, 230);
+    private static final Color TEXT_PRIMARY = new Color(33, 37, 41);
+    private static final Color TEXT_SECONDARY = new Color(108, 117, 125);
+    private static final Color TEXT_MUTED = new Color(134, 142, 150);
+    private static final Color HOVER_COLOR = new Color(245, 247, 250);
+    private static final Color SELECTION_COLOR = new Color(230, 242, 255);
+    private static final Color ACTIVE_FILTER_BORDER = new Color(41, 98, 255);
+    
+    // Fonts - Matching MaintenanceManagement
+    private static final Font TITLE_FONT = new Font("Segoe UI", Font.BOLD, 28);
+    private static final Font SUBTITLE_FONT = new Font("Segoe UI", Font.PLAIN, 14);
+    private static final Font HEADER_FONT = new Font("Segoe UI", Font.BOLD, 13);
+    private static final Font REGULAR_FONT = new Font("Segoe UI", Font.PLAIN, 13);
+    private static final Font SMALL_FONT = new Font("Segoe UI", Font.PLAIN, 10);
+    private static final Font STATS_FONT = new Font("Segoe UI", Font.BOLD, 22);
+    private static final Font BUTTON_FONT = new Font("Segoe UI", Font.BOLD, 11);
+    private static final Font BUTTON_HOVER_FONT = new Font("Segoe UI", Font.BOLD, 12);
+    private static final Font STATUS_FONT = new Font("Segoe UI", Font.BOLD, 12);
     
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("MMM dd, yyyy");
     
     public interface DriverProfileListener {
         void onDriverProfileClicked(String driverName);
@@ -61,7 +86,6 @@ public class VehicleManagement {
     public VehicleManagement(MaintenanceManagement maintenanceMgmt) {
         this.maintenanceManagement = maintenanceMgmt;
         loadData();
-        // Sync with maintenance after loading
         if (maintenanceMgmt != null) {
             syncWithMaintenance();
         }
@@ -74,7 +98,6 @@ public class VehicleManagement {
     
     public void setMaintenanceManagement(MaintenanceManagement maintenanceMgmt) {
         this.maintenanceManagement = maintenanceMgmt;
-        // Sync with maintenance management when setting it
         if (maintenanceMgmt != null) {
             syncWithMaintenance();
         }
@@ -168,8 +191,7 @@ public class VehicleManagement {
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         mainPanel.setBackground(BG_COLOR);
         
-        // Create all components
-        JPanel topContainer = new JPanel(new BorderLayout(15, 15));
+        JPanel topContainer = new JPanel(new BorderLayout(10, 10));
         topContainer.setBackground(BG_COLOR);
         topContainer.add(createHeaderPanel(), BorderLayout.NORTH);
         topContainer.add(createStatsPanel(), BorderLayout.CENTER);
@@ -178,8 +200,22 @@ public class VehicleManagement {
         mainPanel.add(createCenterPanel(), BorderLayout.CENTER);
         mainPanel.add(createButtonPanel(), BorderLayout.SOUTH);
         
-        // Update stats after UI is created
         SwingUtilities.invokeLater(() -> updateStats());
+    }
+
+    /**
+     * Resets borders of all stat cards
+     */
+    private void resetCardBorders() {
+        if (statCards != null) {
+            for (int i = 0; i < statCards.length; i++) {
+                statCards[i].setBorder(BorderFactory.createCompoundBorder(
+                    new LineBorder(BORDER_COLOR, 1, true),
+                    BorderFactory.createEmptyBorder(8, 12, 8, 12)
+                ));
+                statCards[i].setBackground(CARD_BG);
+            }
+        }
     }
 
     private JPanel createHeaderPanel() {
@@ -187,12 +223,12 @@ public class VehicleManagement {
         panel.setBackground(BG_COLOR);
         panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
-        JLabel title = new JLabel("Fleet Management");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        JLabel title = new JLabel("Vehicle Management");
+        title.setFont(TITLE_FONT);
         title.setForeground(TEXT_PRIMARY);
         
-        JLabel subtitle = new JLabel("Manage your vehicles, drivers, and fleet operations");
-        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        JLabel subtitle = new JLabel("Manage your fleet vehicles and drivers");
+        subtitle.setFont(SUBTITLE_FONT);
         subtitle.setForeground(TEXT_SECONDARY);
         
         JPanel titlePanel = new JPanel(new BorderLayout());
@@ -206,130 +242,221 @@ public class VehicleManagement {
     }
 
     private JPanel createStatsPanel() {
-        statsPanel = new JPanel(new GridLayout(1, 5, 20, 0));
+        statsPanel = new JPanel(new GridLayout(1, 5, 15, 0));
         statsPanel.setBackground(BG_COLOR);
-        statsPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0));
+        statsPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
-        String[] titles = {"Active Vehicles", "In Maintenance", "Expired Tax", "Total Vehicles", "Available Drivers"};
-        String[] icons = {"🚛", "🔧", "⚠️", "📊", "👤"};
-        Color[] colors = {SUCCESS, WARNING, DANGER, PRIMARY, INFO};
-        String[] descriptions = {
-            "Currently on road", "Under service", "Tax expired", "In fleet", "Ready to assign"
+        String[] titles = {"Active", "Maintenance", "Expired Tax", "Total Fleet", "Available"};
+        String[] descriptions = {"Operating", "In service", "Overdue", "All vehicles", "Drivers"};
+        Color[] colors = {SUCCESS, INFO, WARNING, PRIMARY, PURPLE};
+        Color[] bgColors = {
+            new Color(232, 245, 233),
+            new Color(227, 242, 253),
+            new Color(255, 243, 224),
+            new Color(230, 242, 255),
+            new Color(243, 232, 255)
         };
         
+        statValues = new JLabel[5];
+        statCards = new JPanel[5];
+        
         for (int i = 0; i < 5; i++) {
-            JPanel card = createModernStatCard(titles[i], icons[i], descriptions[i], "0", colors[i]);
+            JPanel card = createStatCard(titles[i], descriptions[i], "0", colors[i], bgColors[i], i);
+            statCards[i] = card;
             statsPanel.add(card);
         }
         
         return statsPanel;
     }
 
-    private JPanel createModernStatCard(String title, String icon, String description, String value, Color color) {
+    private JPanel createStatCard(String title, String description, String value, 
+                                  Color color, Color bgColor, int index) {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBackground(CARD_BG);
         card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR, 1),
-            BorderFactory.createEmptyBorder(15, 20, 15, 20)
+            new LineBorder(BORDER_COLOR, 1, true),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)
         ));
         
-        // Icon and title row
-        JPanel topRow = new JPanel(new BorderLayout());
-        topRow.setBackground(CARD_BG);
-        
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 24));
-        
+        // Title
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setFont(HEADER_FONT);
         titleLabel.setForeground(TEXT_SECONDARY);
-        
-        topRow.add(iconLabel, BorderLayout.WEST);
-        topRow.add(titleLabel, BorderLayout.EAST);
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         
         // Value
         JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
+        valueLabel.setFont(STATS_FONT);
         valueLabel.setForeground(color);
         valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         
         // Description
         JLabel descLabel = new JLabel(description);
-        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        descLabel.setForeground(TEXT_SECONDARY);
+        descLabel.setFont(SMALL_FONT);
+        descLabel.setForeground(TEXT_MUTED);
         descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         
-        card.add(topRow);
-        card.add(Box.createVerticalStrut(10));
+        card.add(titleLabel);
+        card.add(Box.createVerticalStrut(2));
         card.add(valueLabel);
-        card.add(Box.createVerticalStrut(5));
+        card.add(Box.createVerticalStrut(2));
         card.add(descLabel);
         
         // Store reference to value label for updates
-        if (title.startsWith("Active")) statValues[0] = valueLabel;
-        else if (title.startsWith("In Maintenance")) statValues[1] = valueLabel;
-        else if (title.startsWith("Expired")) statValues[2] = valueLabel;
-        else if (title.startsWith("Total")) statValues[3] = valueLabel;
-        else if (title.startsWith("Available")) statValues[4] = valueLabel;
+        statValues[index] = valueLabel;
         
-        // Make card clickable with hover effect
-        card.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        card.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                card.setBackground(new Color(250, 250, 250));
-                card.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(color, 1),
-                    BorderFactory.createEmptyBorder(15, 20, 15, 20)
-                ));
-            }
-            public void mouseExited(MouseEvent e) {
-                card.setBackground(CARD_BG);
-                card.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(BORDER_COLOR, 1),
-                    BorderFactory.createEmptyBorder(15, 20, 15, 20)
-                ));
-            }
-            public void mouseClicked(MouseEvent e) {
-                if (title.startsWith("Active")) {
-                    statusFilter.setSelectedItem("Active");
-                    filter();
-                } else if (title.startsWith("In Maintenance")) {
-                    statusFilter.setSelectedItem("Maintenance");
-                    filter();
-                } else if (title.startsWith("Expired")) {
-                    filterExpiredTax();
-                } else if (title.startsWith("Available")) {
+        // Make all filterable cards clickable
+        if (title.equals("Active") || title.equals("Maintenance") || title.equals("Expired Tax")) {
+            card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            final String filterStatus = title;
+            final int cardIndex = index;
+            
+            card.addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) {
+                    if (currentFilterIndex != cardIndex) {
+                        card.setBackground(bgColor);
+                        card.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(color, 1, true),
+                            BorderFactory.createEmptyBorder(7, 11, 7, 11)
+                        ));
+                    }
+                }
+                
+                public void mouseExited(MouseEvent e) {
+                    if (currentFilterIndex != cardIndex) {
+                        card.setBackground(CARD_BG);
+                        card.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(BORDER_COLOR, 1, true),
+                            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+                        ));
+                    }
+                }
+                
+                public void mouseClicked(MouseEvent e) {
+                    applyStatusFilter(filterStatus, cardIndex, color);
+                }
+            });
+        } else if (title.equals("Available")) {
+            // Available drivers card - show dialog on click
+            card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            card.addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) {
+                    card.setBackground(HOVER_COLOR);
+                }
+                public void mouseExited(MouseEvent e) {
+                    card.setBackground(CARD_BG);
+                }
+                public void mouseClicked(MouseEvent e) {
                     showAvailableDrivers();
                 }
-            }
-        });
+            });
+        } else if (title.equals("Total Fleet")) {
+            // Total fleet card - clear all filters
+            card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            card.addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) {
+                    card.setBackground(HOVER_COLOR);
+                }
+                public void mouseExited(MouseEvent e) {
+                    card.setBackground(CARD_BG);
+                }
+                public void mouseClicked(MouseEvent e) {
+                    clearAllFilters();
+                }
+            });
+        }
         
         return card;
     }
 
-    private void filterExpiredTax() {
-        List<RowFilter<DefaultTableModel, Integer>> filters = new ArrayList<>();
-        filters.add(RowFilter.dateFilter(RowFilter.ComparisonType.BEFORE, new Date(), 4));
-        rowSorter.setRowFilter(RowFilter.andFilter(filters));
-    }
-    
-    private void showAvailableDrivers() {
-        String availableDrivers = drivers.stream()
-            .filter(d -> "Available".equals(d.status) && !"Unassigned".equals(d.name))
-            .map(d -> "• " + d.name + " (" + d.license + ")")
-            .collect(Collectors.joining("\n"));
+    /**
+     * Apply filter by status
+     */
+    private void applyStatusFilter(String status, int cardIndex, Color color) {
+        System.out.println("Applying filter: " + status); // Debug line
         
-        JOptionPane.showMessageDialog(mainPanel, 
-            availableDrivers.isEmpty() ? "No available drivers" : availableDrivers,
-            "Available Drivers", JOptionPane.INFORMATION_MESSAGE);
+        // Reset all card borders
+        resetCardBorders();
+        
+        if (currentFilterIndex == cardIndex) {
+            // Clicking the same card again - clear filter
+            currentFilter = null;
+            currentFilterIndex = -1;
+            statusFilter.setSelectedIndex(0);
+            // Apply only type filter if any
+            applyFilters();
+        } else {
+            // Apply new filter
+            currentFilter = status;
+            currentFilterIndex = cardIndex;
+            
+            // Highlight selected card
+            statCards[cardIndex].setBorder(BorderFactory.createCompoundBorder(
+                new LineBorder(ACTIVE_FILTER_BORDER, 2, true),
+                BorderFactory.createEmptyBorder(7, 11, 7, 11)
+            ));
+            statCards[cardIndex].setBackground(color.brighter());
+            
+            // Update status filter dropdown without triggering action listener
+            statusFilter.removeActionListener(statusFilter.getActionListeners()[0]);
+            statusFilter.setSelectedItem(status);
+            styleFilterCombo(statusFilter); // Re-add listener
+            
+            // Apply filters
+            applyFilters();
+        }
+    }
+
+    /**
+     * Apply all active filters (status and type)
+     */
+    private void applyFilters() {
+        List<RowFilter<DefaultTableModel, Integer>> filters = new ArrayList<>();
+        
+        // Add status filter if active
+        if (currentFilter != null) {
+            String statusForFilter = currentFilter;
+            if (currentFilter.equals("Expired Tax")) {
+                // For expired tax, we need a special filter based on date
+                filters.add(new RowFilter<DefaultTableModel, Integer>() {
+                    @Override
+                    public boolean include(Entry<? extends DefaultTableModel, ? extends Integer> entry) {
+                        Date taxDate = (Date) entry.getValue(4); // Tax Expiry column index
+                        return taxDate != null && taxDate.before(new Date());
+                    }
+                });
+            } else {
+                filters.add(RowFilter.regexFilter("^" + statusForFilter + "$", 6)); // Status column index
+            }
+        }
+        
+        // Add type filter if selected
+        if (typeFilter.getSelectedIndex() > 0) {
+            filters.add(RowFilter.regexFilter("^" + typeFilter.getSelectedItem().toString() + "$", 2)); // Type column index
+        }
+        
+        rowSorter.setRowFilter(filters.isEmpty() ? null : RowFilter.andFilter(filters));
+    }
+
+    /**
+     * Clear all filters
+     */
+    private void clearAllFilters() {
+        resetCardBorders();
+        currentFilter = null;
+        currentFilterIndex = -1;
+        statusFilter.setSelectedIndex(0);
+        typeFilter.setSelectedIndex(0);
+        rowSorter.setRowFilter(null);
+        showNotification("All filters cleared", INFO);
     }
 
     private JPanel createCenterPanel() {
-        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.setBackground(BG_COLOR);
         
-        panel.add(createModernFilterPanel(), BorderLayout.NORTH);
+        panel.add(createFilterBar(), BorderLayout.NORTH);
         panel.add(createTablePanel(), BorderLayout.CENTER);
         
         return panel;
@@ -338,59 +465,102 @@ public class VehicleManagement {
     private JPanel createTablePanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(CARD_BG);
-        panel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
+        panel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
         
         JScrollPane scrollPane = new JScrollPane(createTable());
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getViewport().setBackground(CARD_BG);
+        scrollPane.setCorner(JScrollPane.UPPER_RIGHT_CORNER, createTableHeaderCorner());
+        
+        // Make the scroll pane take all available space
+        scrollPane.setPreferredSize(new Dimension(1000, 550));
+        
+        // Custom scrollbar
+        scrollPane.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        scrollPane.getHorizontalScrollBar().setUI(new ModernScrollBarUI());
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         
         panel.add(scrollPane, BorderLayout.CENTER);
         
         return panel;
     }
 
+    private JPanel createTableHeaderCorner() {
+        JPanel corner = new JPanel();
+        corner.setBackground(new Color(245, 245, 245));
+        corner.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY));
+        return corner;
+    }
+
     private JTable createTable() {
-        String[] columns = {"ID", "Model", "Type", "Plate", "Tax Expiry", "Fuel", "Status", "Driver"};
+        String[] columns = {"ID", "Vehicle", "Type", "Plate", "Tax Expiry", "Fuel", "Status", "Driver"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
+            @Override public Class<?> getColumnClass(int columnIndex) {
+                if (columnIndex == 4) return Date.class;
+                return String.class;
+            }
         };
         
-        vehiclesTable = new JTable(tableModel);
-        vehiclesTable.setRowHeight(45);
-        vehiclesTable.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        vehiclesTable.setSelectionBackground(new Color(PRIMARY.getRed(), PRIMARY.getGreen(), PRIMARY.getBlue(), 30));
+        vehiclesTable = new JTable(tableModel) {
+            @Override
+            public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
+                Component comp = super.prepareRenderer(renderer, row, column);
+                
+                // Alternating row colors
+                if (!isRowSelected(row)) {
+                    if (row % 2 == 0) {
+                        comp.setBackground(new Color(252, 252, 253));
+                    } else {
+                        comp.setBackground(CARD_BG);
+                    }
+                } else {
+                    comp.setBackground(SELECTION_COLOR);
+                }
+                
+                return comp;
+            }
+        };
+        
+        vehiclesTable.setRowHeight(55); // Taller rows
+        vehiclesTable.setFont(REGULAR_FONT);
+        vehiclesTable.setSelectionBackground(SELECTION_COLOR);
         vehiclesTable.setSelectionForeground(TEXT_PRIMARY);
         vehiclesTable.setShowGrid(true);
         vehiclesTable.setGridColor(BORDER_COLOR);
         vehiclesTable.setIntercellSpacing(new Dimension(10, 5));
+        vehiclesTable.setFillsViewportHeight(true);
         
         // Table header styling
         JTableHeader header = vehiclesTable.getTableHeader();
-        header.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        header.setFont(HEADER_FONT);
         header.setBackground(new Color(245, 245, 245));
         header.setForeground(TEXT_PRIMARY);
-        header.setPreferredSize(new Dimension(header.getWidth(), 40));
+        header.setPreferredSize(new Dimension(header.getWidth(), 45));
         header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY));
         
+        // Row sorter
         rowSorter = new TableRowSorter<>(tableModel);
         vehiclesTable.setRowSorter(rowSorter);
         
         // Set column widths
         vehiclesTable.getColumnModel().getColumn(0).setPreferredWidth(80);
-        vehiclesTable.getColumnModel().getColumn(1).setPreferredWidth(180);
+        vehiclesTable.getColumnModel().getColumn(1).setPreferredWidth(220);
         vehiclesTable.getColumnModel().getColumn(2).setPreferredWidth(90);
-        vehiclesTable.getColumnModel().getColumn(3).setPreferredWidth(120);
-        vehiclesTable.getColumnModel().getColumn(4).setPreferredWidth(130);
+        vehiclesTable.getColumnModel().getColumn(3).setPreferredWidth(130);
+        vehiclesTable.getColumnModel().getColumn(4).setPreferredWidth(140);
         vehiclesTable.getColumnModel().getColumn(5).setPreferredWidth(90);
-        vehiclesTable.getColumnModel().getColumn(6).setPreferredWidth(110);
-        vehiclesTable.getColumnModel().getColumn(7).setPreferredWidth(180);
+        vehiclesTable.getColumnModel().getColumn(6).setPreferredWidth(120);
+        vehiclesTable.getColumnModel().getColumn(7).setPreferredWidth(200);
         
-        // Custom renderers
-        vehiclesTable.getColumnModel().getColumn(4).setCellRenderer(new ModernDateCellRenderer());
-        vehiclesTable.getColumnModel().getColumn(6).setCellRenderer(new ModernStatusCellRenderer());
-        vehiclesTable.getColumnModel().getColumn(7).setCellRenderer(new ModernDriverCellRenderer());
+        // Set custom renderers
+        vehiclesTable.getColumnModel().getColumn(4).setCellRenderer(new DateCellRenderer());
+        vehiclesTable.getColumnModel().getColumn(6).setCellRenderer(new StatusCellRenderer());
+        vehiclesTable.getColumnModel().getColumn(7).setCellRenderer(new DriverCellRenderer());
         
+        // Double-click listener
         vehiclesTable.addMouseListener(new MouseAdapter() {
+            @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2 && vehiclesTable.getSelectedRow() != -1) {
                     int row = vehiclesTable.convertRowIndexToModel(vehiclesTable.getSelectedRow());
@@ -406,173 +576,414 @@ public class VehicleManagement {
             }
         });
         
+        // Add hover effect
+        vehiclesTable.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int row = vehiclesTable.rowAtPoint(e.getPoint());
+                if (row >= 0 && vehiclesTable.getSelectedRow() != row) {
+                    vehiclesTable.setRowSelectionInterval(row, row);
+                }
+            }
+        });
+        
         refreshTable();
         return vehiclesTable;
     }
 
-    private JPanel createModernFilterPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 12));
+    private JPanel createFilterBar() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 16, 10));
         panel.setBackground(CARD_BG);
         panel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR),
             BorderFactory.createEmptyBorder(10, 15, 10, 15)
         ));
         
-        // Search field with icon
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        searchPanel.setBackground(CARD_BG);
-        
-        JLabel searchIcon = new JLabel("🔍");
-        searchIcon.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        
-        searchField = new JTextField(20);
-        searchField.putClientProperty("JTextField.placeholderText", "Search by ID, model, plate, driver...");
-        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        searchField.setPreferredSize(new Dimension(250, 35));
-        searchField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(5, 10, 5, 10)
-        ));
-        
-        searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { filter(); }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { filter(); }
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { filter(); }
-        });
-        
-        searchPanel.add(searchIcon);
-        searchPanel.add(searchField);
-        panel.add(searchPanel);
-        
-        panel.add(new JSeparator(SwingConstants.VERTICAL) {{
-            setPreferredSize(new Dimension(1, 30));
-            setForeground(BORDER_COLOR);
-        }});
-        
         // Status filter
-        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         statusPanel.setBackground(CARD_BG);
-        statusPanel.add(new JLabel("Status:") {{
-            setFont(new Font("Segoe UI", Font.BOLD, 12));
-            setForeground(TEXT_SECONDARY);
-        }});
+        
+        JLabel statusLabel = new JLabel("Status:");
+        statusLabel.setFont(HEADER_FONT);
+        statusLabel.setForeground(TEXT_SECONDARY);
         
         statusFilter = new JComboBox<>(new String[]{"All Status", "Active", "Maintenance", "Inactive"});
-        styleComboBox(statusFilter);
+        styleFilterCombo(statusFilter);
+        
+        statusPanel.add(statusLabel);
         statusPanel.add(statusFilter);
         panel.add(statusPanel);
         
         // Type filter
-        JPanel typePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        JPanel typePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         typePanel.setBackground(CARD_BG);
-        typePanel.add(new JLabel("Type:") {{
-            setFont(new Font("Segoe UI", Font.BOLD, 12));
-            setForeground(TEXT_SECONDARY);
-        }});
+        
+        JLabel typeLabel = new JLabel("Type:");
+        typeLabel.setFont(HEADER_FONT);
+        typeLabel.setForeground(TEXT_SECONDARY);
         
         typeFilter = new JComboBox<>(new String[]{"All Types", "Truck", "Van", "Car", "Motorcycle"});
-        styleComboBox(typeFilter);
+        styleFilterCombo(typeFilter);
+        
+        typePanel.add(typeLabel);
         typePanel.add(typeFilter);
         panel.add(typePanel);
         
         // Clear button
-        JButton clearBtn = new JButton("Clear Filters ✕");
-        clearBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JButton clearBtn = new JButton("Clear Filters");
+        clearBtn.setFont(REGULAR_FONT);
         clearBtn.setForeground(TEXT_SECONDARY);
         clearBtn.setBackground(CARD_BG);
-        clearBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        clearBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
         clearBtn.setFocusPainted(false);
         clearBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        clearBtn.addActionListener(e -> {
-            searchField.setText("");
-            statusFilter.setSelectedIndex(0);
-            typeFilter.setSelectedIndex(0);
-            filter();
-        });
+        clearBtn.setPreferredSize(new Dimension(100, 32));
         
         clearBtn.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
-                clearBtn.setBackground(new Color(245, 245, 245));
+                clearBtn.setBackground(HOVER_COLOR);
+                clearBtn.setBorder(BorderFactory.createLineBorder(PRIMARY, 1, true));
             }
             public void mouseExited(MouseEvent e) {
                 clearBtn.setBackground(CARD_BG);
+                clearBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
             }
         });
         
-        panel.add(Box.createHorizontalStrut(10));
+        clearBtn.addActionListener(e -> {
+            clearAllFilters();
+        });
+        
         panel.add(clearBtn);
         
         return panel;
     }
 
-    private void styleComboBox(JComboBox<String> comboBox) {
-        comboBox.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        comboBox.setPreferredSize(new Dimension(120, 35));
+    private void styleFilterCombo(JComboBox<String> comboBox) {
+        comboBox.setFont(REGULAR_FONT);
+        comboBox.setPreferredSize(new Dimension(130, 32));
         comboBox.setBackground(CARD_BG);
-        comboBox.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        comboBox.addActionListener(e -> filter());
+        comboBox.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
+        comboBox.setFocusable(false);
+        
+        if (comboBox == statusFilter) {
+            comboBox.addActionListener(e -> {
+                int selectedIndex = statusFilter.getSelectedIndex();
+                if (selectedIndex > 0) {
+                    String selectedStatus = (String) statusFilter.getSelectedItem();
+                    // Find matching stat card
+                    for (int i = 0; i < statCards.length; i++) {
+                        // Get the title label from the card (first component in the card)
+                        JPanel card = (JPanel) statCards[i];
+                        Component[] components = card.getComponents();
+                        if (components.length > 0 && components[0] instanceof JLabel) {
+                            JLabel titleLabel = (JLabel) components[0];
+                            String cardTitle = titleLabel.getText();
+                            if (cardTitle.equals(selectedStatus)) {
+                                applyStatusFilter(selectedStatus, i, getColorForStatus(selectedStatus));
+                                return;
+                            }
+                        }
+                    }
+                } else {
+                    clearAllFilters();
+                }
+            });
+        } else {
+            comboBox.addActionListener(e -> {
+                applyFilters();
+            });
+        }
     }
 
-    private void filter() {
-        List<RowFilter<DefaultTableModel, Integer>> filters = new ArrayList<>();
+    private Color getColorForStatus(String status) {
+        switch (status) {
+            case "Active": return SUCCESS;
+            case "Maintenance": return INFO;
+            case "Inactive": return WARNING;
+            case "Expired Tax": return WARNING;
+            default: return PRIMARY;
+        }
+    }
+
+    private void showAvailableDrivers() {
+        String availableDrivers = drivers.stream()
+            .filter(d -> "Available".equals(d.status) && !"Unassigned".equals(d.name))
+            .map(d -> String.format("• %s (%s) - %s", d.name, d.license, d.phone))
+            .collect(Collectors.joining("\n"));
         
-        if (!searchField.getText().isEmpty())
-            filters.add(RowFilter.regexFilter("(?i)" + searchField.getText(), 0, 1, 2, 3, 7));
-        
-        if (statusFilter.getSelectedIndex() > 0)
-            filters.add(RowFilter.regexFilter(statusFilter.getSelectedItem().toString(), 6));
-        
-        if (typeFilter.getSelectedIndex() > 0)
-            filters.add(RowFilter.regexFilter(typeFilter.getSelectedItem().toString(), 2));
-        
-        rowSorter.setRowFilter(filters.isEmpty() ? null : RowFilter.andFilter(filters));
+        if (availableDrivers.isEmpty()) {
+            showNotification("No available drivers", WARNING);
+        } else {
+            JOptionPane.showMessageDialog(mainPanel, 
+                availableDrivers,
+                "Available Drivers",
+                JOptionPane.INFORMATION_MESSAGE);
+        }
     }
 
     private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 15));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
         panel.setBackground(BG_COLOR);
         
-        String[] btns = {"➕ Add Vehicle", "✏️ Edit Vehicle", "👤 Assign Driver", 
-                         "🚫 Unassign", "🔧 Maintenance", "📅 Update Tax", "📋 View Maintenance"};
-        Color[] colors = {PRIMARY, new Color(255, 152, 0), SUCCESS, DANGER, WARNING, INFO, new Color(156, 39, 176)};
-        Runnable[] actions = {this::addVehicle, this::editVehicle, this::assignDriver, 
-                              this::unassignDriver, this::toggleMaintenance, this::updateTax, this::viewMaintenanceHistory};
+        ButtonConfig[] buttons = {
+            new ButtonConfig("Add", PRIMARY, PRIMARY_DARK, this::addVehicle),
+            new ButtonConfig("Edit", WARNING, WARNING_DARK, this::editVehicle),
+            new ButtonConfig("Delete", DANGER, DANGER_DARK, this::deleteVehicle),
+            new ButtonConfig("Assign", SUCCESS, SUCCESS_DARK, this::assignDriver),
+            new ButtonConfig("Unassign", DANGER, DANGER_DARK, this::unassignDriver),
+            new ButtonConfig("Maintenance", INFO, INFO_DARK, this::toggleMaintenance),
+            new ButtonConfig("Tax", PURPLE, new Color(89, 52, 154), this::updateTax),
+            new ButtonConfig("History", new Color(108, 117, 125), new Color(73, 80, 87), this::viewMaintenanceHistory)
+        };
         
-        for (int i = 0; i < btns.length; i++) {
-            JButton btn = createModernButton(btns[i], colors[i]);
-            final int index = i;
-            btn.addActionListener(e -> actions[index].run());
-            panel.add(btn);
+        for (ButtonConfig config : buttons) {
+            panel.add(createActionButton(config));
         }
         
         return panel;
     }
 
-    private JButton createModernButton(String text, Color color) {
-        JButton btn = new JButton(text);
-        btn.setBackground(color);
+    private static class ButtonConfig {
+        final String text;
+        final Color bgColor;
+        final Color hoverColor;
+        final Runnable action;
+        
+        ButtonConfig(String text, Color bgColor, Color hoverColor, Runnable action) {
+            this.text = text;
+            this.bgColor = bgColor;
+            this.hoverColor = hoverColor;
+            this.action = action;
+        }
+    }
+
+    private JButton createActionButton(ButtonConfig config) {
+        JButton btn = new JButton(config.text);
+        btn.setBackground(config.bgColor);
         btn.setForeground(Color.WHITE);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setFont(BUTTON_FONT);
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
-        btn.setPreferredSize(new Dimension(150, 40));
+        btn.setPreferredSize(new Dimension(85, 32));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
         btn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) { 
-                btn.setBackground(color.darker());
-                btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            public void mouseEntered(MouseEvent e) {
+                btn.setBackground(config.hoverColor);
+                btn.setFont(BUTTON_HOVER_FONT);
             }
-            public void mouseExited(MouseEvent e) { 
-                btn.setBackground(color);
-                btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            public void mouseExited(MouseEvent e) {
+                btn.setBackground(config.bgColor);
+                btn.setFont(BUTTON_FONT);
             }
         });
+        
+        btn.addActionListener(e -> config.action.run());
         
         return btn;
     }
 
-    // Method to sync vehicle status with maintenance records
+    // Status Cell Renderer
+    private class StatusCellRenderer extends DefaultTableCellRenderer {
+        private final JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        private final JLabel label = new JLabel();
+        
+        public StatusCellRenderer() {
+            panel.setOpaque(true);
+            label.setFont(STATUS_FONT);
+            label.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+            panel.add(label);
+        }
+        
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            
+            panel.setBackground(isSelected ? SELECTION_COLOR : CARD_BG);
+            
+            if (value != null) {
+                String status = value.toString();
+                label.setText(status);
+                
+                if (status.equals("Active")) {
+                    label.setForeground(SUCCESS.darker());
+                    label.setBackground(new Color(232, 245, 233));
+                    label.setOpaque(true);
+                    label.setBorder(BorderFactory.createCompoundBorder(
+                        new LineBorder(SUCCESS, 1, true),
+                        BorderFactory.createEmptyBorder(4, 12, 4, 12)
+                    ));
+                } else if (status.equals("Maintenance")) {
+                    label.setForeground(INFO.darker());
+                    label.setBackground(new Color(227, 242, 253));
+                    label.setOpaque(true);
+                    label.setBorder(BorderFactory.createCompoundBorder(
+                        new LineBorder(INFO, 1, true),
+                        BorderFactory.createEmptyBorder(4, 12, 4, 12)
+                    ));
+                } else {
+                    label.setForeground(WARNING.darker());
+                    label.setBackground(new Color(255, 243, 224));
+                    label.setOpaque(true);
+                    label.setBorder(BorderFactory.createCompoundBorder(
+                        new LineBorder(WARNING, 1, true),
+                        BorderFactory.createEmptyBorder(4, 12, 4, 12)
+                    ));
+                }
+            }
+            
+            return panel;
+        }
+    }
+
+    // Driver Cell Renderer
+    private class DriverCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            
+            setFont(REGULAR_FONT);
+            setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+            
+            if (value != null) {
+                String driver = value.toString();
+                if (!driver.equals("Unassigned")) {
+                    setForeground(PRIMARY);
+                    setText("👤 " + driver);
+                } else {
+                    setForeground(TEXT_MUTED);
+                    setFont(getFont().deriveFont(Font.ITALIC));
+                    setText("— " + driver + " —");
+                }
+            }
+            
+            setOpaque(true);
+            setBackground(isSelected ? SELECTION_COLOR : 
+                         (row % 2 == 0 ? new Color(252, 252, 253) : CARD_BG));
+            
+            return this;
+        }
+    }
+
+    // Date Cell Renderer
+    private class DateCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            
+            setHorizontalAlignment(CENTER);
+            setFont(REGULAR_FONT);
+            
+            if (value instanceof Date) {
+                Date date = (Date) value;
+                String text = displayDateFormat.format(date);
+                
+                Calendar today = Calendar.getInstance();
+                today.set(Calendar.HOUR_OF_DAY, 0);
+                today.set(Calendar.MINUTE, 0);
+                today.set(Calendar.SECOND, 0);
+                today.set(Calendar.MILLISECOND, 0);
+                
+                Calendar recordDate = Calendar.getInstance();
+                recordDate.setTime(date);
+                recordDate.set(Calendar.HOUR_OF_DAY, 0);
+                recordDate.set(Calendar.MINUTE, 0);
+                recordDate.set(Calendar.SECOND, 0);
+                recordDate.set(Calendar.MILLISECOND, 0);
+                
+                if (recordDate.before(today) && !isSelected) {
+                    setForeground(DANGER);
+                    setText(text + " (Overdue)");
+                    setFont(getFont().deriveFont(Font.BOLD));
+                    setBackground(new Color(255, 235, 238));
+                } else if (recordDate.equals(today) && !isSelected) {
+                    setForeground(WARNING);
+                    setText(text + " (Today)");
+                    setBackground(new Color(255, 243, 224));
+                } else {
+                    setForeground(TEXT_PRIMARY);
+                    setText(text);
+                    setBackground(isSelected ? SELECTION_COLOR : 
+                                 (row % 2 == 0 ? new Color(252, 252, 253) : CARD_BG));
+                }
+            }
+            
+            setOpaque(true);
+            return this;
+        }
+    }
+
+    // Modern ScrollBar UI
+    private static class ModernScrollBarUI extends BasicScrollBarUI {
+        private final int THUMB_SIZE = 6;
+        
+        @Override
+        protected void configureScrollBarColors() {
+            thumbColor = new Color(203, 213, 225);
+            trackColor = new Color(241, 245, 249);
+        }
+        
+        @Override
+        protected JButton createDecreaseButton(int orientation) {
+            return createZeroButton();
+        }
+        
+        @Override
+        protected JButton createIncreaseButton(int orientation) {
+            return createZeroButton();
+        }
+        
+        private JButton createZeroButton() {
+            JButton button = new JButton();
+            button.setPreferredSize(new Dimension(0, 0));
+            return button;
+        }
+        
+        @Override
+        protected void paintThumb(Graphics g, JComponent c, Rectangle r) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(thumbColor);
+            g2.fillRoundRect(r.x, r.y, r.width, r.height, THUMB_SIZE, THUMB_SIZE);
+            g2.dispose();
+        }
+        
+        @Override
+        protected void paintTrack(Graphics g, JComponent c, Rectangle r) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setColor(trackColor);
+            g2.fillRect(r.x, r.y, r.width, r.height);
+            g2.dispose();
+        }
+    }
+
+    // Delete vehicle method
+    private void deleteVehicle() {
+        int row = getSelectedRow();
+        if (row == -1) { 
+            showNotification("Please select a vehicle to delete", DANGER);
+            return; 
+        }
+        
+        Vehicle v = vehicles.get(row);
+        
+        int confirm = JOptionPane.showConfirmDialog(mainPanel,
+            "Are you sure you want to delete vehicle " + v.id + "?",
+            "Confirm Delete",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            vehicles.remove(row);
+            saveData();
+            refreshTable();
+            showNotification("Vehicle " + v.id + " deleted successfully", SUCCESS);
+        }
+    }
+
     private void syncWithMaintenance() {
         if (maintenanceManagement == null) return;
         
@@ -580,13 +991,10 @@ public class VehicleManagement {
         for (Vehicle v : vehicles) {
             boolean hasActiveMaintenance = maintenanceManagement.isVehicleInMaintenance(v.id);
             
-            // If vehicle has active maintenance but status is not Maintenance, fix it
             if (hasActiveMaintenance && !v.status.equals("Maintenance")) {
                 v.status = "Maintenance";
                 changed = true;
-            }
-            // If vehicle doesn't have active maintenance but status is Maintenance, fix it
-            else if (!hasActiveMaintenance && v.status.equals("Maintenance")) {
+            } else if (!hasActiveMaintenance && v.status.equals("Maintenance")) {
                 v.status = "Active";
                 changed = true;
             }
@@ -598,18 +1006,17 @@ public class VehicleManagement {
         }
     }
 
-    // New method to view maintenance history for a vehicle
     private void viewMaintenanceHistory() {
         int row = getSelectedRow();
         if (row == -1) { 
-            showWarning("Please select a vehicle to view maintenance history"); 
+            showNotification("Please select a vehicle to view maintenance history", WARNING);
             return; 
         }
         
         Vehicle v = vehicles.get(row);
         
         if (maintenanceManagement == null) {
-            showError("Maintenance Management module not available");
+            showNotification("Maintenance Management module not available", DANGER);
             return;
         }
         
@@ -617,31 +1024,52 @@ public class VehicleManagement {
             maintenanceManagement.getVehicleMaintenanceHistory(v.id);
         
         if (history.isEmpty()) {
-            JOptionPane.showMessageDialog(mainPanel,
-                "No maintenance records found for vehicle " + v.id,
-                "Maintenance History",
-                JOptionPane.INFORMATION_MESSAGE);
+            showNotification("No maintenance records found for " + v.id, INFO);
             return;
         }
         
-        // Create a nice dialog to show maintenance history
+        showMaintenanceHistoryDialog(v, history);
+    }
+    
+    private void showMaintenanceHistoryDialog(Vehicle v, List<MaintenanceManagement.MaintenanceRecord> history) {
         JDialog dialog = new JDialog();
-        dialog.setTitle("Maintenance History - " + v.id + " (" + v.model + ")");
+        dialog.setTitle("Maintenance History - " + v.id);
         dialog.setModal(true);
-        dialog.setSize(800, 500);
+        dialog.setSize(900, 500);
         dialog.setLocationRelativeTo(mainPanel);
-        dialog.getContentPane().setBackground(CARD_BG);
         
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JPanel mainPanel = new JPanel(new BorderLayout(20, 20));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
         mainPanel.setBackground(CARD_BG);
         
-        // Header
-        JLabel titleLabel = new JLabel("📋 Maintenance History for " + v.id + " - " + v.model);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        // Title
+        JLabel titleLabel = new JLabel("Maintenance History");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(PRIMARY);
         
-        // Create table for maintenance records
+        JLabel subtitleLabel = new JLabel(v.id + " - " + v.model);
+        subtitleLabel.setFont(REGULAR_FONT);
+        subtitleLabel.setForeground(TEXT_SECONDARY);
+        
+        JPanel titlePanel = new JPanel(new BorderLayout());
+        titlePanel.setBackground(CARD_BG);
+        titlePanel.add(titleLabel, BorderLayout.NORTH);
+        titlePanel.add(subtitleLabel, BorderLayout.SOUTH);
+        
+        // Stats summary
+        long scheduled = history.stream().filter(r -> r.status.equals("Scheduled")).count();
+        long inProgress = history.stream().filter(r -> r.status.equals("In Progress")).count();
+        long completed = history.stream().filter(r -> r.status.equals("Completed")).count();
+        
+        JPanel statsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 0));
+        statsPanel.setBackground(CARD_BG);
+        statsPanel.setBorder(BorderFactory.createEmptyBorder(16, 0, 16, 0));
+        
+        statsPanel.add(createStatBadge("Scheduled", String.valueOf(scheduled), WARNING));
+        statsPanel.add(createStatBadge("In Progress", String.valueOf(inProgress), INFO));
+        statsPanel.add(createStatBadge("Completed", String.valueOf(completed), SUCCESS));
+        
+        // Table
         String[] columns = {"ID", "Date", "Description", "Status", "Notes"};
         DefaultTableModel historyModel = new DefaultTableModel(columns, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
@@ -650,7 +1078,7 @@ public class VehicleManagement {
         for (MaintenanceManagement.MaintenanceRecord record : history) {
             historyModel.addRow(new Object[]{
                 record.maintenanceId,
-                dateFormat.format(record.scheduledDate),
+                displayDateFormat.format(record.scheduledDate),
                 record.description,
                 record.status,
                 record.notes
@@ -658,455 +1086,601 @@ public class VehicleManagement {
         }
         
         JTable historyTable = new JTable(historyModel);
-        historyTable.setRowHeight(35);
-        historyTable.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        historyTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        historyTable.setRowHeight(45);
+        historyTable.setFont(REGULAR_FONT);
+        historyTable.getTableHeader().setFont(HEADER_FONT);
         historyTable.getTableHeader().setBackground(new Color(245, 245, 245));
-        
-        // Status column renderer
-        historyTable.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                    boolean isSelected, boolean hasFocus, int row, int column) {
-                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (value != null) {
-                    String status = value.toString();
-                    if (status.equals("Scheduled")) {
-                        setForeground(WARNING);
-                    } else if (status.equals("In Progress")) {
-                        setForeground(INFO);
-                    } else if (status.equals("Completed")) {
-                        setForeground(SUCCESS);
-                    }
-                    setText("● " + status);
-                }
-                return this;
-            }
-        });
         
         JScrollPane scrollPane = new JScrollPane(historyTable);
         scrollPane.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
         
-        // Stats panel
-        long scheduled = history.stream().filter(r -> r.status.equals("Scheduled")).count();
-        long inProgress = history.stream().filter(r -> r.status.equals("In Progress")).count();
-        long completed = history.stream().filter(r -> r.status.equals("Completed")).count();
-        
-        JPanel statsPanel = new JPanel(new GridLayout(1, 3, 10, 0));
-        statsPanel.setBackground(CARD_BG);
-        statsPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
-        
-        statsPanel.add(createHistoryStatCard("Scheduled", String.valueOf(scheduled), WARNING));
-        statsPanel.add(createHistoryStatCard("In Progress", String.valueOf(inProgress), INFO));
-        statsPanel.add(createHistoryStatCard("Completed", String.valueOf(completed), SUCCESS));
-        
         // Close button
         JButton closeBtn = new JButton("Close");
-        closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        closeBtn.setFont(BUTTON_FONT);
         closeBtn.setForeground(Color.WHITE);
         closeBtn.setBackground(PRIMARY);
         closeBtn.setBorderPainted(false);
-        closeBtn.setPreferredSize(new Dimension(100, 35));
-        closeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        closeBtn.setPreferredSize(new Dimension(85, 32));
         closeBtn.addActionListener(e -> dialog.dispose());
         
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(CARD_BG);
         buttonPanel.add(closeBtn);
         
-        mainPanel.add(titleLabel, BorderLayout.NORTH);
-        mainPanel.add(scrollPane, BorderLayout.CENTER);
-        mainPanel.add(statsPanel, BorderLayout.SOUTH);
+        mainPanel.add(titlePanel, BorderLayout.NORTH);
+        mainPanel.add(statsPanel, BorderLayout.CENTER);
+        mainPanel.add(scrollPane, BorderLayout.SOUTH);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
         
         dialog.add(mainPanel);
         dialog.setVisible(true);
     }
     
-    private JPanel createHistoryStatCard(String title, String value, Color color) {
-        JPanel card = new JPanel(new BorderLayout());
-        card.setBackground(new Color(245, 245, 245));
-        card.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+    private JPanel createStatBadge(String label, String value, Color color) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        panel.setBackground(CARD_BG);
         
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        titleLabel.setForeground(TEXT_SECONDARY);
+        JLabel dot = new JLabel("●");
+        dot.setFont(STATUS_FONT);
+        dot.setForeground(color);
         
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        valueLabel.setForeground(color);
+        JLabel text = new JLabel(label + ": " + value);
+        text.setFont(REGULAR_FONT);
+        text.setForeground(TEXT_PRIMARY);
         
-        card.add(titleLabel, BorderLayout.NORTH);
-        card.add(valueLabel, BorderLayout.CENTER);
+        panel.add(dot);
+        panel.add(text);
         
-        return card;
+        return panel;
     }
 
-    // Add Vehicle dialog
     private void addVehicle() {
         JDialog dialog = new JDialog();
         dialog.setTitle("Add New Vehicle");
         dialog.setModal(true);
         dialog.setSize(500, 600);
         dialog.setLocationRelativeTo(mainPanel);
-        dialog.getContentPane().setBackground(CARD_BG);
         
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
-        mainPanel.setBackground(CARD_BG);
+        JPanel panel = new JPanel(new BorderLayout(20, 20));
+        panel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+        panel.setBackground(CARD_BG);
         
-        // Header
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(CARD_BG);
-        JLabel titleLabel = new JLabel("➕ Add New Vehicle");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        titleLabel.setForeground(PRIMARY);
-        headerPanel.add(titleLabel, BorderLayout.WEST);
-        
-        // Form panel
+        // Form
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(CARD_BG);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.insets = new Insets(8, 8, 8, 8);
         
-        // Form fields
         JComboBox<String> typeCombo = new JComboBox<>(new String[]{"Truck", "Van", "Car", "Motorcycle"});
-        JTextField modelField = new JTextField(20);
-        JTextField plateField = new JTextField(20);
+        JTextField modelField = createStyledTextField();
+        JTextField plateField = createStyledTextField();
         JComboBox<String> fuelCombo = new JComboBox<>(new String[]{"Diesel", "Gasoline", "Electric", "Hybrid"});
-        JSpinner dateSpinner = new JSpinner(new SpinnerDateModel());
-        dateSpinner.setEditor(new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd"));
-        dateSpinner.setValue(new Date());
+        JSpinner dateSpinner = createStyledDateSpinner(new Date());
         
-        // Style form fields
         styleFormField(typeCombo);
         styleFormField(modelField);
         styleFormField(plateField);
         styleFormField(fuelCombo);
         styleFormField(dateSpinner);
         
-        // Add fields with labels
         int row = 0;
-        addFormField(formPanel, "Vehicle Type:", typeCombo, gbc, row++);
+        addFormField(formPanel, "Type:", typeCombo, gbc, row++);
         addFormField(formPanel, "Model:", modelField, gbc, row++);
-        addFormField(formPanel, "Number Plate:", plateField, gbc, row++);
-        addFormField(formPanel, "Fuel Type:", fuelCombo, gbc, row++);
-        addFormField(formPanel, "Road Tax Expiry:", dateSpinner, gbc, row++);
+        addFormField(formPanel, "Plate:", plateField, gbc, row++);
+        addFormField(formPanel, "Fuel:", fuelCombo, gbc, row++);
+        addFormField(formPanel, "Tax Expiry:", dateSpinner, gbc, row++);
         
-        // Preview panel
-        JPanel previewPanel = createPreviewPanel(typeCombo, modelField, plateField);
-        
-        // Button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-        buttonPanel.setBackground(CARD_BG);
-        
-        JButton cancelBtn = new JButton("Cancel");
-        cancelBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        cancelBtn.setForeground(TEXT_SECONDARY);
-        cancelBtn.setBackground(CARD_BG);
-        cancelBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        cancelBtn.setPreferredSize(new Dimension(100, 40));
-        cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        cancelBtn.addActionListener(e -> dialog.dispose());
-        
-        JButton saveBtn = new JButton("Save Vehicle");
-        saveBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        saveBtn.setForeground(Color.WHITE);
-        saveBtn.setBackground(SUCCESS);
-        saveBtn.setBorderPainted(false);
-        saveBtn.setPreferredSize(new Dimension(120, 40));
-        saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        saveBtn.addActionListener(e -> {
-            if (validateVehicleForm(modelField, plateField)) {
-                String type = (String) typeCombo.getSelectedItem();
-                String id = generateId(type);
-                
-                vehicles.add(new Vehicle(id, modelField.getText().trim(), "Active", null, type,
-                    plateField.getText().trim().toUpperCase(), (Date) dateSpinner.getValue(), 
-                    (String) fuelCombo.getSelectedItem()));
-                
-                saveData();
-                refreshTable();
-                showSuccess("Vehicle " + id + " added successfully");
-                dialog.dispose();
+        // Buttons
+        JPanel buttonPanel = createDialogButtonPanel(
+            dialog,
+            "Add Vehicle",
+            SUCCESS,
+            SUCCESS_DARK,
+            () -> {
+                if (validateForm(modelField, plateField)) {
+                    String type = (String) typeCombo.getSelectedItem();
+                    String id = generateId(type);
+                    
+                    vehicles.add(new Vehicle(id, modelField.getText().trim(), "Active", null, type,
+                        plateField.getText().trim().toUpperCase(), (Date) dateSpinner.getValue(), 
+                        (String) fuelCombo.getSelectedItem()));
+                    
+                    saveData();
+                    refreshTable();
+                    showNotification("Vehicle added: " + id, SUCCESS);
+                    dialog.dispose();
+                }
             }
-        });
+        );
         
-        buttonPanel.add(cancelBtn);
-        buttonPanel.add(saveBtn);
+        panel.add(formPanel, BorderLayout.CENTER);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
         
-        // Assemble dialog
-        mainPanel.add(headerPanel, BorderLayout.NORTH);
-        mainPanel.add(formPanel, BorderLayout.CENTER);
-        mainPanel.add(previewPanel, BorderLayout.SOUTH);
-        
-        dialog.add(mainPanel);
+        dialog.add(panel);
         dialog.setVisible(true);
     }
 
-    // Edit Vehicle dialog
     private void editVehicle() {
         int row = getSelectedRow();
         if (row == -1) { 
-            showWarning("Please select a vehicle to edit"); 
+            showNotification("Please select a vehicle to edit", WARNING);
             return; 
         }
         
         Vehicle v = vehicles.get(row);
         
         JDialog dialog = new JDialog();
-        dialog.setTitle("Edit Vehicle: " + v.id);
+        dialog.setTitle("Edit Vehicle - " + v.id);
         dialog.setModal(true);
-        dialog.setSize(550, 650);
+        dialog.setSize(500, 650);
         dialog.setLocationRelativeTo(mainPanel);
-        dialog.getContentPane().setBackground(CARD_BG);
         
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
-        mainPanel.setBackground(CARD_BG);
+        JPanel panel = new JPanel(new BorderLayout(20, 20));
+        panel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+        panel.setBackground(CARD_BG);
         
-        // Header with vehicle ID
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(CARD_BG);
-        
-        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        titlePanel.setBackground(CARD_BG);
-        
-        JLabel titleLabel = new JLabel("✏️ Edit Vehicle");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        titleLabel.setForeground(new Color(255, 152, 0));
-        
-        JLabel idLabel = new JLabel("  •  " + v.id);
-        idLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        idLabel.setForeground(TEXT_SECONDARY);
-        
-        titlePanel.add(titleLabel);
-        titlePanel.add(idLabel);
-        headerPanel.add(titlePanel, BorderLayout.WEST);
-        
-        // Form panel
+        // Form
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(CARD_BG);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.insets = new Insets(8, 8, 8, 8);
         
-        // Form fields
-        JTextField modelField = new JTextField(v.model);
-        JTextField plateField = new JTextField(v.numberPlate);
+        JTextField modelField = createStyledTextField(v.model);
+        JTextField plateField = createStyledTextField(v.numberPlate);
         JComboBox<String> fuelCombo = new JComboBox<>(new String[]{"Diesel", "Gasoline", "Electric", "Hybrid"});
         fuelCombo.setSelectedItem(v.fuelType);
         JComboBox<String> statusCombo = new JComboBox<>(new String[]{"Active", "Inactive", "Maintenance"});
         statusCombo.setSelectedItem(v.status);
-        JSpinner dateSpinner = new JSpinner(new SpinnerDateModel());
-        dateSpinner.setValue(v.roadTaxExpiry);
-        dateSpinner.setEditor(new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd"));
+        JSpinner dateSpinner = createStyledDateSpinner(v.roadTaxExpiry);
         
-        // Driver info (read-only)
-        JTextField driverField = new JTextField(v.driverName == null ? "Unassigned" : v.driverName);
-        driverField.setEditable(false);
-        driverField.setBackground(new Color(245, 245, 245));
-        
-        // Style fields
-        styleFormField(modelField);
-        styleFormField(plateField);
         styleFormField(fuelCombo);
         styleFormField(statusCombo);
-        styleFormField(dateSpinner);
-        styleFormField(driverField);
         
-        // Add fields
         int rowIndex = 0;
         addFormField(formPanel, "Model:", modelField, gbc, rowIndex++);
-        addFormField(formPanel, "Number Plate:", plateField, gbc, rowIndex++);
-        addFormField(formPanel, "Fuel Type:", fuelCombo, gbc, rowIndex++);
+        addFormField(formPanel, "Plate:", plateField, gbc, rowIndex++);
+        addFormField(formPanel, "Fuel:", fuelCombo, gbc, rowIndex++);
         addFormField(formPanel, "Status:", statusCombo, gbc, rowIndex++);
-        addFormField(formPanel, "Current Driver:", driverField, gbc, rowIndex++);
-        addFormField(formPanel, "Road Tax Expiry:", dateSpinner, gbc, rowIndex++);
+        addFormField(formPanel, "Tax Expiry:", dateSpinner, gbc, rowIndex++);
         
-        // Status warning panel
-        JPanel warningPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        warningPanel.setBackground(new Color(255, 243, 205));
-        warningPanel.setBorder(BorderFactory.createLineBorder(new Color(255, 193, 7)));
-        
-        JLabel warningLabel = new JLabel("⚠️ Changing status to 'Maintenance' will create a maintenance record and unassign the driver");
-        warningLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        warningLabel.setForeground(new Color(255, 193, 7).darker());
-        warningPanel.add(warningLabel);
-        
-        // Button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-        buttonPanel.setBackground(CARD_BG);
-        
-        JButton cancelBtn = new JButton("Cancel");
-        cancelBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        cancelBtn.setForeground(TEXT_SECONDARY);
-        cancelBtn.setBackground(CARD_BG);
-        cancelBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        cancelBtn.setPreferredSize(new Dimension(100, 40));
-        cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        cancelBtn.addActionListener(e -> dialog.dispose());
-        
-        JButton saveBtn = new JButton("Save Changes");
-        saveBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        saveBtn.setForeground(Color.WHITE);
-        saveBtn.setBackground(new Color(255, 152, 0));
-        saveBtn.setBorderPainted(false);
-        saveBtn.setPreferredSize(new Dimension(130, 40));
-        saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        saveBtn.addActionListener(e -> {
-            String oldStatus = v.status;
-            
-            v.model = modelField.getText();
-            v.numberPlate = plateField.getText().toUpperCase();
-            v.fuelType = (String) fuelCombo.getSelectedItem();
-            v.status = (String) statusCombo.getSelectedItem();
-            v.roadTaxExpiry = (Date) dateSpinner.getValue();
-            
-            // If status changed to Maintenance, create maintenance record and unassign driver
-            if (!oldStatus.equals(v.status) && v.status.equals("Maintenance")) {
-                // Unassign driver if any
-                if (v.driverName != null) {
-                    findDriver(v.driverName).ifPresent(d -> {
-                        d.currentVehicle = null;
-                        d.status = "Available";
-                    });
-                    v.driverName = null;
-                }
+        // Buttons
+        JPanel buttonPanel = createDialogButtonPanel(
+            dialog,
+            "Save Changes",
+            WARNING,
+            WARNING_DARK,
+            () -> {
+                v.model = modelField.getText();
+                v.numberPlate = plateField.getText().toUpperCase();
+                v.fuelType = (String) fuelCombo.getSelectedItem();
+                v.status = (String) statusCombo.getSelectedItem();
+                v.roadTaxExpiry = (Date) dateSpinner.getValue();
                 
-                // Create maintenance record if MaintenanceManagement is available
-                if (maintenanceManagement != null) {
-                    String description = JOptionPane.showInputDialog(dialog,
-                        "Enter maintenance description for " + v.id + ":",
-                        "Maintenance Required",
-                        JOptionPane.QUESTION_MESSAGE);
-                    
-                    if (description != null && !description.trim().isEmpty()) {
-                        maintenanceManagement.addVehicleToMaintenance(v.id, v.model, description);
-                    } else {
-                        maintenanceManagement.addVehicleToMaintenance(v.id, v.model, "Routine maintenance");
-                    }
-                }
+                saveData();
+                refreshTable();
+                showNotification("Vehicle updated: " + v.id, SUCCESS);
+                dialog.dispose();
             }
-            // If status changed from Maintenance to something else, complete maintenance
-            else if (oldStatus.equals("Maintenance") && !v.status.equals("Maintenance") && maintenanceManagement != null) {
-                maintenanceManagement.completeMaintenanceForVehicle(v.id);
-            }
-            
-            saveData();
-            refreshTable();
-            showSuccess("Vehicle " + v.id + " updated");
-            dialog.dispose();
-        });
+        );
         
-        buttonPanel.add(cancelBtn);
-        buttonPanel.add(saveBtn);
+        panel.add(formPanel, BorderLayout.CENTER);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
         
-        // Assemble dialog
-        JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBackground(CARD_BG);
-        centerPanel.add(formPanel, BorderLayout.CENTER);
-        centerPanel.add(warningPanel, BorderLayout.SOUTH);
-        
-        mainPanel.add(headerPanel, BorderLayout.NORTH);
-        mainPanel.add(centerPanel, BorderLayout.CENTER);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.add(mainPanel);
+        dialog.add(panel);
         dialog.setVisible(true);
     }
 
-    // Helper method to create preview panel
-    private JPanel createPreviewPanel(JComboBox<String> typeCombo, JTextField modelField, JTextField plateField) {
-        JPanel previewPanel = new JPanel();
-        previewPanel.setBackground(new Color(245, 245, 245));
-        previewPanel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            "Preview",
-            TitledBorder.LEFT,
-            TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 12),
-            PRIMARY
-        ));
-        previewPanel.setLayout(new BoxLayout(previewPanel, BoxLayout.Y_AXIS));
+    private void assignDriver() {
+        int row = getSelectedRow();
+        if (row == -1) { 
+            showNotification("Please select a vehicle", WARNING); 
+            return; 
+        }
         
-        JLabel previewLabel = new JLabel(" ");
-        previewLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        previewLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        previewPanel.add(previewLabel);
+        Vehicle v = vehicles.get(row);
         
-        // Update preview when fields change
-        javax.swing.event.DocumentListener listener = new javax.swing.event.DocumentListener() {
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { updatePreview(); }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { updatePreview(); }
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { updatePreview(); }
-            private void updatePreview() {
-                String type = (String) typeCombo.getSelectedItem();
-                String model = modelField.getText().trim();
-                String plate = plateField.getText().trim().toUpperCase();
-                String preview = String.format("<html><b>New Vehicle:</b> %s %s<br><b>Plate:</b> %s<br><b>ID will be:</b> %s</html>",
-                    type, model.isEmpty() ? "?" : model,
-                    plate.isEmpty() ? "?" : plate,
-                    type != null ? generateIdPreview(type) : "?");
-                previewLabel.setText(preview);
-            }
-        };
+        if (v.status.equals("Maintenance")) {
+            showNotification("Cannot assign driver to vehicle in maintenance", WARNING);
+            return;
+        }
         
-        typeCombo.addActionListener(e -> listener.insertUpdate(null));
-        modelField.getDocument().addDocumentListener(listener);
-        plateField.getDocument().addDocumentListener(listener);
+        List<Driver> availableDrivers = drivers.stream()
+            .filter(d -> !"Unassigned".equals(d.name) && d.currentVehicle == null)
+            .collect(Collectors.toList());
         
-        listener.insertUpdate(null); // Initial update
+        if (availableDrivers.isEmpty()) {
+            showNotification("No available drivers", WARNING);
+            return;
+        }
         
-        return previewPanel;
+        showAssignDriverDialog(v, availableDrivers);
     }
 
-    private String generateIdPreview(String type) {
-        String prefix = type.equals("Truck") ? "TRK" : 
-                       type.equals("Van") ? "VAN" : 
-                       type.equals("Car") ? "CAR" : "MTC";
-        int count = typeCounters.getOrDefault(type, 0) + 1;
-        return prefix + String.format("%03d", count);
+    private void showAssignDriverDialog(Vehicle v, List<Driver> availableDrivers) {
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Assign Driver");
+        dialog.setModal(true);
+        dialog.setSize(450, 400);
+        dialog.setLocationRelativeTo(mainPanel);
+        
+        JPanel panel = new JPanel(new BorderLayout(20, 20));
+        panel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+        panel.setBackground(CARD_BG);
+        
+        // Title
+        JLabel titleLabel = new JLabel("Assign Driver to " + v.id);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        titleLabel.setForeground(PRIMARY);
+        
+        // Driver selection
+        JPanel selectionPanel = new JPanel(new GridBagLayout());
+        selectionPanel.setBackground(CARD_BG);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(10, 10, 10, 10);
+        
+        JLabel selectLabel = new JLabel("Select Driver:");
+        selectLabel.setFont(HEADER_FONT);
+        selectLabel.setForeground(TEXT_PRIMARY);
+        
+        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
+        model.addElement("Choose a driver...");
+        availableDrivers.forEach(d -> model.addElement(d.name + " (" + d.license + ")"));
+        
+        JComboBox<String> driverCombo = new JComboBox<>(model);
+        driverCombo.setFont(REGULAR_FONT);
+        driverCombo.setPreferredSize(new Dimension(300, 35));
+        driverCombo.setBackground(CARD_BG);
+        driverCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
+        
+        gbc.gridx = 0; gbc.gridy = 0;
+        selectionPanel.add(selectLabel, gbc);
+        
+        gbc.gridx = 1;
+        selectionPanel.add(driverCombo, gbc);
+        
+        // Buttons
+        JPanel buttonPanel = createDialogButtonPanel(
+            dialog,
+            "Assign",
+            SUCCESS,
+            SUCCESS_DARK,
+            () -> {
+                int selectedIndex = driverCombo.getSelectedIndex();
+                if (selectedIndex > 0) {
+                    Driver selectedDriver = availableDrivers.get(selectedIndex - 1);
+                    
+                    if (v.driverName != null) {
+                        findDriver(v.driverName).ifPresent(d -> {
+                            d.currentVehicle = null;
+                            d.status = "Available";
+                        });
+                    }
+                    
+                    selectedDriver.currentVehicle = v.id;
+                    selectedDriver.status = "Active";
+                    v.driverName = selectedDriver.name;
+                    v.status = "Active";
+                    
+                    saveData();
+                    refreshTable();
+                    showNotification(selectedDriver.name + " assigned to " + v.id, SUCCESS);
+                    dialog.dispose();
+                } else {
+                    showNotification("Please select a driver", WARNING);
+                }
+            }
+        );
+        
+        panel.add(titleLabel, BorderLayout.NORTH);
+        panel.add(selectionPanel, BorderLayout.CENTER);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    private void unassignDriver() {
+        int row = getSelectedRow();
+        if (row == -1) { 
+            showNotification("Please select a vehicle", WARNING); 
+            return; 
+        }
+        
+        Vehicle v = vehicles.get(row);
+        if (v.driverName != null) {
+            int confirm = JOptionPane.showConfirmDialog(mainPanel,
+                "Are you sure you want to unassign " + v.driverName + " from " + v.id + "?",
+                "Confirm Unassign",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                String driverName = v.driverName;
+                findDriver(v.driverName).ifPresent(d -> {
+                    d.currentVehicle = null;
+                    d.status = "Available";
+                });
+                v.driverName = null;
+                saveData();
+                refreshTable();
+                showNotification(driverName + " unassigned from " + v.id, INFO);
+            }
+        } else {
+            showNotification("No driver assigned to this vehicle", WARNING);
+        }
+    }
+
+    private void toggleMaintenance() {
+        int row = getSelectedRow();
+        if (row == -1) { 
+            showNotification("Please select a vehicle", WARNING); 
+            return; 
+        }
+        
+        Vehicle v = vehicles.get(row);
+        
+        if (v.status.equals("Maintenance")) {
+            completeMaintenance(v);
+        } else {
+            startMaintenance(v);
+        }
+    }
+
+    private void startMaintenance(Vehicle v) {
+        if (v.driverName != null) {
+            int confirm = JOptionPane.showConfirmDialog(mainPanel,
+                v.driverName + " is assigned to this vehicle. Moving to maintenance will unassign them.\nContinue?",
+                "Start Maintenance",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                String driverName = v.driverName;
+                findDriver(v.driverName).ifPresent(d -> {
+                    d.currentVehicle = null;
+                    d.status = "Available";
+                });
+                v.driverName = null;
+                
+                createMaintenanceRecord(v);
+                v.status = "Maintenance";
+                showNotification(driverName + " has been unassigned", INFO);
+            } else {
+                return;
+            }
+        } else {
+            createMaintenanceRecord(v);
+            v.status = "Maintenance";
+        }
+        
+        saveData();
+        refreshTable();
+    }
+
+    private void createMaintenanceRecord(Vehicle v) {
+        if (maintenanceManagement != null) {
+            String description = JOptionPane.showInputDialog(mainPanel,
+                "Enter maintenance description for " + v.id + ":",
+                "Maintenance Required",
+                JOptionPane.QUESTION_MESSAGE);
+            
+            if (description != null && !description.trim().isEmpty()) {
+                maintenanceManagement.addVehicleToMaintenance(v.id, v.model, description);
+            } else {
+                maintenanceManagement.addVehicleToMaintenance(v.id, v.model, "Routine maintenance");
+            }
+        }
+    }
+
+    private void completeMaintenance(Vehicle v) {
+        v.status = "Active";
+        if (maintenanceManagement != null) {
+            maintenanceManagement.completeMaintenanceForVehicle(v.id);
+        }
+        showNotification(v.id + " is now active", SUCCESS);
+        saveData();
+        refreshTable();
+    }
+
+    private void updateTax() {
+        int row = getSelectedRow();
+        if (row == -1) { 
+            showNotification("Please select a vehicle", WARNING); 
+            return; 
+        }
+        
+        Vehicle v = vehicles.get(row);
+        showUpdateTaxDialog(v);
+    }
+
+    private void showUpdateTaxDialog(Vehicle v) {
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Update Road Tax");
+        dialog.setModal(true);
+        dialog.setSize(400, 300);
+        dialog.setLocationRelativeTo(mainPanel);
+        
+        JPanel panel = new JPanel(new BorderLayout(20, 20));
+        panel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+        panel.setBackground(CARD_BG);
+        
+        // Title
+        JLabel titleLabel = new JLabel("Update Tax for " + v.id);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        titleLabel.setForeground(PRIMARY);
+        
+        // Current expiry info
+        JPanel infoPanel = new JPanel(new BorderLayout());
+        infoPanel.setBackground(new Color(248, 250, 252));
+        infoPanel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(12, 15, 12, 15));
+        
+        JLabel currentLabel = new JLabel("Current Expiry:");
+        currentLabel.setFont(HEADER_FONT);
+        currentLabel.setForeground(TEXT_SECONDARY);
+        
+        boolean isExpired = v.roadTaxExpiry.before(new Date());
+        JLabel dateLabel = new JLabel(displayDateFormat.format(v.roadTaxExpiry));
+        dateLabel.setFont(STATUS_FONT);
+        dateLabel.setForeground(isExpired ? DANGER : SUCCESS);
+        
+        infoPanel.add(currentLabel, BorderLayout.WEST);
+        infoPanel.add(dateLabel, BorderLayout.EAST);
+        
+        // Date selection
+        JPanel selectionPanel = new JPanel(new BorderLayout(10, 0));
+        selectionPanel.setBackground(CARD_BG);
+        
+        JLabel newLabel = new JLabel("New Date:");
+        newLabel.setFont(HEADER_FONT);
+        newLabel.setForeground(TEXT_PRIMARY);
+        
+        JSpinner dateSpinner = createStyledDateSpinner(v.roadTaxExpiry);
+        
+        selectionPanel.add(newLabel, BorderLayout.WEST);
+        selectionPanel.add(dateSpinner, BorderLayout.CENTER);
+        
+        // Buttons
+        JPanel buttonPanel = createDialogButtonPanel(
+            dialog,
+            "Update",
+            INFO,
+            INFO_DARK,
+            () -> {
+                v.roadTaxExpiry = (Date) dateSpinner.getValue();
+                saveData();
+                refreshTable();
+                showNotification("Road tax updated for " + v.id, SUCCESS);
+                dialog.dispose();
+            }
+        );
+        
+        panel.add(titleLabel, BorderLayout.NORTH);
+        panel.add(infoPanel, BorderLayout.CENTER);
+        panel.add(selectionPanel, BorderLayout.CENTER);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    // Helper methods for dialogs
+    private JTextField createStyledTextField() {
+        return createStyledTextField("");
+    }
+    
+    private JTextField createStyledTextField(String text) {
+        JTextField field = new JTextField(text);
+        field.setFont(REGULAR_FONT);
+        field.setPreferredSize(new Dimension(300, 35));
+        field.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(BORDER_COLOR, 1, true),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+        ));
+        return field;
+    }
+
+    private JSpinner createStyledDateSpinner(Date initialDate) {
+        JSpinner spinner = new JSpinner(new SpinnerDateModel());
+        spinner.setValue(initialDate);
+        spinner.setEditor(new JSpinner.DateEditor(spinner, "yyyy-MM-dd"));
+        spinner.setPreferredSize(new Dimension(300, 35));
+        spinner.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
+        
+        JComponent editor = spinner.getEditor();
+        if (editor instanceof JSpinner.DateEditor) {
+            JFormattedTextField ftf = ((JSpinner.DateEditor) editor).getTextField();
+            ftf.setFont(REGULAR_FONT);
+            ftf.setBackground(CARD_BG);
+            ftf.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        }
+        
+        return spinner;
     }
 
     private void styleFormField(JComponent field) {
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        field.setFont(REGULAR_FONT);
         field.setPreferredSize(new Dimension(300, 35));
         if (field instanceof JTextField) {
             ((JTextField) field).setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(5, 10, 5, 10)
+                new LineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(8, 12, 8, 12)
             ));
         } else if (field instanceof JComboBox) {
-            ((JComboBox<?>) field).setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+            ((JComboBox<?>) field).setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
         } else if (field instanceof JSpinner) {
-            ((JSpinner) field).setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+            ((JSpinner) field).setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
         }
     }
 
     private void addFormField(JPanel panel, String label, JComponent field, GridBagConstraints gbc, int row) {
         gbc.gridx = 0;
         gbc.gridy = row;
-        gbc.gridwidth = 1;
-        gbc.weightx = 0.2;
+        gbc.weightx = 0.3;
+        
         JLabel jLabel = new JLabel(label);
-        jLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        jLabel.setFont(HEADER_FONT);
         jLabel.setForeground(TEXT_PRIMARY);
         panel.add(jLabel, gbc);
         
         gbc.gridx = 1;
-        gbc.gridwidth = 2;
-        gbc.weightx = 0.8;
+        gbc.weightx = 0.7;
         panel.add(field, gbc);
     }
 
-    private boolean validateVehicleForm(JTextField modelField, JTextField plateField) {
+    private JPanel createDialogButtonPanel(JDialog dialog, String saveText, 
+                                           Color saveColor, Color hoverColor, Runnable saveAction) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        panel.setBackground(CARD_BG);
+        
+        JButton cancelBtn = new JButton("Cancel");
+        cancelBtn.setFont(REGULAR_FONT);
+        cancelBtn.setForeground(TEXT_SECONDARY);
+        cancelBtn.setBackground(CARD_BG);
+        cancelBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
+        cancelBtn.setPreferredSize(new Dimension(80, 35));
+        cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cancelBtn.addActionListener(e -> dialog.dispose());
+        
+        JButton saveBtn = new JButton(saveText);
+        saveBtn.setFont(BUTTON_FONT);
+        saveBtn.setForeground(Color.WHITE);
+        saveBtn.setBackground(saveColor);
+        saveBtn.setBorderPainted(false);
+        saveBtn.setPreferredSize(new Dimension(100, 35));
+        saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        saveBtn.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                saveBtn.setBackground(hoverColor);
+                saveBtn.setFont(BUTTON_HOVER_FONT);
+            }
+            public void mouseExited(MouseEvent e) {
+                saveBtn.setBackground(saveColor);
+                saveBtn.setFont(BUTTON_FONT);
+            }
+        });
+        
+        saveBtn.addActionListener(e -> saveAction.run());
+        
+        panel.add(cancelBtn);
+        panel.add(saveBtn);
+        
+        return panel;
+    }
+
+    private boolean validateForm(JTextField modelField, JTextField plateField) {
         if (modelField.getText().trim().isEmpty()) {
-            showWarning("Please enter vehicle model");
+            showNotification("Please enter vehicle model", WARNING);
+            modelField.requestFocus();
             return false;
         }
         if (plateField.getText().trim().isEmpty()) {
-            showWarning("Please enter number plate");
+            showNotification("Please enter number plate", WARNING);
+            plateField.requestFocus();
             return false;
         }
         return true;
@@ -1121,244 +1695,32 @@ public class VehicleManagement {
         return prefix + String.format("%03d", count);
     }
 
-    private void assignDriver() {
-        int row = getSelectedRow();
-        if (row == -1) { showWarning("Please select a vehicle"); return; }
-        
-        Vehicle v = vehicles.get(row);
-        
-        if ("Maintenance".equals(v.status)) {
-            showWarning("Cannot assign driver to vehicle in maintenance");
-            return;
-        }
-        
-        List<String> available = drivers.stream()
-            .filter(d -> !"Unassigned".equals(d.name) && d.currentVehicle == null)
-            .map(d -> d.name).collect(Collectors.toList());
-        
-        if (available.isEmpty()) {
-            showWarning("No available drivers");
-            return;
-        }
-        
-        available.add(0, "Select a driver");
-        
-        JComboBox<String> driverCombo = new JComboBox<>(available.toArray(new String[0]));
-        styleComboBox(driverCombo);
-        
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(CARD_BG);
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
-        JLabel title = new JLabel("Assign Driver to " + v.id);
-        title.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        title.setForeground(PRIMARY);
-        
-        JPanel centerPanel = new JPanel(new GridBagLayout());
-        centerPanel.setBackground(CARD_BG);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        
-        gbc.gridx = 0; gbc.gridy = 0;
-        centerPanel.add(new JLabel("Select Driver:"), gbc);
-        gbc.gridx = 1;
-        centerPanel.add(driverCombo, gbc);
-        
-        panel.add(title, BorderLayout.NORTH);
-        panel.add(centerPanel, BorderLayout.CENTER);
-        
-        int result = JOptionPane.showConfirmDialog(mainPanel, panel, "Assign Driver", 
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        
-        if (result == JOptionPane.OK_OPTION) {
-            String driver = (String) driverCombo.getSelectedItem();
-            if (driver != null && !driver.equals("Select a driver")) {
-                if (v.driverName != null) {
-                    findDriver(v.driverName).ifPresent(d -> {
-                        d.currentVehicle = null;
-                        d.status = "Available";
-                    });
-                }
-                
-                findDriver(driver).ifPresent(d -> {
-                    d.currentVehicle = v.id;
-                    d.status = "Active";
-                });
-                
-                v.driverName = driver;
+    // ========== METHODS REQUIRED BY MAINTENANCE MANAGEMENT ==========
+    
+    public List<Vehicle> getVehiclesByStatus(String status) {
+        return vehicles.stream()
+            .filter(v -> v.status.equalsIgnoreCase(status))
+            .collect(Collectors.toList());
+    }
+
+    public void completeMaintenanceForVehicle(String vehicleId) {
+        findVehicle(vehicleId).ifPresent(v -> {
+            if (v.status.equals("Maintenance")) {
                 v.status = "Active";
                 saveData();
                 refreshTable();
-                showSuccess(driver + " assigned to " + v.id);
             }
-        }
+        });
     }
+
+    private Optional<Vehicle> findVehicle(String id) {
+        return vehicles.stream().filter(v -> v.id.equals(id)).findFirst();
+    }
+
+    // ========== END OF METHODS REQUIRED BY MAINTENANCE MANAGEMENT ==========
 
     private Optional<Driver> findDriver(String name) {
         return drivers.stream().filter(d -> d.name.equals(name)).findFirst();
-    }
-
-    private void unassignDriver() {
-        int row = getSelectedRow();
-        if (row == -1) { showWarning("Please select a vehicle"); return; }
-        
-        Vehicle v = vehicles.get(row);
-        if (v.driverName != null) {
-            int confirm = JOptionPane.showConfirmDialog(mainPanel,
-                "Are you sure you want to unassign " + v.driverName + " from " + v.id + "?",
-                "Confirm Unassign", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-            
-            if (confirm == JOptionPane.YES_OPTION) {
-                String driverName = v.driverName;
-                findDriver(v.driverName).ifPresent(d -> {
-                    d.currentVehicle = null;
-                    d.status = "Available";
-                });
-                v.driverName = null;
-                saveData();
-                refreshTable();
-                showSuccess(driverName + " unassigned from " + v.id);
-            }
-        } else {
-            showWarning("No driver assigned to this vehicle");
-        }
-    }
-
-    private void toggleMaintenance() {
-        int row = getSelectedRow();
-        if (row == -1) { showWarning("Please select a vehicle"); return; }
-        
-        Vehicle v = vehicles.get(row);
-        
-        if (v.status.equals("Maintenance")) {
-            // Vehicle is coming out of maintenance
-            v.status = "Active";
-            
-            // Notify MaintenanceManagement that vehicle is back in service
-            if (maintenanceManagement != null) {
-                maintenanceManagement.completeMaintenanceForVehicle(v.id);
-            }
-            
-            showSuccess(v.id + " is now active");
-        } else {
-            // Vehicle is going into maintenance
-            if (v.driverName != null) {
-                int confirm = JOptionPane.showConfirmDialog(mainPanel,
-                    v.driverName + " is assigned to this vehicle. Moving to maintenance will unassign them.\nContinue?",
-                    "Confirm Maintenance", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                
-                if (confirm == JOptionPane.YES_OPTION) {
-                    String driverName = v.driverName;
-                    findDriver(v.driverName).ifPresent(d -> {
-                        d.currentVehicle = null;
-                        d.status = "Available";
-                    });
-                    v.driverName = null;
-                    
-                    // Create maintenance record
-                    if (maintenanceManagement != null) {
-                        String description = JOptionPane.showInputDialog(mainPanel,
-                            "Enter maintenance description for " + v.id + ":",
-                            "Maintenance Required",
-                            JOptionPane.QUESTION_MESSAGE);
-                        
-                        if (description != null && !description.trim().isEmpty()) {
-                            maintenanceManagement.addVehicleToMaintenance(v.id, v.model, description);
-                        } else {
-                            maintenanceManagement.addVehicleToMaintenance(v.id, v.model, "Routine maintenance");
-                        }
-                    }
-                    
-                    v.status = "Maintenance";
-                    showWarning(driverName + " has been unassigned");
-                } else {
-                    return;
-                }
-            } else {
-                // No driver assigned, just create maintenance record
-                if (maintenanceManagement != null) {
-                    String description = JOptionPane.showInputDialog(mainPanel,
-                        "Enter maintenance description for " + v.id + ":",
-                        "Maintenance Required",
-                        JOptionPane.QUESTION_MESSAGE);
-                    
-                    if (description != null && !description.trim().isEmpty()) {
-                        maintenanceManagement.addVehicleToMaintenance(v.id, v.model, description);
-                    } else {
-                        maintenanceManagement.addVehicleToMaintenance(v.id, v.model, "Routine maintenance");
-                    }
-                }
-                v.status = "Maintenance";
-            }
-        }
-        
-        saveData();
-        refreshTable();
-    }
-
-    private void updateTax() {
-        int row = getSelectedRow();
-        if (row == -1) { showWarning("Please select a vehicle"); return; }
-        
-        Vehicle v = vehicles.get(row);
-        
-        JDialog dialog = new JDialog();
-        dialog.setTitle("Update Road Tax - " + v.id);
-        dialog.setModal(true);
-        dialog.setSize(400, 250);
-        dialog.setLocationRelativeTo(mainPanel);
-        dialog.getContentPane().setBackground(CARD_BG);
-        
-        JPanel panel = new JPanel(new BorderLayout(15, 15));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setBackground(CARD_BG);
-        
-        JLabel infoLabel = new JLabel("Current expiry: " + dateFormat.format(v.roadTaxExpiry));
-        infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        infoLabel.setForeground(TEXT_SECONDARY);
-        
-        JPanel centerPanel = new JPanel(new GridBagLayout());
-        centerPanel.setBackground(CARD_BG);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        
-        gbc.gridx = 0; gbc.gridy = 0;
-        centerPanel.add(new JLabel("New Expiry Date:"), gbc);
-        
-        JSpinner dateSpinner = new JSpinner(new SpinnerDateModel());
-        dateSpinner.setValue(v.roadTaxExpiry);
-        dateSpinner.setEditor(new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd"));
-        dateSpinner.setPreferredSize(new Dimension(150, 35));
-        
-        gbc.gridx = 1;
-        centerPanel.add(dateSpinner, gbc);
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setBackground(CARD_BG);
-        
-        JButton cancelBtn = new JButton("Cancel");
-        cancelBtn.addActionListener(e -> dialog.dispose());
-        
-        JButton updateBtn = new JButton("Update");
-        updateBtn.setBackground(INFO);
-        updateBtn.setForeground(Color.WHITE);
-        updateBtn.addActionListener(e -> {
-            v.roadTaxExpiry = (Date) dateSpinner.getValue();
-            saveData();
-            refreshTable();
-            showSuccess("Road tax updated for " + v.id);
-            dialog.dispose();
-        });
-        
-        buttonPanel.add(cancelBtn);
-        buttonPanel.add(updateBtn);
-        
-        panel.add(infoLabel, BorderLayout.NORTH);
-        panel.add(centerPanel, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.add(panel);
-        dialog.setVisible(true);
     }
 
     private int getSelectedRow() {
@@ -1388,138 +1750,156 @@ public class VehicleManagement {
             if (statValues[2] != null) statValues[2].setText(String.valueOf(expired));
             if (statValues[3] != null) statValues[3].setText(String.valueOf(total));
             if (statValues[4] != null) statValues[4].setText(String.valueOf(available));
-            
-            statsPanel.revalidate();
-            statsPanel.repaint();
         });
     }
 
     private void showVehicleDetails(Vehicle v) {
-        String taxStatus = v.roadTaxExpiry.before(new Date()) ? "⚠️ Expired" : "✅ Valid";
+        boolean taxExpired = v.roadTaxExpiry.before(new Date());
         
-        // Get maintenance info
-        String maintenanceInfo = "";
-        if (maintenanceManagement != null) {
-            boolean inMaintenance = maintenanceManagement.isVehicleInMaintenance(v.id);
-            if (inMaintenance) {
-                maintenanceInfo = "\n🔧 Currently in maintenance";
-            }
-            
-            List<MaintenanceManagement.MaintenanceRecord> history = 
-                maintenanceManagement.getVehicleMaintenanceHistory(v.id);
-            if (!history.isEmpty()) {
-                maintenanceInfo += "\n📋 Total maintenance records: " + history.size();
-            }
-        }
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Vehicle Details");
+        dialog.setModal(true);
+        dialog.setSize(400, 450);
+        dialog.setLocationRelativeTo(mainPanel);
         
-        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        JPanel panel = new JPanel(new BorderLayout(20, 20));
+        panel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
         panel.setBackground(CARD_BG);
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         
         // Header
-        JLabel titleLabel = new JLabel("Vehicle Details: " + v.id);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        titleLabel.setForeground(PRIMARY);
+        JPanel headerPanel = new JPanel(new BorderLayout(12, 0));
+        headerPanel.setBackground(CARD_BG);
         
-        // Details panel
+        String icon = v.type.equals("Truck") ? "🚛" : v.type.equals("Van") ? "🚐" : v.type.equals("Car") ? "🚗" : "🏍️";
+        JLabel iconLabel = new JLabel(icon);
+        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
+        
+        JPanel titlePanel = new JPanel(new GridLayout(2, 1));
+        titlePanel.setBackground(CARD_BG);
+        
+        JLabel idLabel = new JLabel(v.id);
+        idLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        idLabel.setForeground(PRIMARY);
+        
+        JLabel modelLabel = new JLabel(v.model);
+        modelLabel.setFont(REGULAR_FONT);
+        modelLabel.setForeground(TEXT_SECONDARY);
+        
+        titlePanel.add(idLabel);
+        titlePanel.add(modelLabel);
+        
+        headerPanel.add(iconLabel, BorderLayout.WEST);
+        headerPanel.add(titlePanel, BorderLayout.CENTER);
+        
+        // Details
         JPanel detailsPanel = new JPanel(new GridBagLayout());
-        detailsPanel.setBackground(CARD_BG);
+        detailsPanel.setBackground(new Color(248, 250, 252));
+        detailsPanel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 10, 5, 10);
+        gbc.insets = new Insets(8, 12, 8, 12);
         
-        addDetailRow(detailsPanel, "Model:", v.model, gbc, 0);
-        addDetailRow(detailsPanel, "Type:", v.type, gbc, 1);
-        addDetailRow(detailsPanel, "Number Plate:", v.numberPlate, gbc, 2);
-        addDetailRow(detailsPanel, "Fuel Type:", v.fuelType, gbc, 3);
-        addDetailRow(detailsPanel, "Status:", v.status, gbc, 4);
-        addDetailRow(detailsPanel, "Tax Expiry:", dateFormat.format(v.roadTaxExpiry) + " (" + taxStatus + ")", gbc, 5);
-        addDetailRow(detailsPanel, "Driver:", v.driverName == null ? "Unassigned" : v.driverName, gbc, 6);
+        addDetailRow(detailsPanel, "Type:", v.type, gbc, 0);
+        addDetailRow(detailsPanel, "Plate:", v.numberPlate, gbc, 1);
+        addDetailRow(detailsPanel, "Fuel:", v.fuelType, gbc, 2);
+        addDetailRow(detailsPanel, "Status:", v.status, gbc, 3);
+        addDetailRow(detailsPanel, "Tax Expiry:", displayDateFormat.format(v.roadTaxExpiry) + 
+                     (taxExpired ? " (Overdue)" : ""), gbc, 4);
+        addDetailRow(detailsPanel, "Driver:", v.driverName == null ? "Unassigned" : v.driverName, gbc, 5);
         
-        if (!maintenanceInfo.isEmpty()) {
-            JLabel maintenanceLabel = new JLabel(maintenanceInfo);
-            maintenanceLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-            maintenanceLabel.setForeground(INFO);
-            gbc.gridx = 0; gbc.gridy = 7;
-            gbc.gridwidth = 2;
-            detailsPanel.add(maintenanceLabel, gbc);
-        }
+        // Close button
+        JButton closeBtn = new JButton("Close");
+        closeBtn.setFont(BUTTON_FONT);
+        closeBtn.setForeground(Color.WHITE);
+        closeBtn.setBackground(PRIMARY);
+        closeBtn.setBorderPainted(false);
+        closeBtn.setPreferredSize(new Dimension(85, 32));
+        closeBtn.addActionListener(e -> dialog.dispose());
         
-        panel.add(titleLabel, BorderLayout.NORTH);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(CARD_BG);
+        buttonPanel.add(closeBtn);
+        
+        panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(detailsPanel, BorderLayout.CENTER);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
         
-        JOptionPane.showMessageDialog(mainPanel, panel, "Vehicle Details", 
-            JOptionPane.INFORMATION_MESSAGE);
+        dialog.add(panel);
+        dialog.setVisible(true);
     }
 
     private void addDetailRow(JPanel panel, String label, String value, GridBagConstraints gbc, int row) {
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.weightx = 0.3;
-        gbc.gridwidth = 1;
         JLabel labelComp = new JLabel(label);
-        labelComp.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        labelComp.setFont(HEADER_FONT);
         labelComp.setForeground(TEXT_SECONDARY);
         panel.add(labelComp, gbc);
         
         gbc.gridx = 1;
         gbc.weightx = 0.7;
         JLabel valueComp = new JLabel(value);
-        valueComp.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        valueComp.setFont(REGULAR_FONT);
         valueComp.setForeground(TEXT_PRIMARY);
         panel.add(valueComp, gbc);
     }
 
     private void createSampleData() {
         try {
-            // Create dates
-            Date expiredDate1 = dateFormat.parse("2024-12-31"); // Future date - not expired
-            Date expiredDate2 = dateFormat.parse("2024-10-15"); // Past date - expired
-            Date expiredDate3 = dateFormat.parse("2023-05-30"); // Past date - expired
-            Date expiredDate4 = dateFormat.parse("2024-08-20"); // Past date - expired
-            Date expiredDate5 = dateFormat.parse("2023-11-10"); // Past date - expired
-            Date futureDate = dateFormat.parse("2025-06-15"); // Future date - valid
+            Calendar cal = Calendar.getInstance();
             
-            // TRK001 - Active, valid tax (Dec 2024 is still in the future as of Feb 2025? Let's fix)
-            // Since we're in 2026, Dec 2024 is expired, so let's make it valid for demo
-            Date validDate = dateFormat.parse("2026-12-31");
+            Date validDate1 = new Date(System.currentTimeMillis() + 86400000L * 365);
+            Date validDate2 = new Date(System.currentTimeMillis() + 86400000L * 180);
+            Date expiredDate1 = new Date(System.currentTimeMillis() - 86400000L * 30);
+            Date expiredDate2 = new Date(System.currentTimeMillis() - 86400000L * 60);
+            Date futureDate = new Date(System.currentTimeMillis() + 86400000L * 90);
             
             vehicles.add(new Vehicle("TRK001", "Freightliner Cascadia", "Active", "John Smith", 
-                "Truck", "ABC1234", validDate, "Diesel"));
+                "Truck", "ABC-1234", validDate1, "Diesel"));
             
-            // VAN001 - In Maintenance, expired tax
             vehicles.add(new Vehicle("VAN001", "Ford Transit", "Maintenance", null, 
-                "Van", "DEF5678", expiredDate2, "Gasoline"));
+                "Van", "DEF-5678", expiredDate1, "Gasoline"));
             
-            // TRK002 - In Maintenance, expired tax
             vehicles.add(new Vehicle("TRK002", "Peterbilt 579", "Maintenance", null, 
-                "Truck", "GHI9012", expiredDate3, "Diesel"));
+                "Truck", "GHI-9012", expiredDate2, "Diesel"));
             
-            // VAN002 - Active, expired tax (shows warning but still active)
             vehicles.add(new Vehicle("VAN002", "Mercedes Sprinter", "Active", null, 
-                "Van", "JKL3456", expiredDate4, "Diesel"));
+                "Van", "JKL-3456", validDate2, "Diesel"));
             
-            // TRK003 - Active, expired tax
             vehicles.add(new Vehicle("TRK003", "International LT", "Active", null, 
-                "Truck", "MNO7890", expiredDate5, "Diesel"));
+                "Truck", "MNO-7890", futureDate, "Diesel"));
             
-            // CAR001 - Active, valid tax
-            vehicles.add(new Vehicle("CAR001", "Bezza", "Active", "Mike Johnson", 
-                "Car", "BTE4327", futureDate, "Diesel"));
+            vehicles.add(new Vehicle("CAR001", "Toyota Camry", "Active", "Mike Johnson", 
+                "Car", "PQR-2345", futureDate, "Gasoline"));
             
-            drivers.add(new Driver("John Smith", "DL12345", "555-0101", "john@email.com", 
+            vehicles.add(new Vehicle("MTC001", "Harley Davidson", "Inactive", null, 
+                "Motorcycle", "STU-6789", expiredDate1, "Gasoline"));
+            
+            vehicles.add(new Vehicle("CAR002", "Honda Civic", "Active", "Sarah Wilson", 
+                "Car", "VWX-3456", futureDate, "Gasoline"));
+            
+            vehicles.add(new Vehicle("VAN003", "RAM ProMaster", "Active", null, 
+                "Van", "YZA-7890", validDate1, "Diesel"));
+            
+            drivers.add(new Driver("John Smith", "DL12345", "(555) 123-4567", "john.smith@email.com", 
                 "Active", new Date(), "TRK001"));
-            drivers.add(new Driver("Mike Johnson", "DL12346", "555-0102", "mike@email.com", 
+            drivers.add(new Driver("Mike Johnson", "DL12346", "(555) 234-5678", "mike.j@email.com", 
                 "Active", new Date(), "CAR001"));
-            drivers.add(new Driver("Robert Brown", "DL12347", "555-0103", "robert@email.com", 
+            drivers.add(new Driver("Sarah Wilson", "DL12347", "(555) 345-6789", "sarah.w@email.com", 
+                "Active", new Date(), "CAR002"));
+            drivers.add(new Driver("Robert Brown", "DL12348", "(555) 456-7890", "robert.b@email.com", 
                 "Available", new Date(), null));
-            drivers.add(new Driver("Sarah Wilson", "DL12348", "555-0104", "sarah@email.com", 
+            drivers.add(new Driver("Emily Davis", "DL12349", "(555) 567-8901", "emily.d@email.com", 
+                "Available", new Date(), null));
+            drivers.add(new Driver("David Lee", "DL12350", "(555) 678-9012", "david.l@email.com", 
                 "Available", new Date(), null));
             drivers.add(new Driver("Unassigned", "", "", "", "Available", new Date(), null));
             
             typeCounters.put("Truck", 3);
-            typeCounters.put("Van", 2);
-            typeCounters.put("Car", 1);
+            typeCounters.put("Van", 3);
+            typeCounters.put("Car", 2);
+            typeCounters.put("Motorcycle", 1);
             
             saveData();
         } catch (Exception e) { 
@@ -1527,19 +1907,41 @@ public class VehicleManagement {
         }
     }
 
+    private void showNotification(String message, Color color) {
+        JWindow notification = new JWindow();
+        notification.setAlwaysOnTop(true);
+        
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(color);
+        panel.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        
+        JLabel messageLabel = new JLabel(message);
+        messageLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        messageLabel.setForeground(Color.WHITE);
+        
+        panel.add(messageLabel, BorderLayout.CENTER);
+        
+        notification.getContentPane().add(panel);
+        notification.pack();
+        
+        Point p = mainPanel.getLocationOnScreen();
+        notification.setLocation(
+            p.x + mainPanel.getWidth() - notification.getWidth() - 24,
+            p.y + mainPanel.getHeight() - notification.getHeight() - 24
+        );
+        
+        notification.setVisible(true);
+        
+        Timer timer = new Timer(3000, e -> notification.dispose());
+        timer.setRepeats(false);
+        timer.start();
+    }
+
     private void showError(String msg) { 
         JOptionPane.showMessageDialog(mainPanel, msg, "Error", JOptionPane.ERROR_MESSAGE);
     }
-    
-    private void showWarning(String msg) { 
-        JOptionPane.showMessageDialog(mainPanel, msg, "Warning", JOptionPane.WARNING_MESSAGE);
-    }
-    
-    private void showSuccess(String msg) {
-        JOptionPane.showMessageDialog(mainPanel, msg, "Success", JOptionPane.INFORMATION_MESSAGE);
-    }
 
-    // ========== PUBLIC METHODS FOR DASHBOARD ==========
+    // ========== PUBLIC METHODS ==========
     
     public JPanel getMainPanel() { 
         return mainPanel; 
@@ -1555,7 +1957,6 @@ public class VehicleManagement {
         drivers.clear();
         typeCounters.clear();
         loadData();
-        // Sync with maintenance after loading
         if (maintenanceManagement != null) {
             syncWithMaintenance();
         }
@@ -1582,101 +1983,8 @@ public class VehicleManagement {
         return (int) drivers.stream().filter(d -> "Available".equals(d.status) && !"Unassigned".equals(d.name)).count();
     }
     
-    // New method to get vehicles by status
-    public List<Vehicle> getVehiclesByStatus(String status) {
-        return vehicles.stream()
-            .filter(v -> v.status.equals(status))
-            .collect(Collectors.toList());
-    }
-    
-    // New method to get all vehicles
     public List<Vehicle> getAllVehicles() {
         return new ArrayList<>(vehicles);
-    }
-    
-    // New method to complete maintenance for a vehicle
-    public void completeMaintenanceForVehicle(String vehicleId) {
-        findVehicle(vehicleId).ifPresent(v -> {
-            if (v.status.equals("Maintenance")) {
-                v.status = "Active";
-                saveData();
-                refreshTable();
-            }
-        });
-    }
-    
-    private Optional<Vehicle> findVehicle(String id) {
-        return vehicles.stream().filter(v -> v.id.equals(id)).findFirst();
-    }
-
-    // Modern Cell Renderers
-    private class ModernStatusCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
-            super.getTableCellRendererComponent(t, v, s, f, r, c);
-            if (v != null) {
-                String status = v.toString();
-                setHorizontalAlignment(CENTER);
-                setText(" " + status + " ");
-                
-                if (status.equals("Active")) {
-                    setForeground(SUCCESS);
-                    setBackground(new Color(232, 245, 233));
-                } else if (status.equals("Maintenance")) {
-                    setForeground(WARNING);
-                    setBackground(new Color(255, 243, 224));
-                } else {
-                    setForeground(TEXT_SECONDARY);
-                    setBackground(new Color(250, 250, 250));
-                }
-                setFont(getFont().deriveFont(Font.BOLD, 12));
-            }
-            return this;
-        }
-    }
-
-    private class ModernDriverCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
-            super.getTableCellRendererComponent(t, v, s, f, r, c);
-            if (v != null) {
-                String driver = v.toString();
-                if (!driver.equals("Unassigned")) {
-                    setForeground(PRIMARY);
-                    setFont(getFont().deriveFont(Font.BOLD));
-                    setText("👤 " + driver);
-                    setToolTipText("Double-click to view driver profile");
-                } else {
-                    setForeground(TEXT_SECONDARY);
-                    setText("— " + driver + " —");
-                }
-            }
-            return this;
-        }
-    }
-
-    private class ModernDateCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
-            super.getTableCellRendererComponent(t, v, s, f, r, c);
-            if (v instanceof Date) {
-                Date date = (Date) v;
-                String text = dateFormat.format(date);
-                setHorizontalAlignment(CENTER);
-                
-                if (date.before(new Date())) {
-                    setForeground(DANGER);
-                    setText("⚠️ " + text + " (Expired)");
-                    setFont(getFont().deriveFont(Font.BOLD));
-                    setBackground(new Color(255, 235, 238));
-                } else {
-                    setForeground(TEXT_PRIMARY);
-                    setText("📅 " + text);
-                    setBackground(Color.WHITE);
-                }
-            }
-            return this;
-        }
     }
 
     // Data classes
@@ -1686,8 +1994,14 @@ public class VehicleManagement {
         
         public Vehicle(String id, String model, String status, String driver, String type,
                 String plate, Date tax, String fuel) {
-            this.id = id; this.model = model; this.status = status; this.driverName = driver;
-            this.type = type; this.numberPlate = plate; this.roadTaxExpiry = tax; this.fuelType = fuel;
+            this.id = id; 
+            this.model = model; 
+            this.status = status; 
+            this.driverName = driver;
+            this.type = type; 
+            this.numberPlate = plate; 
+            this.roadTaxExpiry = tax; 
+            this.fuelType = fuel;
         }
     }
 
@@ -1697,8 +2011,13 @@ public class VehicleManagement {
         
         Driver(String name, String license, String phone, String email, 
                String status, Date joined, String vehicle) {
-            this.name = name; this.license = license; this.phone = phone; this.email = email;
-            this.status = status; this.joinedDate = joined; this.currentVehicle = vehicle;
+            this.name = name; 
+            this.license = license; 
+            this.phone = phone; 
+            this.email = email;
+            this.status = status; 
+            this.joinedDate = joined; 
+            this.currentVehicle = vehicle;
         }
     }
 }
