@@ -1,1 +1,0 @@
-// Format: Name|LicenseNumber|Phone|Email|Status|JoinedDate|CurrentVehicle
