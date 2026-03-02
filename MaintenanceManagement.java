@@ -5,7 +5,6 @@ import javax.swing.table.*;
 import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
@@ -59,7 +58,6 @@ public class MaintenanceManagement {
     private static final Color DANGER_DARK = new Color(176, 42, 55);
     private static final Color INFO = new Color(23, 162, 184);
     private static final Color INFO_DARK = new Color(17, 122, 139);
-    private static final Color PURPLE = new Color(111, 66, 193);
     
     private static final Color BG_COLOR = new Color(248, 249, 250);
     private static final Color CARD_BG = Color.WHITE;
@@ -70,8 +68,6 @@ public class MaintenanceManagement {
     private static final Color HOVER_COLOR = new Color(245, 247, 250);
     private static final Color SELECTION_COLOR = new Color(230, 242, 255);
     private static final Color ACTIVE_FILTER_BORDER = new Color(41, 98, 255);
-    private static final Color CALENDAR_HEADER_BG = new Color(41, 98, 255);
-    private static final Color CALENDAR_HEADER_FG = Color.WHITE;
     private static final Color CALENDAR_DAY_HOVER = new Color(230, 242, 255);
     
     // Fonts - Using standard Java font constants
@@ -570,7 +566,6 @@ public class MaintenanceManagement {
         // Make all cards clickable
         card.setCursor(new Cursor(Cursor.HAND_CURSOR));
         final String filterStatus = title;
-        final int cardIndex = index;
         
         card.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
