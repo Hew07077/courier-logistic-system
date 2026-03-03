@@ -1,0 +1,3 @@
+RPT001|VAN001|Robert Brown|1772343030175|Engine making strange noise when accelerating|High|Pending|
+RPT002|TRK002|Emily Davis|1772429430175|Brakes feel soft, needs inspection|Critical|Pending|
+RPT003|CAR001|Mike Johnson|1772256630175|Check engine light is on|Medium|Scheduled|Scheduled for next week

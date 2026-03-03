@@ -21,24 +21,36 @@ public class CourierDashboard extends JFrame {
     private final Color BORDER_COLOR = new Color(224, 224, 224);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
     private final Color SIDEBAR_SELECTED = new Color(60, 90, 60);
+    // Modern UI Colors (from VehicleManagement)
+    private static final Color SUCCESS = new Color(40, 167, 69);
+    private static final Color INFO = new Color(23, 162, 184);
+    private static final Color WARNING = new Color(255, 193, 7);
+    private static final Color CARD_BG = Color.WHITE;
+    private static final Color TEXT_PRIMARY = new Color(33, 37, 41);
+    private static final Color TEXT_SECONDARY = new Color(108, 117, 125);
+    
+    // 实心按钮颜色 (匹配绿色主题)
+    private final Color BUTTON_SELECTED = new Color(46, 125, 50); // 实心绿色
+    private final Color BUTTON_HOVER = new Color(27, 94, 32); // 深一点的绿色用于悬停
+    private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0); // 透明
+    
+    // 通知文本颜色 - 改为绿色系
+    private final Color NOTIFICATION_COLOR = new Color(200, 230, 200); // 浅绿色
+    private final Color NOTIFICATION_SELECTED_COLOR = Color.WHITE; // 选中时白色
+
+    // Fonts
+    private static final Font TITLE_FONT = new Font("Segoe UI", Font.BOLD, 28);
+    private static final Font SUBTITLE_FONT = new Font("Segoe UI", Font.PLAIN, 14);
+    private static final Font HEADER_FONT = new Font("Segoe UI", Font.BOLD, 13);
+    private static final Font REGULAR_FONT = new Font("Segoe UI", Font.PLAIN, 13);
+    private static final Font STATS_FONT = new Font("Segoe UI", Font.BOLD, 22);
 
     private CardLayout cardLayout;
     private JPanel contentPanel;
     private JButton activeButton;
     private JLabel timeLabel;
     
-    // Table Components
-    private JTable deliveryTable;
-    private DefaultTableModel deliveryModel;
-    private TableRowSorter<DefaultTableModel> rowSorter;
-    private JTextField searchField;
-    private JComboBox<String> statusCombo;
-    private JTextArea remarksArea;
-    private JLabel selectedParcelLabel;
-    private JLabel photoFileNameLabel;
-    private File selectedPhotoFile;
-    private JButton uploadPhotoBtn;
-
+    // Table Components - 移到DeliveryPage类中
     // Profile Components
     private JLabel profilePhotoLabel;
     private File profilePhotoFile;
@@ -68,68 +80,69 @@ public class CourierDashboard extends JFrame {
         add(createStatusBar(), BorderLayout.SOUTH);
     }
 
-    // ================= TOP BAR (with logo from Login) =================
+    // ================= 更新后的TOP BAR (完全匹配AdminDashboard风格) =================
     private JPanel createTopBar() {
         JPanel bar = new JPanel(new BorderLayout());
-        bar.setBackground(PRIMARY_GREEN);
-        bar.setPreferredSize(new Dimension(getWidth(), 80)); // Increased height to match Login
-        
-        // ===== Logo Panel with Image (same as Login) =====
-        JPanel logoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 15));
-        logoPanel.setBackground(PRIMARY_GREEN);
-        
-        // Try to load logo from file - same path as Login class
-        try {
-            // Path to your logo - adjust as needed
-            String logoPath = "C:\\Users\\User\\Documents\\LOGISTICS\\logo1.png";
-            
-            File logoFile = new File(logoPath);
-            if (logoFile.exists()) {
-                ImageIcon logoIcon = new ImageIcon(logoPath);
-                // Scale the image to appropriate size
-                Image scaledImage = logoIcon.getImage().getScaledInstance(180, 50, Image.SCALE_SMOOTH);
-                JLabel logoLabel = new JLabel(new ImageIcon(scaledImage));
-                logoPanel.add(logoLabel);
-            } else {
-                // Fallback to text if logo not found
-                JLabel fallbackLabel = new JLabel("LogiXpress");
-                fallbackLabel.setFont(new Font("Arial", Font.BOLD, 32));
-                fallbackLabel.setForeground(Color.WHITE);
-                logoPanel.add(fallbackLabel);
-            }
-        } catch (Exception e) {
-            // If any error loading image, show text
-            JLabel fallbackLabel = new JLabel("LogiXpress");
-            fallbackLabel.setFont(new Font("Arial", Font.BOLD, 32));
-            fallbackLabel.setForeground(Color.WHITE);
-            logoPanel.add(fallbackLabel);
+        bar.setBackground(GREEN_DARK);
+        bar.setPreferredSize(new Dimension(getWidth(), 80));
+        bar.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 25));
+
+        // Left side with logo (完全匹配AdminDashboard)
+        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
+        leftPanel.setOpaque(false);
+
+        // Load and resize logo (使用与AdminDashboard完全相同的方法)
+        ImageIcon logoIcon = loadLogo("logo.ct.png");
+        if (logoIcon != null) {
+            Image img = logoIcon.getImage();
+            Image resizedImg = img.getScaledInstance(50, 50, Image.SCALE_SMOOTH);
+            JLabel logoLabel = new JLabel(new ImageIcon(resizedImg));
+            leftPanel.add(logoLabel);
         }
-        
-        bar.add(logoPanel, BorderLayout.WEST);
-        
-        // Right panel with time and exit button (matching Login style)
+
+        JLabel title = new JLabel("LogiXpress Courier Portal");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        title.setForeground(Color.WHITE);
+        leftPanel.add(title);
+
+        JLabel badge = new JLabel("COURIER");
+        badge.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        badge.setForeground(PRIMARY_GREEN);
+        badge.setBackground(new Color(255, 255, 255, 200));
+        badge.setOpaque(true);
+        badge.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        leftPanel.add(badge);
+
+        bar.add(leftPanel, BorderLayout.WEST);
+
+        // Right side with time and exit (完全匹配AdminDashboard)
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 20));
-        rightPanel.setBackground(PRIMARY_GREEN);
+        rightPanel.setOpaque(false);
+
+        // Time panel with icon
+        JPanel timePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        timePanel.setOpaque(false);
 
         timeLabel = new JLabel();
-        timeLabel.setFont(new Font("Arial", Font.PLAIN, 18)); // Match Login font
+        timeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         timeLabel.setForeground(Color.WHITE);
-        rightPanel.add(timeLabel);
+        timePanel.add(timeLabel);
 
-        Timer timer = new Timer(1000, e -> timeLabel.setText(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())));
+        // Update time
+        Timer timer = new Timer(1000, e -> 
+            timeLabel.setText(new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss").format(new Date()))
+        );
         timer.start();
-        
-        // Exit button matching Login style
-        JButton exitBtn = new JButton("EXIT");
-        exitBtn.setFont(new Font("Arial", Font.BOLD, 16));
-        exitBtn.setForeground(Color.WHITE);
-        exitBtn.setBackground(new Color(220, 20, 60)); // RED_BTN color from Login
-        exitBtn.setBorderPainted(false);
-        exitBtn.setFocusPainted(false);
-        exitBtn.setPreferredSize(new Dimension(100, 45));
+
+        rightPanel.add(timePanel);
+
+        // Exit button (完全匹配AdminDashboard的logout按钮)
+        JButton exitBtn = createButton("Exit", new Color(220, 53, 69));
         exitBtn.addActionListener(e -> {
-            if (JOptionPane.showConfirmDialog(this, "Exit LogiXpress?", "Exit", 
-                JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+            int confirm = JOptionPane.showConfirmDialog(this, 
+                "Are you sure you want to exit?", "Confirm Exit", 
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (confirm == JOptionPane.YES_OPTION) {
                 System.exit(0);
             }
         });
@@ -139,110 +152,278 @@ public class CourierDashboard extends JFrame {
         return bar;
     }
 
-    // ================= SIDEBAR =================
+    // ================= 更新后的SIDEBAR (完全匹配AdminDashboard风格，颜色改为绿色) =================
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel(new BorderLayout());
-        sidebar.setBackground(GREEN_DARK);
-        sidebar.setPreferredSize(new Dimension(260, getHeight()));
+        sidebar.setBackground(PRIMARY_GREEN);
+        sidebar.setPreferredSize(new Dimension(280, getHeight()));
 
+        // Logo area (完全匹配AdminDashboard)
         JPanel logoPanel = new JPanel(new BorderLayout());
         logoPanel.setOpaque(false);
         logoPanel.setBorder(BorderFactory.createEmptyBorder(30, 15, 25, 15));
+
+        // 使用与AdminDashboard完全相同的方法加载logo
+        ImageIcon mainLogoIcon = loadLogo("logo.c.png");
+        if (mainLogoIcon != null) {
+            Image img = mainLogoIcon.getImage();
+            Image resizedImg = img.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+            JLabel logoImage = new JLabel(new ImageIcon(resizedImg));
+            logoImage.setHorizontalAlignment(SwingConstants.CENTER);
+            logoPanel.add(logoImage, BorderLayout.NORTH);
+        }
+
         JLabel logo = new JLabel("LogiXpress", SwingConstants.CENTER);
-        logo.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        logo.setFont(new Font("Segoe UI", Font.BOLD, 24));
         logo.setForeground(Color.WHITE);
+        logo.setBorder(BorderFactory.createEmptyBorder(10, 0, 5, 0));
         logoPanel.add(logo, BorderLayout.CENTER);
+
+        JLabel version = new JLabel("Courier v2.0.0", SwingConstants.CENTER);
+        version.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        version.setForeground(new Color(255, 255, 255, 180));
+        logoPanel.add(version, BorderLayout.SOUTH);
+
         sidebar.add(logoPanel, BorderLayout.NORTH);
 
-        JPanel menu = new JPanel(new GridLayout(6, 1, 0, 2));
+        // Menu items with notification badges (完全匹配AdminDashboard风格，颜色改为绿色)
+        JPanel menu = new JPanel(new GridLayout(6, 1, 0, 8));
         menu.setOpaque(false);
-        menu.setBorder(BorderFactory.createEmptyBorder(5, 8, 10, 8));
+        menu.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
 
-        menu.add(createSidebarButton("👤 My Profile", "PROFILE", true));
-        menu.add(createSidebarButton("📦 Deliveries & Updates", "DELIVERIES", false));
-        menu.add(createSidebarButton("🚛 Vehicle Report", "VEHICLE", false));
-        menu.add(createSidebarButton("📊 Stats", "STATS", false));
+        menu.add(createNavButton("My Profile", "PROFILE", 
+            "Personal information", true));
+        menu.add(createNavButton("Deliveries & Updates", "DELIVERIES", 
+            "Track & manage parcels", false));
+        menu.add(createNavButton("Vehicle Report", "VEHICLE", 
+            "Report vehicle issues", false));
+        menu.add(createNavButton("Statistics", "STATS", 
+            "Performance metrics", false));
 
         sidebar.add(menu, BorderLayout.CENTER);
+
+        // User Profile (完全匹配AdminDashboard)
+        sidebar.add(createUserProfile(), BorderLayout.SOUTH);
+
         return sidebar;
     }
 
-    private JButton createSidebarButton(String text, String card, boolean selected) {
+    // ================= 新增的Nav Button (完全匹配AdminDashboard风格，颜色改为绿色) =================
+    private JButton createNavButton(String text, String card, String notification, boolean selected) {
         JButton btn = new JButton();
         btn.setLayout(new BorderLayout());
-        btn.setBorder(BorderFactory.createEmptyBorder(12, 15, 12, 15));
         
-        // Split the text into icon and label parts
-        String icon = text.substring(0, 2);
-        String label = text.substring(2);
+        // 根据选中状态设置通知文本颜色
+        String notificationColor = selected ? "#FFFFFF" : "#A0D0A0"; // 选中时白色，未选中时浅绿色
         
-        JPanel content = new JPanel(new BorderLayout(10, 0));
-        content.setOpaque(false);
+        String displayText = "<html><div style='text-align: left;'>" +
+                            "<b style='font-size: 13px;'>" + text + "</b><br>" +
+                            "<span style='font-size: 11px; color: " + notificationColor + ";'>" + 
+                            notification + "</span></div></html>";
         
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        iconLabel.setForeground(Color.WHITE);
-        iconLabel.setPreferredSize(new Dimension(30, 20));
+        JLabel contentLabel = new JLabel(displayText);
+        contentLabel.setForeground(Color.WHITE);
+        contentLabel.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
         
-        JLabel textLabel = new JLabel(label);
-        textLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        textLabel.setForeground(Color.WHITE);
+        btn.add(contentLabel, BorderLayout.CENTER);
         
-        content.add(iconLabel, BorderLayout.WEST);
-        content.add(textLabel, BorderLayout.CENTER);
+        btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        btn.setForeground(Color.WHITE);
         
-        btn.add(content, BorderLayout.CENTER);
+        // 实心按钮设置
+        if (selected) {
+            btn.setBackground(BUTTON_SELECTED);
+            btn.setOpaque(true);
+        } else {
+            btn.setBackground(BUTTON_NORMAL);
+            btn.setOpaque(false);
+        }
         
-        // Button styling
-        btn.setBackground(selected ? SIDEBAR_SELECTED : GREEN_DARK);
-        btn.setOpaque(true);
-        btn.setBorderPainted(false);
         btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
         btn.setContentAreaFilled(true);
+        btn.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         if (selected) activeButton = btn;
 
-        btn.addActionListener(e -> {
-            if (activeButton != null) {
-                activeButton.setBackground(GREEN_DARK);
-            }
-            btn.setBackground(SIDEBAR_SELECTED);
-            activeButton = btn;
-            cardLayout.show(contentPanel, card);
-        });
-
-        // Add hover effect
+        // 悬停效果
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
                 if (btn != activeButton) {
-                    btn.setBackground(new Color(50, 80, 50));
+                    btn.setOpaque(true);
+                    btn.setBackground(BUTTON_HOVER);
+                    // 更新悬停时的通知文本颜色
+                    JLabel label = (JLabel) btn.getComponent(0);
+                    String currentText = label.getText();
+                    String updatedText = currentText.replace(
+                        "color: #A0D0A0;", 
+                        "color: #FFFFFF;"
+                    );
+                    label.setText(updatedText);
+                    btn.repaint();
                 }
             }
+
             @Override
             public void mouseExited(MouseEvent e) {
                 if (btn != activeButton) {
-                    btn.setBackground(GREEN_DARK);
+                    btn.setOpaque(false);
+                    btn.setBackground(BUTTON_NORMAL);
+                    // 恢复未选中时的通知文本颜色
+                    JLabel label = (JLabel) btn.getComponent(0);
+                    String currentText = label.getText();
+                    String updatedText = currentText.replace(
+                        "color: #FFFFFF;", 
+                        "color: #A0D0A0;"
+                    );
+                    label.setText(updatedText);
+                    btn.repaint();
                 }
             }
         });
-        
+
+        btn.addActionListener(e -> {
+            if (activeButton != null && activeButton != btn) {
+                activeButton.setOpaque(false);
+                activeButton.setBackground(BUTTON_NORMAL);
+                // 恢复之前选中按钮的通知文本颜色
+                JLabel oldLabel = (JLabel) activeButton.getComponent(0);
+                String oldText = oldLabel.getText();
+                String updatedOldText = oldText.replace(
+                    "color: #FFFFFF;", 
+                    "color: #A0D0A0;"
+                );
+                oldLabel.setText(updatedOldText);
+                activeButton.repaint();
+            }
+            
+            btn.setOpaque(true);
+            btn.setBackground(BUTTON_SELECTED);
+            // 更新新选中按钮的通知文本颜色
+            JLabel newLabel = (JLabel) btn.getComponent(0);
+            String newText = newLabel.getText();
+            String updatedNewText = newText.replace(
+                "color: #A0D0A0;", 
+                "color: #FFFFFF;"
+            );
+            newLabel.setText(updatedNewText);
+            
+            activeButton = btn;
+            
+            cardLayout.show(contentPanel, card);
+        });
+
         return btn;
     }
 
-    // ================= CONTENT PANELS =================
+    // ================= 新增的Button创建方法 (完全匹配AdminDashboard) =================
+    private JButton createButton(String text, Color bgColor) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setForeground(Color.WHITE);
+        btn.setBackground(bgColor);
+        btn.setOpaque(true);
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // 悬停效果
+        btn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                btn.setBackground(bgColor.darker());
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                btn.setBackground(bgColor);
+            }
+        });
+
+        return btn;
+    }
+
+    // ================= 新增的用户Profile (完全匹配AdminDashboard) =================
+    private JPanel createUserProfile() {
+        JPanel profile = new JPanel(new BorderLayout());
+        profile.setBackground(new Color(0, 0, 0, 30));
+        profile.setBorder(BorderFactory.createEmptyBorder(15, 15, 20, 15));
+
+        JPanel userInfo = new JPanel(new GridLayout(2, 1));
+        userInfo.setOpaque(false);
+
+        JLabel userName = new JLabel("👤 Alex Wong", SwingConstants.CENTER);
+        userName.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        userName.setForeground(Color.WHITE);
+        userInfo.add(userName);
+
+        JLabel userRole = new JLabel("Courier #LX-88029", SwingConstants.CENTER);
+        userRole.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        userRole.setForeground(new Color(255, 255, 255, 200));
+        userInfo.add(userRole);
+
+        profile.add(userInfo, BorderLayout.CENTER);
+
+        return profile;
+    }
+
+    // ================= Logo加载方法 (完全复制AdminDashboard的loadLogo方法) =================
+    private ImageIcon loadLogo(String filename) {
+        try {
+            // 首先尝试从资源加载
+            java.net.URL imgURL = getClass().getResource(filename);
+            if (imgURL != null) {
+                return new ImageIcon(imgURL);
+            } else {
+                // 如果资源不存在，尝试从文件系统加载
+                java.io.File file = new java.io.File(filename);
+                if (file.exists()) {
+                    return new ImageIcon(file.getAbsolutePath());
+                }
+                
+                // 尝试其他可能的路径
+                String[] possiblePaths = {
+                    "C:\\Users\\User\\Documents\\LOGISTICS\\logo1.png",
+                    "logo1.png",
+                    "images/logo.jpeg",
+                    "images/logo1.png",
+                    "../logo.jpeg",
+                    "src/logo.jpeg"
+                };
+                
+                for (String path : possiblePaths) {
+                    file = new java.io.File(path);
+                    if (file.exists()) {
+                        return new ImageIcon(file.getAbsolutePath());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load logo: " + filename);
+        }
+        return null;
+    }
+
+    // ================= 以下所有方法保持原样，只修改了名称 =================
     private JPanel createContentPanel() {
         cardLayout = new CardLayout();
         contentPanel = new JPanel(cardLayout);
         contentPanel.setBackground(BG_LIGHT);
 
         contentPanel.add(createEditableProfilePage(), "PROFILE");
-        contentPanel.add(createCombinedDeliveryPage(), "DELIVERIES");
+        contentPanel.add(DeliveryPage(), "DELIVERIES");  // 使用独立的DeliveryPage
         contentPanel.add(createEnhancedVehiclePage(), "VEHICLE");
         contentPanel.add(createStatsPage(), "STATS");
 
         return contentPanel;
+    }
+
+    /* --- DELIVERY PAGE - 使用独立的DeliveryPage类 --- */
+    private JPanel DeliveryPage() {
+        return new DeliveryPage();  // DeliveryPage只能通过这里被创建
     }
 
     /* --- EDITABLE PROFILE PAGE WITH PHOTO UPLOAD --- */
@@ -422,6 +603,9 @@ public class CourierDashboard extends JFrame {
         saveBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         saveBtn.setBackground(PRIMARY_GREEN);
         saveBtn.setForeground(Color.WHITE);
+        saveBtn.setContentAreaFilled(true);
+        saveBtn.setOpaque(true);
+        saveBtn.setBorderPainted(false);
         saveBtn.setAlignmentX(0.5f);
         saveBtn.setMaximumSize(new Dimension(150, 40));
         saveBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
@@ -685,6 +869,9 @@ public class CourierDashboard extends JFrame {
         submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         submitBtn.setBackground(PRIMARY_GREEN);
         submitBtn.setForeground(Color.WHITE);
+        submitBtn.setContentAreaFilled(true);
+        submitBtn.setOpaque(true);
+        submitBtn.setBorderPainted(false);
         submitBtn.setAlignmentX(0.5f);
         submitBtn.setMaximumSize(new Dimension(200, 40));
         submitBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
@@ -750,448 +937,6 @@ public class CourierDashboard extends JFrame {
         return mainPanel;
     }
 
-    /* --- COMBINED DELIVERY PAGE --- */
-    private JPanel createCombinedDeliveryPage() {
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBackground(BG_LIGHT);
-        mainPanel.setBorder(new EmptyBorder(25, 25, 25, 25));
-
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        splitPane.setResizeWeight(0.65);
-        splitPane.setDividerSize(8);
-        splitPane.setBorder(null);
-
-        // TOP SECTION: Delivery List
-        JPanel topPanel = new JPanel(new BorderLayout(10, 10));
-        topPanel.setBackground(BG_LIGHT);
-
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        
-        JLabel title = new JLabel("Delivery Management");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        header.add(title, BorderLayout.WEST);
-
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        searchPanel.setOpaque(false);
-        searchField = new JTextField(25);
-        searchField.putClientProperty("JTextField.placeholderText", "🔍 Search by ID, recipient, location...");
-        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        searchField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        ));
-        searchPanel.add(searchField);
-        header.add(searchPanel, BorderLayout.EAST);
-
-        topPanel.add(header, BorderLayout.NORTH);
-
-        String[] columns = {"Parcel ID", "Recipient", "Phone No.", "Location", "Status", "Priority", "Last Updated"};
-        deliveryModel = new DefaultTableModel(new Object[][]{
-            {"LX-901", "Justin Khoo", "012-3456789", "Petaling Jaya", "In Transit", "High", "10:30 AM"},
-            {"LX-902", "Sarah Tan", "013-4567890", "Subang Jaya", "Pending", "Normal", "09:15 AM"},
-            {"LX-903", "Ahmad Zaki", "014-5678901", "Kuala Lumpur", "Delivered", "Normal", "Yesterday"},
-            {"LX-904", "Linda Chen", "015-6789012", "Shah Alam", "Pending", "Urgent", "08:45 AM"},
-            {"LX-905", "Muthu Kumar", "016-7890123", "Bangsar", "In Transit", "High", "11:20 AM"},
-            {"LX-906", "Emily Wong", "017-8901234", "Damansara", "Out for Delivery", "Normal", "10:05 AM"}
-        }, columns) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
-        };
-
-        deliveryTable = new JTable(deliveryModel);
-        styleCombinedTable(deliveryTable);
-
-        rowSorter = new TableRowSorter<>(deliveryModel);
-        deliveryTable.setRowSorter(rowSorter);
-        searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { filter(); }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { filter(); }
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { filter(); }
-            private void filter() {
-                String text = searchField.getText();
-                if (text.trim().length() == 0) rowSorter.setRowFilter(null);
-                else rowSorter.setRowFilter(RowFilter.regexFilter("(?i)" + text));
-            }
-        });
-
-        deliveryTable.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                updateSelectedParcelDetails();
-            }
-        });
-
-        topPanel.add(new JScrollPane(deliveryTable), BorderLayout.CENTER);
-
-        // BOTTOM SECTION: Update Status Form
-        JPanel bottomPanel = createUpdateForm();
-
-        splitPane.setTopComponent(topPanel);
-        splitPane.setBottomComponent(bottomPanel);
-
-        mainPanel.add(splitPane, BorderLayout.CENTER);
-
-        return mainPanel;
-    }
-
-    private JPanel createUpdateForm() {
-        JPanel formPanel = new JPanel(new BorderLayout(5, 5));
-        formPanel.setBackground(Color.WHITE);
-        formPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            new EmptyBorder(10, 15, 10, 15)
-        ));
-
-        JLabel formTitle = new JLabel("Update Delivery Status");
-        formTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        formTitle.setForeground(PRIMARY_GREEN);
-        formPanel.add(formTitle, BorderLayout.NORTH);
-
-        JPanel fieldsPanel = new JPanel(new GridBagLayout());
-        fieldsPanel.setBackground(Color.WHITE);
-        
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(3, 5, 3, 5);
-
-        // Selected Parcel
-        gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 0.2;
-        JLabel parcelLabel = new JLabel("Selected Parcel:");
-        parcelLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        fieldsPanel.add(parcelLabel, gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.8;
-        selectedParcelLabel = new JLabel("None selected");
-        selectedParcelLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        selectedParcelLabel.setForeground(PRIMARY_GREEN);
-        fieldsPanel.add(selectedParcelLabel, gbc);
-
-        // Status Selection
-        gbc.gridx = 0; gbc.gridy = 1;
-        gbc.weightx = 0.2;
-        JLabel statusLabel = new JLabel("New Status:");
-        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        fieldsPanel.add(statusLabel, gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.8;
-        statusCombo = new JComboBox<>(new String[]{
-            "Select Status...",
-            "Out for Delivery",
-            "Delivered", 
-            "Failed Delivery",
-            "Returning to Hub",
-            "Held at Facility"
-        });
-        statusCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        statusCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        statusCombo.setBackground(Color.WHITE);
-        fieldsPanel.add(statusCombo, gbc);
-
-        // Photo Upload
-        gbc.gridx = 0; gbc.gridy = 2;
-        gbc.weightx = 0.2;
-        JLabel photoLabel = new JLabel("Photo Proof:");
-        photoLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        fieldsPanel.add(photoLabel, gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.8;
-        
-        JPanel photoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        photoPanel.setBackground(Color.WHITE);
-        
-        uploadPhotoBtn = new JButton("📷 Select Photo");
-        uploadPhotoBtn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        uploadPhotoBtn.setBackground(Color.WHITE);
-        uploadPhotoBtn.setForeground(PRIMARY_GREEN);
-        uploadPhotoBtn.setBorder(BorderFactory.createLineBorder(PRIMARY_GREEN));
-        uploadPhotoBtn.setPreferredSize(new Dimension(100, 25));
-        uploadPhotoBtn.addActionListener(e -> selectPhotoFromFile());
-        
-        photoFileNameLabel = new JLabel("No file selected");
-        photoFileNameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        photoFileNameLabel.setForeground(TEXT_GRAY);
-        
-        JButton removePhotoBtn = new JButton("✕");
-        removePhotoBtn.setFont(new Font("Segoe UI", Font.BOLD, 10));
-        removePhotoBtn.setBackground(Color.WHITE);
-        removePhotoBtn.setForeground(Color.RED);
-        removePhotoBtn.setBorder(BorderFactory.createLineBorder(Color.RED));
-        removePhotoBtn.setPreferredSize(new Dimension(22, 22));
-        removePhotoBtn.addActionListener(e -> removePhoto());
-        
-        photoPanel.add(uploadPhotoBtn);
-        photoPanel.add(Box.createHorizontalStrut(5));
-        photoPanel.add(photoFileNameLabel);
-        photoPanel.add(Box.createHorizontalStrut(5));
-        photoPanel.add(removePhotoBtn);
-        
-        fieldsPanel.add(photoPanel, gbc);
-
-        // Remarks
-        gbc.gridx = 0; gbc.gridy = 3;
-        gbc.weightx = 0.2;
-        gbc.anchor = GridBagConstraints.NORTH;
-        JLabel remarksLabel = new JLabel("Remarks:");
-        remarksLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        fieldsPanel.add(remarksLabel, gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.8;
-        remarksArea = new JTextArea(2, 30);
-        remarksArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        remarksArea.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(5, 8, 5, 8)
-        ));
-        remarksArea.setLineWrap(true);
-        remarksArea.setWrapStyleWord(true);
-        JScrollPane remarksScroll = new JScrollPane(remarksArea);
-        remarksScroll.setBorder(null);
-        remarksScroll.setPreferredSize(new Dimension(300, 50));
-        fieldsPanel.add(remarksScroll, gbc);
-
-        formPanel.add(fieldsPanel, BorderLayout.CENTER);
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
-        buttonPanel.setBackground(Color.WHITE);
-
-        JButton clearBtn = new JButton("Clear");
-        clearBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        clearBtn.setBackground(Color.WHITE);
-        clearBtn.setForeground(TEXT_GRAY);
-        clearBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        clearBtn.setPreferredSize(new Dimension(80, 28));
-        clearBtn.addActionListener(e -> clearUpdateForm());
-
-        JButton updateBtn = new JButton("Update Status");
-        updateBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        updateBtn.setBackground(PRIMARY_GREEN);
-        updateBtn.setForeground(Color.WHITE);
-        updateBtn.setBorder(BorderFactory.createEmptyBorder(5, 15, 5, 15));
-        updateBtn.setPreferredSize(new Dimension(120, 28));
-        updateBtn.addActionListener(e -> performStatusUpdate());
-
-        buttonPanel.add(clearBtn);
-        buttonPanel.add(updateBtn);
-
-        formPanel.add(buttonPanel, BorderLayout.SOUTH);
-
-        return formPanel;
-    }
-
-    private void selectPhotoFromFile() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Select Delivery Proof Photo");
-        FileNameExtensionFilter filter = new FileNameExtensionFilter(
-            "Image Files (JPG, PNG, GIF)", "jpg", "jpeg", "png", "gif");
-        fileChooser.setFileFilter(filter);
-        
-        int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            selectedPhotoFile = fileChooser.getSelectedFile();
-            
-            String fileName = selectedPhotoFile.getName();
-            if (fileName.length() > 30) {
-                fileName = fileName.substring(0, 27) + "...";
-            }
-            photoFileNameLabel.setText(fileName);
-            photoFileNameLabel.setForeground(PRIMARY_GREEN);
-            uploadPhotoBtn.setText("📷 Change Photo");
-        }
-    }
-
-    private void removePhoto() {
-        selectedPhotoFile = null;
-        photoFileNameLabel.setText("No file selected");
-        photoFileNameLabel.setForeground(TEXT_GRAY);
-        uploadPhotoBtn.setText("📷 Select Photo");
-    }
-
-    private void styleCombinedTable(JTable table) {
-        table.setRowHeight(40);
-        table.setIntercellSpacing(new Dimension(8, 3));
-        table.setSelectionBackground(GREEN_LIGHT);
-        table.setSelectionForeground(Color.BLACK);
-        table.setShowGrid(true);
-        table.setGridColor(new Color(230, 230, 230));
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-
-        JTableHeader header = table.getTableHeader();
-        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        header.setBackground(Color.WHITE);
-        header.setPreferredSize(new Dimension(100, 35));
-        header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY_GREEN));
-
-        table.getColumnModel().getColumn(0).setPreferredWidth(80);
-        table.getColumnModel().getColumn(1).setPreferredWidth(120);
-        table.getColumnModel().getColumn(2).setPreferredWidth(100);
-        table.getColumnModel().getColumn(3).setPreferredWidth(120);
-        table.getColumnModel().getColumn(4).setPreferredWidth(120);
-        table.getColumnModel().getColumn(5).setPreferredWidth(80);
-        table.getColumnModel().getColumn(6).setPreferredWidth(100);
-
-        table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
-                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, isS, hasF, r, c);
-                lbl.setHorizontalAlignment(SwingConstants.CENTER);
-                String val = v.toString();
-                
-                if (val.equals("Delivered")) {
-                    lbl.setForeground(new Color(46, 125, 50));
-                    lbl.setText("✓ " + val);
-                } else if (val.equals("Out for Delivery")) {
-                    lbl.setForeground(new Color(25, 118, 210));
-                    lbl.setText("🚚 " + val);
-                } else if (val.equals("In Transit")) {
-                    lbl.setForeground(new Color(25, 118, 210));
-                    lbl.setText("⏱️ " + val);
-                } else if (val.equals("Pending")) {
-                    lbl.setForeground(new Color(237, 108, 2));
-                    lbl.setText("⏳ " + val);
-                } else if (val.equals("Failed Delivery")) {
-                    lbl.setForeground(new Color(198, 40, 40));
-                    lbl.setText("❌ " + val);
-                }
-                
-                lbl.setFont(new Font("Segoe UI", Font.BOLD, 11));
-                return lbl;
-            }
-        });
-
-        table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
-                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, isS, hasF, r, c);
-                lbl.setHorizontalAlignment(SwingConstants.CENTER);
-                String val = v.toString();
-                
-                if (val.equals("Urgent")) {
-                    lbl.setForeground(new Color(198, 40, 40));
-                    lbl.setText("🔴 " + val);
-                } else if (val.equals("High")) {
-                    lbl.setForeground(new Color(237, 108, 2));
-                    lbl.setText("🟠 " + val);
-                } else {
-                    lbl.setForeground(new Color(46, 125, 50));
-                    lbl.setText("🟢 " + val);
-                }
-                
-                return lbl;
-            }
-        });
-    }
-
-    private void updateSelectedParcelDetails() {
-        int row = deliveryTable.getSelectedRow();
-        if (row != -1) {
-            String parcelId = deliveryTable.getValueAt(row, 0).toString();
-            String recipient = deliveryTable.getValueAt(row, 1).toString();
-            String phoneNo = deliveryTable.getValueAt(row, 2).toString();
-            String currentStatus = deliveryTable.getValueAt(row, 4).toString();
-            
-            selectedParcelLabel.setText(String.format("%s - %s (%s) [Current: %s]", 
-                parcelId, recipient, phoneNo, currentStatus));
-            
-            if (currentStatus.equals("Pending")) {
-                statusCombo.setSelectedItem("Out for Delivery");
-            } else if (currentStatus.equals("In Transit")) {
-                statusCombo.setSelectedItem("Delivered");
-            } else if (currentStatus.equals("Out for Delivery")) {
-                statusCombo.setSelectedItem("Delivered");
-            } else {
-                statusCombo.setSelectedIndex(0);
-            }
-            
-            remarksArea.setText("Update for " + parcelId + ": ");
-            removePhoto();
-        }
-    }
-
-    private void performStatusUpdate() {
-        int row = deliveryTable.getSelectedRow();
-        if (row == -1) {
-            JOptionPane.showMessageDialog(this,
-                "Please select a delivery from the list first.",
-                "No Selection",
-                JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        String selectedStatus = (String) statusCombo.getSelectedItem();
-        if (selectedStatus == null || selectedStatus.equals("Select Status...")) {
-            JOptionPane.showMessageDialog(this,
-                "Please select a new status.",
-                "Invalid Status",
-                JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        if ((selectedStatus.equals("Delivered") || selectedStatus.equals("Failed Delivery")) && selectedPhotoFile == null) {
-            int confirm = JOptionPane.showConfirmDialog(this,
-                "It's recommended to attach a photo for " + selectedStatus + " status. Continue without photo?",
-                "Photo Required",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE);
-            if (confirm != JOptionPane.YES_OPTION) {
-                return;
-            }
-        }
-
-        String remarks = remarksArea.getText().trim();
-        if (remarks.isEmpty()) {
-            int confirm = JOptionPane.showConfirmDialog(this,
-                "No remarks added. Continue with update?",
-                "Confirm Update",
-                JOptionPane.YES_NO_OPTION);
-            if (confirm != JOptionPane.YES_OPTION) {
-                return;
-            }
-        }
-
-        String parcelId = deliveryTable.getValueAt(row, 0).toString();
-        String oldStatus = deliveryTable.getValueAt(row, 4).toString();
-        
-        deliveryModel.setValueAt(selectedStatus, row, 4);
-        deliveryModel.setValueAt(new SimpleDateFormat("hh:mm a").format(new Date()), row, 6);
-        
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-        String timestamp = sdf.format(new Date());
-        
-        String photoInfo = (selectedPhotoFile != null) ? 
-            "\nPhoto: " + selectedPhotoFile.getName() : 
-            "\nPhoto: Not attached";
-        
-        String message = String.format(
-            "Parcel %s status updated:\n" +
-            "From: %s\n" +
-            "To: %s\n" +
-            "Time: %s%s\n" +
-            "Remarks: %s",
-            parcelId, oldStatus, selectedStatus, timestamp, photoInfo,
-            remarks.isEmpty() ? "No remarks" : remarks
-        );
-        
-        JOptionPane.showMessageDialog(this,
-            message,
-            "Status Updated Successfully",
-            JOptionPane.INFORMATION_MESSAGE);
-        
-        deliveryTable.clearSelection();
-        clearUpdateForm();
-        deliveryTable.repaint();
-    }
-
-    private void clearUpdateForm() {
-        selectedParcelLabel.setText("None selected");
-        statusCombo.setSelectedIndex(0);
-        remarksArea.setText("");
-        removePhoto();
-    }
-
     /* --- STATS PAGE --- */
     private JPanel createStatsPage() {
         JPanel p = new JPanel(new GridBagLayout());
@@ -1238,17 +983,17 @@ public class CourierDashboard extends JFrame {
     private JPanel createStatusBar() {
         JPanel bar = new JPanel(new BorderLayout());
         bar.setBackground(Color.WHITE);
-        bar.setPreferredSize(new Dimension(getWidth(), 30));
+        bar.setPreferredSize(new Dimension(getWidth(), 35));
         bar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR));
         
         JLabel status = new JLabel("  System Status: Online | Session: Courier_88029 | " + 
             new SimpleDateFormat("dd/MM/yyyy").format(new Date()));
-        status.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        status.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         status.setForeground(TEXT_GRAY);
         bar.add(status, BorderLayout.WEST);
         
         JLabel deliveryCount = new JLabel("Pending Deliveries: 3  ");
-        deliveryCount.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        deliveryCount.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         deliveryCount.setForeground(PRIMARY_GREEN);
         bar.add(deliveryCount, BorderLayout.EAST);
         

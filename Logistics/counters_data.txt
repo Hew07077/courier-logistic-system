@@ -1,4 +1,4 @@
-// Format: counters_data.txt
-Van=2
-Car=1
+Van=3
+Motorcycle=1
+Car=2
 Truck=3

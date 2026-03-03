@@ -1,7 +1,9 @@
-// Format: vehicles_data.txt
-TRK001|Freightliner Cascadia|Active|John Smith|Truck|ABC1234|2026-12-31|Diesel
-VAN001|Ford Transit|Maintenance||Van|DEF5678|2024-10-15|Gasoline
-TRK002|Peterbilt 579|Maintenance||Truck|GHI9012|2023-05-30|Diesel
-VAN002|Mercedes Sprinter|Active||Van|JKL3456|2024-08-20|Diesel
-TRK003|International LT|Active||Truck|MNO7890|2023-11-10|Diesel
-CAR001|Bezza|Active|Mike Johnson|Car|BTE4327|2025-06-15|Diesel
+TRK001|Freightliner Cascadia|Active|John Smith|Truck|ABC-1234|1804051830175|Diesel
+VAN001|Ford Transit|Maintenance||Van|DEF-5678|1769923830175|Gasoline
+TRK002|Peterbilt 579|Active||Truck|GHI-9012|1767331830175|Diesel
+VAN002|Mercedes Sprinter|Active||Van|JKL-3456|1788067830175|Diesel
+TRK003|International LT|Active||Truck|MNO-7890|1780291830175|Diesel
+CAR001|Toyota Camry|Active|Mike Johnson|Car|PQR-2345|1780291830175|Gasoline
+MTC001|Harley Davidson|Inactive||Motorcycle|STU-6789|1769923830175|Gasoline
+CAR002|Honda Civic|Active|Sarah Wilson|Car|VWX-3456|1780291830175|Gasoline
+VAN003|RAM ProMaster|Active||Van|YZA-7890|1804051830175|Diesel
