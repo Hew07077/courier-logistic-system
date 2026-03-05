@@ -1404,6 +1404,11 @@ public class MaintenanceManagement {
                             dashboardListener.onMaintenanceDataChanged();
                         }
                         
+                        // Update vehicle status in VehicleManagement
+                        if (vehicleManagement != null && status.equals("In Progress")) {
+                            vehicleManagement.updateVehicleStatus(vehicleId, "Maintenance");
+                        }
+                        
                         showSuccess("Record " + id + " added successfully!");
                         dialog.dispose();
                     } catch (Exception ex) {
@@ -1695,6 +1700,7 @@ public class MaintenanceManagement {
             () -> {
                 try {
                     String oldStatus = record.status;
+                    String oldVehicleId = record.vehicleId;
                     
                     // Get vehicle ID from combo box
                     String selectedVehicle = (String) vehicleCombo.getSelectedItem();
@@ -1711,8 +1717,23 @@ public class MaintenanceManagement {
                     record.status = (String) statusCombo.getSelectedItem();
                     record.notes = notesArea.getText().trim();
                     
-                    if (!oldStatus.equals(record.status) && record.status.equals("Completed") && vehicleManagement != null) {
-                        vehicleManagement.completeMaintenanceForVehicle(record.vehicleId);
+                    // Update vehicle status in VehicleManagement if status changed
+                    if (vehicleManagement != null) {
+                        if (!oldStatus.equals(record.status)) {
+                            if (record.status.equals("In Progress")) {
+                                vehicleManagement.updateVehicleStatus(vehicleId, "Maintenance");
+                            } else if (record.status.equals("Completed")) {
+                                vehicleManagement.completeMaintenanceForVehicle(vehicleId);
+                            }
+                        }
+                        
+                        // If vehicle ID changed, update old vehicle status
+                        if (!oldVehicleId.equals(vehicleId)) {
+                            vehicleManagement.completeMaintenanceForVehicle(oldVehicleId);
+                            if (record.status.equals("In Progress")) {
+                                vehicleManagement.updateVehicleStatus(vehicleId, "Maintenance");
+                            }
+                        }
                     }
                     
                     saveMaintenanceRecords();
@@ -1788,8 +1809,12 @@ public class MaintenanceManagement {
         record.status = newStatus;
         record.notes += " | Status changed to " + newStatus + " on " + dateFormat.format(new Date());
         
-        if (oldStatus.equals("In Progress") && record.status.equals("Completed") && vehicleManagement != null) {
-            vehicleManagement.completeMaintenanceForVehicle(record.vehicleId);
+        if (vehicleManagement != null) {
+            if (oldStatus.equals("In Progress") && record.status.equals("Completed")) {
+                vehicleManagement.completeMaintenanceForVehicle(record.vehicleId);
+            } else if (!oldStatus.equals("In Progress") && record.status.equals("In Progress")) {
+                vehicleManagement.updateVehicleStatus(record.vehicleId, "Maintenance");
+            }
         }
         
         saveMaintenanceRecords();
@@ -1943,6 +1968,10 @@ public class MaintenanceManagement {
             .filter(r -> r.status.equals("Completed"))
             .count();
     }
+    
+    // ==================== INTEGRATION METHODS ====================
+    // Note: The duplicate methods below have been removed to avoid conflicts
+    // The original implementations above should be used instead.
     
     /**
      * Maintenance Record class representing a single maintenance task
