@@ -1582,7 +1582,7 @@ public class Login extends JFrame {
             SenderAccount acc = senderDatabase.get(username);
             if (verifyPassword(password, acc.passwordHash)) {
                 JOptionPane.showMessageDialog(this, "Login successful! Welcome, " + acc.fullName + "!");
-                new SenderDashboard(acc.fullName, acc.email).setVisible(true);
+                new SenderDashboard(acc.fullName, acc.email,acc.phone, username ).setVisible(true);
                 dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid password!");
