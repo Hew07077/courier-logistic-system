@@ -135,29 +135,24 @@ public class MyOrdersPanel extends JPanel {
                 
                 if (!isSelected && value != null) {
                     String status = value.toString();
-                    // Check if it's a demo order
-                    if (status.contains("(DEMO)")) {
-                        setForeground(new Color(108, 117, 125)); // Gray color for demo
-                    } else {
-                        switch(status) {
-                            case "Delivered":
-                                setForeground(new Color(40, 167, 69));
-                                break;
-                            case "In Transit":
-                                setForeground(new Color(0, 123, 255));
-                                break;
-                            case "Pending":
-                                setForeground(new Color(255, 193, 7));
-                                break;
-                            case "Cancelled":
-                                setForeground(new Color(220, 53, 69));
-                                break;
-                            case "Delayed":
-                                setForeground(new Color(255, 87, 34));
-                                break;
-                            default:
-                                setForeground(new Color(33, 37, 41));
-                        }
+                    switch(status) {
+                        case "Delivered":
+                            setForeground(new Color(40, 167, 69));
+                            break;
+                        case "In Transit":
+                            setForeground(new Color(0, 123, 255));
+                            break;
+                        case "Pending":
+                            setForeground(new Color(255, 193, 7));
+                            break;
+                        case "Cancelled":
+                            setForeground(new Color(220, 53, 69));
+                            break;
+                        case "Delayed":
+                            setForeground(new Color(255, 87, 34));
+                            break;
+                        default:
+                            setForeground(new Color(33, 37, 41));
                     }
                 }
                 return c;
@@ -199,16 +194,10 @@ public class MyOrdersPanel extends JPanel {
                 int row = ordersTable.rowAtPoint(e.getPoint());
                 if (row >= 0) {
                     ordersTable.setRowSelectionInterval(row, row);
-                    // Check if it's a demo order
                     String orderId = tableModel.getValueAt(row, 0).toString();
-                    String status = tableModel.getValueAt(row, 6).toString();
                     
-                    if (orderId.contains("DEMO-") || status.contains("(DEMO)")) {
-                        JOptionPane.showMessageDialog(MyOrdersPanel.this,
-                            "This is a demo order. Create your own order to perform actions.",
-                            "Demo Order",
-                            JOptionPane.INFORMATION_MESSAGE);
-                    } else {
+                    // Check if it's the "No orders yet" message
+                    if (!"No orders yet".equals(orderId)) {
                         popupMenu.show(ordersTable, e.getX(), e.getY());
                     }
                 }
@@ -220,14 +209,9 @@ public class MyOrdersPanel extends JPanel {
                     int row = ordersTable.rowAtPoint(e.getPoint());
                     if (row >= 0) {
                         String orderId = tableModel.getValueAt(row, 0).toString();
-                        String status = tableModel.getValueAt(row, 6).toString();
                         
-                        if (orderId.contains("DEMO-") || status.contains("(DEMO)")) {
-                            JOptionPane.showMessageDialog(MyOrdersPanel.this,
-                                "This is a demo order. Create your own order to view details.",
-                                "Demo Order",
-                                JOptionPane.INFORMATION_MESSAGE);
-                        } else {
+                        // Check if it's the "No orders yet" message
+                        if (!"No orders yet".equals(orderId)) {
                             viewOrderDetails();
                         }
                     }
@@ -278,34 +262,36 @@ public class MyOrdersPanel extends JPanel {
         return bottomPanel;
     }
 
+    // MODIFIED: refreshData method
     public void refreshData() {
         tableModel.setRowCount(0);
         
         String filter = (String) statusFilter.getSelectedItem();
         String userEmail = dashboard.getSenderEmail();
         
-        // Check if this is a demo sender
-        boolean isDemoSender = "demo@sender.com".equals(userEmail);
-        
-        // Get all orders from FileDataManager
-        List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
-        
-        // Filter orders for this user
         List<Order> userOrders = new ArrayList<>();
-        for (Order order : allOrders) {
-            if (order.customerEmail != null && userEmail != null) {
-                String orderEmail = order.customerEmail.trim();
-                String currentEmail = userEmail.trim();
-                
-                if (orderEmail.equals(currentEmail)) {
-                    userOrders.add(order);
+
+        // Use if-else to check if the sender is a demo user
+        if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
+            // If it's the demo sender, get demo orders
+            userOrders = DemoDataManager.getInstance().getDemoOrders();
+            System.out.println("MyOrdersPanel: Loading " + userOrders.size() + " demo orders");
+        } else {
+            // Otherwise, get regular orders from the system
+            List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
+            
+            // Filter orders for this user
+            for (Order order : allOrders) {
+                if (order.customerEmail != null && userEmail != null) {
+                    String orderEmail = order.customerEmail.trim();
+                    String currentEmail = userEmail.trim();
+                    
+                    if (orderEmail.equals(currentEmail)) {
+                        userOrders.add(order);
+                    }
                 }
             }
-        }
-        
-        // If this is demo sender AND no real orders, show demo orders
-        if (isDemoSender && userOrders.isEmpty()) {
-            userOrders = createDemoOrders();
+            System.out.println("MyOrdersPanel: Loading " + userOrders.size() + " regular orders");
         }
         
         // Apply status filter
@@ -313,10 +299,6 @@ public class MyOrdersPanel extends JPanel {
             List<Order> filteredOrders = new ArrayList<>();
             for (Order order : userOrders) {
                 String statusToCompare = order.status;
-                // Remove (DEMO) tag for comparison if present
-                if (statusToCompare.contains(" (DEMO)")) {
-                    statusToCompare = statusToCompare.replace(" (DEMO)", "");
-                }
                 if (filter.equals(statusToCompare)) {
                     filteredOrders.add(order);
                 }
@@ -342,8 +324,8 @@ public class MyOrdersPanel extends JPanel {
             tableModel.addRow(row);
         }
         
-        // If no orders at all and not demo sender, show empty state message in table
-        if (userOrders.isEmpty() && !isDemoSender) {
+        // If no orders at all, show empty state message
+        if (userOrders.isEmpty()) {
             Object[] emptyRow = {
                 "No orders yet",
                 "",
@@ -356,107 +338,6 @@ public class MyOrdersPanel extends JPanel {
             };
             tableModel.addRow(emptyRow);
         }
-    }
-
-    private List<Order> createDemoOrders() {
-        List<Order> demoOrders = new ArrayList<>();
-        
-        // Demo Order 1
-        Order order1 = new Order();
-        order1.id = "DEMO-ORD-001";
-        order1.customerName = "Demo User";
-        order1.customerEmail = "demo@sender.com";
-        order1.customerPhone = "012-3456789";
-        order1.customerAddress = "Kuala Lumpur, Malaysia";
-        order1.recipientName = "John Doe";
-        order1.recipientPhone = "011-22334455";
-        order1.recipientAddress = "Penang, Malaysia";
-        order1.weight = 2.5;
-        order1.dimensions = "30x20x15";
-        order1.orderDate = "2024-01-15";
-        order1.status = "In Transit (DEMO)";
-        order1.notes = "Package Type: Electronics\nEstimated Cost: RM 45.50\nFragile: Yes";
-        order1.estimatedDelivery = "2024-01-18";
-        order1.driverId = "DRV-001";
-        demoOrders.add(order1);
-        
-        // Demo Order 2
-        Order order2 = new Order();
-        order2.id = "DEMO-ORD-002";
-        order2.customerName = "Demo User";
-        order2.customerEmail = "demo@sender.com";
-        order2.customerPhone = "012-3456789";
-        order2.customerAddress = "Johor Bahru, Malaysia";
-        order2.recipientName = "Jane Smith";
-        order2.recipientPhone = "013-55667788";
-        order2.recipientAddress = "Melaka, Malaysia";
-        order2.weight = 1.8;
-        order2.dimensions = "25x15x10";
-        order2.orderDate = "2024-01-14";
-        order2.status = "Delivered (DEMO)";
-        order2.notes = "Package Type: Documents\nEstimated Cost: RM 28.90\nInsurance: No";
-        order2.estimatedDelivery = "2024-01-16";
-        order2.driverId = "DRV-002";
-        demoOrders.add(order2);
-        
-        // Demo Order 3
-        Order order3 = new Order();
-        order3.id = "DEMO-ORD-003";
-        order3.customerName = "Demo User";
-        order3.customerEmail = "demo@sender.com";
-        order3.customerPhone = "012-3456789";
-        order3.customerAddress = "Ipoh, Malaysia";
-        order3.recipientName = "Ahmad Abdullah";
-        order3.recipientPhone = "014-77889900";
-        order3.recipientAddress = "Kuala Lumpur, Malaysia";
-        order3.weight = 5.0;
-        order3.dimensions = "40x30x25";
-        order3.orderDate = "2024-01-13";
-        order3.status = "Pending (DEMO)";
-        order3.notes = "Package Type: Clothing\nEstimated Cost: RM 67.20\nExpress Delivery: Yes";
-        order3.estimatedDelivery = "2024-01-17";
-        order3.driverId = "";
-        demoOrders.add(order3);
-        
-        // Demo Order 4
-        Order order4 = new Order();
-        order4.id = "DEMO-ORD-004";
-        order4.customerName = "Demo User";
-        order4.customerEmail = "demo@sender.com";
-        order4.customerPhone = "012-3456789";
-        order4.customerAddress = "Kota Kinabalu, Malaysia";
-        order4.recipientName = "Sarah Lim";
-        order4.recipientPhone = "016-11223344";
-        order4.recipientAddress = "Sandakan, Malaysia";
-        order4.weight = 3.2;
-        order4.dimensions = "35x25x20";
-        order4.orderDate = "2024-01-12";
-        order4.status = "Delayed (DEMO)";
-        order4.notes = "Package Type: Perishable\nEstimated Cost: RM 89.50\nKeep Refrigerated: Yes";
-        order4.estimatedDelivery = "2024-01-19";
-        order4.driverId = "DRV-003";
-        demoOrders.add(order4);
-        
-        // Demo Order 5
-        Order order5 = new Order();
-        order5.id = "DEMO-ORD-005";
-        order5.customerName = "Demo User";
-        order5.customerEmail = "demo@sender.com";
-        order5.customerPhone = "012-3456789";
-        order5.customerAddress = "Kuching, Malaysia";
-        order5.recipientName = "Tan Wei Ming";
-        order5.recipientPhone = "017-99887766";
-        order5.recipientAddress = "Sibu, Malaysia";
-        order5.weight = 1.2;
-        order5.dimensions = "20x15x10";
-        order5.orderDate = "2024-01-11";
-        order5.status = "In Transit (DEMO)";
-        order5.notes = "Package Type: Electronics\nEstimated Cost: RM 35.80\nBattery Included: No";
-        order5.estimatedDelivery = "2024-01-14";
-        order5.driverId = "DRV-004";
-        demoOrders.add(order5);
-        
-        return demoOrders;
     }
 
     private String extractCity(String address) {
@@ -496,14 +377,9 @@ public class MyOrdersPanel extends JPanel {
         int selectedRow = ordersTable.getSelectedRow();
         if (selectedRow >= 0) {
             String orderId = tableModel.getValueAt(selectedRow, 0).toString();
-            String status = tableModel.getValueAt(selectedRow, 6).toString();
             
-            // Check if it's a demo order
-            if (orderId.contains("DEMO-") || status.contains("(DEMO)")) {
-                JOptionPane.showMessageDialog(this,
-                    "This is a demo order. Create your own order to track it.",
-                    "Demo Order",
-                    JOptionPane.INFORMATION_MESSAGE);
+            // Check if it's the "No orders yet" message
+            if ("No orders yet".equals(orderId)) {
                 return;
             }
             
@@ -530,18 +406,24 @@ public class MyOrdersPanel extends JPanel {
         }
     }
 
+    // MODIFIED: cancelSelectedOrder method
     private void cancelSelectedOrder() {
         int selectedRow = ordersTable.getSelectedRow();
         if (selectedRow >= 0) {
             String orderId = tableModel.getValueAt(selectedRow, 0).toString();
             String status = tableModel.getValueAt(selectedRow, 6).toString();
             
-            // Check if it's a demo order
-            if (orderId.contains("DEMO-") || status.contains("(DEMO)")) {
-                JOptionPane.showMessageDialog(this,
-                    "This is a demo order. Create your own order to cancel it.",
-                    "Demo Order",
-                    JOptionPane.INFORMATION_MESSAGE);
+            // Check if it's the "No orders yet" message
+            if ("No orders yet".equals(orderId)) {
+                return;
+            }
+            
+            // Check if user is demo user - demo users cannot cancel orders
+            String userEmail = dashboard.getSenderEmail();
+            if (DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
+                JOptionPane.showMessageDialog(this, 
+                    "Demo users cannot cancel orders. Please create a real account to cancel orders.", 
+                    "Demo Account Restriction", JOptionPane.WARNING_MESSAGE);
                 return;
             }
             
@@ -572,113 +454,39 @@ public class MyOrdersPanel extends JPanel {
         }
     }
 
+    // MODIFIED: viewOrderDetails method
     private void viewOrderDetails() {
         int selectedRow = ordersTable.getSelectedRow();
         if (selectedRow >= 0) {
             String orderId = tableModel.getValueAt(selectedRow, 0).toString();
-            String status = tableModel.getValueAt(selectedRow, 6).toString();
             
-            // Check if it's a demo order
-            if (orderId.contains("DEMO-") || status.contains("(DEMO)")) {
-                showDemoOrderDetailsDialog(orderId);
+            // Check if it's the "No orders yet" message
+            if ("No orders yet".equals(orderId)) {
                 return;
             }
             
-            Order order = FileDataManager.getInstance().getOrderById(orderId);
+            Order order = null;
+            String userEmail = dashboard.getSenderEmail();
+            
+            // Get order based on user type
+            if (DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
+                // For demo user, get from demo orders
+                List<Order> demoOrders = DemoDataManager.getInstance().getDemoOrders();
+                for (Order demoOrder : demoOrders) {
+                    if (demoOrder.id.equals(orderId)) {
+                        order = demoOrder;
+                        break;
+                    }
+                }
+            } else {
+                // For regular user, get from FileDataManager
+                order = FileDataManager.getInstance().getOrderById(orderId);
+            }
+            
             if (order != null) {
                 showOrderDetailsDialog(order);
             }
         }
-    }
-
-    private void showDemoOrderDetailsDialog(String orderId) {
-        JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Demo Order Details", Dialog.ModalityType.APPLICATION_MODAL);
-        dialog.setLayout(new BorderLayout());
-        dialog.setSize(500, 500);
-        dialog.setLocationRelativeTo(this);
-
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.gridwidth = 2;
-
-        int y = 0;
-        
-        // Demo badge
-        JPanel demoBadgePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        demoBadgePanel.setOpaque(false);
-        JLabel demoBadge = new JLabel("DEMO ORDER");
-        demoBadge.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        demoBadge.setForeground(Color.WHITE);
-        demoBadge.setBackground(new Color(108, 117, 125));
-        demoBadge.setOpaque(true);
-        demoBadge.setBorder(BorderFactory.createEmptyBorder(5, 15, 5, 15));
-        demoBadgePanel.add(demoBadge);
-        
-        gbc.gridy = y++;
-        panel.add(demoBadgePanel, gbc);
-        
-        // Find which demo order
-        Order demoOrder = null;
-        for (Order order : createDemoOrders()) {
-            if (order.id.equals(orderId)) {
-                demoOrder = order;
-                break;
-            }
-        }
-        
-        if (demoOrder != null) {
-            addDetailRow(panel, "Order ID:", demoOrder.id, gbc, y++);
-            addDetailRow(panel, "Date:", demoOrder.orderDate, gbc, y++);
-            addDetailRow(panel, "Status:", demoOrder.status, gbc, y++);
-            
-            gbc.gridy = y++;
-            panel.add(new JSeparator(), gbc);
-            
-            addDetailRow(panel, "From:", demoOrder.customerAddress, gbc, y++);
-            addDetailRow(panel, "To:", demoOrder.recipientAddress, gbc, y++);
-            
-            gbc.gridy = y++;
-            panel.add(new JSeparator(), gbc);
-            
-            addDetailRow(panel, "Weight:", String.format("%.2f kg", demoOrder.weight), gbc, y++);
-            addDetailRow(panel, "Dimensions:", demoOrder.dimensions + " cm", gbc, y++);
-            
-            if (demoOrder.notes != null && !demoOrder.notes.isEmpty()) {
-                String[] noteLines = demoOrder.notes.split("\n");
-                for (String line : noteLines) {
-                    if (line.contains(":")) {
-                        String[] parts = line.split(":", 2);
-                        if (parts.length == 2) {
-                            addDetailRow(panel, parts[0] + ":", parts[1].trim(), gbc, y++);
-                        }
-                    }
-                }
-            }
-        }
-
-        gbc.gridy = y;
-        gbc.insets = new Insets(20, 5, 5, 5);
-        
-        JButton closeBtn = new JButton("Close");
-        closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        closeBtn.setForeground(Color.WHITE);
-        closeBtn.setBackground(new Color(0, 123, 255));
-        closeBtn.setBorderPainted(false);
-        closeBtn.setFocusPainted(false);
-        closeBtn.addActionListener(e -> dialog.dispose());
-        
-        gbc.anchor = GridBagConstraints.CENTER;
-        panel.add(closeBtn, gbc);
-
-        JScrollPane scrollPane = new JScrollPane(panel);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        dialog.add(scrollPane);
-        dialog.setVisible(true);
     }
 
     private void showOrderDetailsDialog(Order order) {

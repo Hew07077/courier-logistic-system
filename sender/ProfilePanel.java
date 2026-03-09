@@ -37,6 +37,7 @@ public class ProfilePanel extends JPanel {
         return headerPanel;
     }
 
+    // MODIFIED: createProfileContent method
     private JPanel createProfileContent() {
         JPanel contentPanel = new JPanel(new GridBagLayout());
         contentPanel.setBackground(Color.WHITE);
@@ -63,8 +64,17 @@ public class ProfilePanel extends JPanel {
         addProfileField(contentPanel, "Email:", dashboard.getSenderEmail(), gbc, 2);
         addProfileField(contentPanel, "Phone:", dashboard.getSenderPhone(), gbc, 3);
         addProfileField(contentPanel, "Address:", dashboard.getSenderAddress(), gbc, 4);
-        addProfileField(contentPanel, "Company:", "ABC Corporation", gbc, 5);
-        addProfileField(contentPanel, "Account Type:", "Premium Sender", gbc, 6);
+        
+        // Check if demo user to show appropriate company info
+        String userEmail = dashboard.getSenderEmail();
+        if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
+            addProfileField(contentPanel, "Company:", "Demo Company", gbc, 5);
+            addProfileField(contentPanel, "Account Type:", "Demo Account", gbc, 6);
+        } else {
+            addProfileField(contentPanel, "Company:", "ABC Corporation", gbc, 5);
+            addProfileField(contentPanel, "Account Type:", "Premium Sender", gbc, 6);
+        }
+        
         addProfileField(contentPanel, "Member Since:", "January 15, 2024", gbc, 7);
 
         // Statistics
@@ -80,7 +90,7 @@ public class ProfilePanel extends JPanel {
         statsPanel.add(createStatBox("Delivered", 
             String.valueOf(dashboard.getDeliveredOrders())));
         statsPanel.add(createStatBox("Total Spent", 
-            "$" + String.format("%.2f", dashboard.getTotalSpent())));
+            "RM " + String.format("%.2f", dashboard.getTotalSpent())));
 
         gbc.gridy = 8;
         gbc.gridwidth = 2;
@@ -156,7 +166,17 @@ public class ProfilePanel extends JPanel {
         return panel;
     }
 
+    // MODIFIED: editProfile method
     private void editProfile() {
+        // Check if demo user - demo users cannot edit profile
+        String userEmail = dashboard.getSenderEmail();
+        if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
+            JOptionPane.showMessageDialog(this, 
+                "Demo users cannot edit profile. Please create a real account to edit your profile.", 
+                "Demo Account Restriction", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Edit Profile", Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setLayout(new BorderLayout());
         dialog.setSize(400, 500);
@@ -241,7 +261,17 @@ public class ProfilePanel extends JPanel {
         return field;
     }
 
+    // MODIFIED: changePassword method
     private void changePassword() {
+        // Check if demo user - demo users cannot change password
+        String userEmail = dashboard.getSenderEmail();
+        if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
+            JOptionPane.showMessageDialog(this, 
+                "Demo users cannot change password. Please create a real account to change your password.", 
+                "Demo Account Restriction", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Change Password", Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setLayout(new BorderLayout());
         dialog.setSize(400, 300);

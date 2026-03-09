@@ -132,6 +132,7 @@ public class TrackOrderPanel extends JPanel {
         return mainPanel;
     }
 
+    // MODIFIED: showWelcomeMessage method
     private void showWelcomeMessage() {
         trackingResultPanel.removeAll();
         
@@ -145,15 +146,23 @@ public class TrackOrderPanel extends JPanel {
         
         // Show user's recent orders
         String userEmail = dashboard.getSenderEmail();
-        boolean isDemoSender = "demo@sender.com".equals(userEmail);
         
-        List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
         List<Order> userOrders = new ArrayList<>();
         
-        for (Order order : allOrders) {
-            if (order.customerEmail != null && userEmail != null) {
-                if (order.customerEmail.trim().equals(userEmail.trim())) {
-                    userOrders.add(order);
+        // Use if-else to check if the sender is a demo user
+        if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
+            // If it's the demo sender, get demo orders
+            userOrders = DemoDataManager.getInstance().getDemoOrders();
+            System.out.println("TrackOrderPanel: Loading " + userOrders.size() + " demo orders");
+        } else {
+            // Otherwise, get regular orders from the system
+            List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
+            
+            for (Order order : allOrders) {
+                if (order.customerEmail != null && userEmail != null) {
+                    if (order.customerEmail.trim().equals(userEmail.trim())) {
+                        userOrders.add(order);
+                    }
                 }
             }
         }
@@ -170,27 +179,10 @@ public class TrackOrderPanel extends JPanel {
             int startIndex = Math.max(0, userOrders.size() - 5);
             for (int i = startIndex; i < userOrders.size(); i++) {
                 Order order = userOrders.get(i);
-                JPanel orderCard = createOrderCard(order, false);
+                JPanel orderCard = createOrderCard(order);
                 trackingResultPanel.add(orderCard);
                 trackingResultPanel.add(Box.createVerticalStrut(5));
             }
-        } else if (isDemoSender) {
-            // Show demo orders ONLY for demo sender
-            JLabel recentLabel = new JLabel("Demo Orders:");
-            recentLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-            recentLabel.setForeground(new Color(108, 117, 125));
-            recentLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-            trackingResultPanel.add(recentLabel);
-            
-            trackingResultPanel.add(Box.createVerticalStrut(10));
-            
-            // Add demo order cards
-            trackingResultPanel.add(createDemoOrderCard("DEMO-ORD-001", "Kuala Lumpur", "Penang", "In Transit (DEMO)", "2024-01-15"));
-            trackingResultPanel.add(Box.createVerticalStrut(5));
-            trackingResultPanel.add(createDemoOrderCard("DEMO-ORD-002", "Johor Bahru", "Melaka", "Delivered (DEMO)", "2024-01-14"));
-            trackingResultPanel.add(Box.createVerticalStrut(5));
-            trackingResultPanel.add(createDemoOrderCard("DEMO-ORD-003", "Ipoh", "Kuala Lumpur", "Pending (DEMO)", "2024-01-13"));
-            trackingResultPanel.add(Box.createVerticalStrut(5));
         } else {
             JLabel emptyLabel = new JLabel("You haven't created any orders yet");
             emptyLabel.setFont(new Font("Segoe UI", Font.ITALIC, 14));
@@ -217,7 +209,7 @@ public class TrackOrderPanel extends JPanel {
         trackingResultPanel.repaint();
     }
 
-    private JPanel createOrderCard(Order order, boolean isDemo) {
+    private JPanel createOrderCard(Order order) {
         JPanel card = new JPanel(new BorderLayout(10, 5));
         card.setBackground(new Color(248, 249, 250));
         card.setBorder(BorderFactory.createCompoundBorder(
@@ -281,70 +273,6 @@ public class TrackOrderPanel extends JPanel {
         return card;
     }
 
-    private JPanel createDemoOrderCard(String orderId, String from, String to, String status, String date) {
-        JPanel card = new JPanel(new BorderLayout(10, 5));
-        card.setBackground(new Color(248, 249, 250));
-        card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(200, 200, 200)),
-            BorderFactory.createEmptyBorder(12, 15, 12, 15)
-        ));
-        card.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
-        
-        JPanel leftPanel = new JPanel(new GridLayout(2, 1, 2, 2));
-        leftPanel.setOpaque(false);
-        
-        JLabel idLabel = new JLabel("📦 " + orderId);
-        idLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        leftPanel.add(idLabel);
-        
-        JLabel routeLabel = new JLabel(from + " → " + to);
-        routeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        routeLabel.setForeground(new Color(108, 117, 125));
-        leftPanel.add(routeLabel);
-        
-        card.add(leftPanel, BorderLayout.WEST);
-        
-        JPanel rightPanel = new JPanel(new GridLayout(2, 1, 2, 2));
-        rightPanel.setOpaque(false);
-        
-        JLabel statusLabel = new JLabel(status);
-        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        statusLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        statusLabel.setForeground(new Color(108, 117, 125)); // Gray for demo
-        rightPanel.add(statusLabel);
-        
-        JLabel dateLabel = new JLabel(date + " (DEMO)");
-        dateLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        dateLabel.setForeground(new Color(108, 117, 125));
-        dateLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        rightPanel.add(dateLabel);
-        
-        card.add(rightPanel, BorderLayout.EAST);
-        
-        card.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                JOptionPane.showMessageDialog(dashboard,
-                    "This is a demo order. Create your own order to track it.",
-                    "Demo Order",
-                    JOptionPane.INFORMATION_MESSAGE);
-            }
-            
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                card.setBackground(new Color(240, 240, 240));
-            }
-            
-            @Override
-            public void mouseExited(MouseEvent e) {
-                card.setBackground(new Color(248, 249, 250));
-            }
-        });
-        
-        return card;
-    }
-
     private String extractCity(String address) {
         if (address != null && address.contains(",")) {
             return address.substring(0, address.indexOf(",")).trim();
@@ -353,9 +281,7 @@ public class TrackOrderPanel extends JPanel {
     }
 
     private Color getStatusColor(String status) {
-        // Remove (DEMO) tag for color determination
-        String cleanStatus = status.replace(" (DEMO)", "");
-        switch(cleanStatus) {
+        switch(status) {
             case "Delivered": return new Color(40, 167, 69);
             case "In Transit": return new Color(0, 123, 255);
             case "Pending": return new Color(255, 193, 7);
@@ -365,13 +291,30 @@ public class TrackOrderPanel extends JPanel {
         }
     }
 
+    // MODIFIED: showMyOrders method
     private void showMyOrders() {
         trackingResultPanel.removeAll();
         
         String userEmail = dashboard.getSenderEmail();
-        boolean isDemoSender = "demo@sender.com".equals(userEmail);
         
-        List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
+        List<Order> userOrders = new ArrayList<>();
+        
+        // Use if-else to check if the sender is a demo user
+        if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
+            // If it's the demo sender, get demo orders
+            userOrders = DemoDataManager.getInstance().getDemoOrders();
+        } else {
+            // Otherwise, get regular orders from the system
+            List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
+            
+            for (Order order : allOrders) {
+                if (order.customerEmail != null && userEmail != null) {
+                    if (order.customerEmail.trim().equals(userEmail.trim())) {
+                        userOrders.add(order);
+                    }
+                }
+            }
+        }
         
         JLabel titleLabel = new JLabel("My Orders");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -381,25 +324,13 @@ public class TrackOrderPanel extends JPanel {
         
         trackingResultPanel.add(Box.createVerticalStrut(15));
         
-        int userOrderCount = 0;
-        for (Order o : allOrders) {
-            if (o.customerEmail != null && o.customerEmail.trim().equalsIgnoreCase(userEmail.trim())) {
-                userOrderCount++;
-                JPanel orderCard = createOrderCard(o, false);
+        if (!userOrders.isEmpty()) {
+            for (Order o : userOrders) {
+                JPanel orderCard = createOrderCard(o);
                 trackingResultPanel.add(orderCard);
                 trackingResultPanel.add(Box.createVerticalStrut(5));
             }
-        }
-        
-        // Show demo orders only for demo sender with no real orders
-        if (userOrderCount == 0 && isDemoSender) {
-            trackingResultPanel.add(createDemoOrderCard("DEMO-ORD-001", "Kuala Lumpur", "Penang", "In Transit (DEMO)", "2024-01-15"));
-            trackingResultPanel.add(Box.createVerticalStrut(5));
-            trackingResultPanel.add(createDemoOrderCard("DEMO-ORD-002", "Johor Bahru", "Melaka", "Delivered (DEMO)", "2024-01-14"));
-            trackingResultPanel.add(Box.createVerticalStrut(5));
-            trackingResultPanel.add(createDemoOrderCard("DEMO-ORD-003", "Ipoh", "Kuala Lumpur", "Pending (DEMO)", "2024-01-13"));
-            trackingResultPanel.add(Box.createVerticalStrut(5));
-        } else if (userOrderCount == 0 && !isDemoSender) {
+        } else {
             JLabel emptyLabel = new JLabel("You haven't created any orders yet");
             emptyLabel.setFont(new Font("Segoe UI", Font.ITALIC, 14));
             emptyLabel.setForeground(new Color(108, 117, 125));
@@ -459,20 +390,14 @@ public class TrackOrderPanel extends JPanel {
         displayTrackingResult(trackingNumber);
     }
 
+    // MODIFIED: displayTrackingResult method
     private void displayTrackingResult(String trackingNumber) {
         trackingResultPanel.removeAll();
         
         currentOrder = FileDataManager.getInstance().getOrderById(trackingNumber);
         String userEmail = dashboard.getSenderEmail();
-        boolean isDemoSender = "demo@sender.com".equals(userEmail);
 
         if (currentOrder == null) {
-            // Check if it's a demo order ID for demo sender
-            if (isDemoSender && trackingNumber.startsWith("DEMO-")) {
-                displayDemoOrderDetails(trackingNumber);
-                return;
-            }
-            
             JLabel notFoundLabel = new JLabel("❌ Order not found: " + trackingNumber);
             notFoundLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
             notFoundLabel.setForeground(new Color(220, 53, 69));
@@ -491,8 +416,27 @@ public class TrackOrderPanel extends JPanel {
             addBackButton();
         } else {
             // Check if this order belongs to the logged-in user
-            if (currentOrder.customerEmail != null && 
-                currentOrder.customerEmail.trim().equalsIgnoreCase(userEmail.trim())) {
+            boolean isAuthorized = false;
+            
+            if (currentOrder.customerEmail != null && userEmail != null) {
+                if (currentOrder.customerEmail.trim().equalsIgnoreCase(userEmail.trim())) {
+                    isAuthorized = true;
+                }
+            }
+            
+            // Also check if it's a demo user with demo orders
+            if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
+                List<Order> demoOrders = DemoDataManager.getInstance().getDemoOrders();
+                for (Order demoOrder : demoOrders) {
+                    if (demoOrder.id.equals(trackingNumber)) {
+                        isAuthorized = true;
+                        currentOrder = demoOrder;
+                        break;
+                    }
+                }
+            }
+            
+            if (isAuthorized) {
                 displayOrderDetails(currentOrder);
             } else {
                 JLabel notAuthorizedLabel = new JLabel("⚠️ You are not authorized to view this order");
@@ -508,58 +452,6 @@ public class TrackOrderPanel extends JPanel {
         
         trackingResultPanel.revalidate();
         trackingResultPanel.repaint();
-    }
-
-    private void displayDemoOrderDetails(String trackingNumber) {
-        JLabel demoLabel = new JLabel("📦 Demo Order: " + trackingNumber);
-        demoLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        demoLabel.setForeground(new Color(108, 117, 125));
-        demoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        trackingResultPanel.add(demoLabel);
-        
-        trackingResultPanel.add(Box.createVerticalStrut(20));
-        
-        JPanel infoPanel = new JPanel();
-        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBackground(new Color(248, 249, 250));
-        infoPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(200, 200, 200)),
-            BorderFactory.createEmptyBorder(15, 15, 15, 15)
-        ));
-        infoPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        infoPanel.setMaximumSize(new Dimension(400, 150));
-        
-        JLabel infoLabel = new JLabel("This is a demo order.");
-        infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        infoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        infoPanel.add(infoLabel);
-        
-        infoPanel.add(Box.createVerticalStrut(10));
-        
-        JLabel infoLabel2 = new JLabel("Create your own order to track real shipments.");
-        infoLabel2.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        infoLabel2.setForeground(new Color(108, 117, 125));
-        infoLabel2.setAlignmentX(Component.CENTER_ALIGNMENT);
-        infoPanel.add(infoLabel2);
-        
-        trackingResultPanel.add(infoPanel);
-        
-        trackingResultPanel.add(Box.createVerticalStrut(15));
-        
-        JButton createOrderBtn = new JButton("+ Create New Order");
-        createOrderBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        createOrderBtn.setForeground(Color.WHITE);
-        createOrderBtn.setBackground(new Color(40, 167, 69));
-        createOrderBtn.setBorderPainted(false);
-        createOrderBtn.setFocusPainted(false);
-        createOrderBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        createOrderBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        createOrderBtn.setMaximumSize(new Dimension(200, 40));
-        createOrderBtn.addActionListener(e -> dashboard.showPanel("NEW_ORDER"));
-        trackingResultPanel.add(createOrderBtn);
-        
-        trackingResultPanel.add(Box.createVerticalStrut(10));
-        addBackButton();
     }
 
     private void displayOrderDetails(Order order) {

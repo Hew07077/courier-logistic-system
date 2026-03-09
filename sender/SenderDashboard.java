@@ -1,6 +1,7 @@
 package sender;
 
 import logistics.login.Login;
+import logistics.orders.Order;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -10,6 +11,8 @@ import java.awt.event.MouseEvent;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 
 public class SenderDashboard extends JFrame {
@@ -63,19 +66,111 @@ public class SenderDashboard extends JFrame {
     private String senderPhone;
     private String senderAddress = "PV9, Kuala Lumpur";
     private String username;
-    private int activeOrders = 3;
-    private int deliveredOrders = 12;
-    private int pendingPayments = 2;
-    private double totalSpent = 1245.50;
+    private int activeOrders = 0;
+    private int deliveredOrders = 0;
+    private int pendingPayments = 0;
+    private double totalSpent = 0.0;
 
-    // Constructor with user data
+    // Constructor with user data - MODIFIED
     public SenderDashboard(String name, String email, String phone, String username) {
         this.senderName = name;
         this.senderEmail = email;
         this.senderPhone = phone;
         this.username = username;
         
+        // Use if-else to handle demo vs regular users
+        if (email != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(email)) {
+            // For demo account, ensure demo data is loaded
+            System.out.println("DEMO USER DETECTED: " + email);
+            System.out.println("Loading sample orders for demo user...");
+            FileDataManager.getInstance().ensureDemoDataForEmail(email);
+            
+            // Set demo-specific address
+            this.senderAddress = "123 Jalan SS2, Petaling Jaya, Selangor 47300";
+        } else {
+            // For regular users, just initialize normally
+            System.out.println("REGULAR USER LOGGED IN: " + email);
+        }
+        
+        // Initialize stats based on actual orders for this user
+        initializeStats();
+        
         initialize();
+    }
+
+    // initializeStats method - MODIFIED
+    private void initializeStats() {
+        // Get actual orders for this user
+        List<Order> userOrders = new ArrayList<>();
+        
+        // Use if-else to handle demo vs regular users
+        if (senderEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(senderEmail)) {
+            // For demo user, get orders from DemoDataManager
+            userOrders = DemoDataManager.getInstance().getDemoOrders();
+            System.out.println("Loading stats for demo user with " + userOrders.size() + " orders");
+        } else {
+            // For regular users, get from FileDataManager
+            List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
+            
+            for (Order order : allOrders) {
+                if (order.customerEmail != null && senderEmail != null) {
+                    if (order.customerEmail.trim().equals(senderEmail.trim())) {
+                        userOrders.add(order);
+                    }
+                }
+            }
+            System.out.println("Loading stats for regular user with " + userOrders.size() + " orders");
+        }
+        
+        // Calculate stats
+        activeOrders = 0;
+        deliveredOrders = 0;
+        pendingPayments = 0;
+        totalSpent = 0.0;
+        
+        for (Order order : userOrders) {
+            // Count active orders (not delivered)
+            if (!"Delivered".equals(order.status) && !"Cancelled".equals(order.status)) {
+                activeOrders++;
+            }
+            
+            // Count delivered orders
+            if ("Delivered".equals(order.status)) {
+                deliveredOrders++;
+            }
+            
+            // Count pending payments based on paymentStatus field
+            if (order.paymentStatus != null && "Pending".equals(order.paymentStatus)) {
+                pendingPayments++;
+            }
+            
+            // Calculate total spent (only paid orders)
+            if (order.paymentStatus != null && "Paid".equals(order.paymentStatus)) {
+                String cost = extractCost(order.notes);
+                try {
+                    String cleanCost = cost.replace("RM", "").replace("$", "").trim();
+                    totalSpent += Double.parseDouble(cleanCost);
+                } catch (NumberFormatException e) {
+                    // Skip if cost can't be parsed
+                }
+            }
+        }
+        
+        System.out.println("Stats calculated - Active: " + activeOrders + 
+                          ", Delivered: " + deliveredOrders + 
+                          ", Pending Payments: " + pendingPayments + 
+                          ", Total Spent: RM " + totalSpent);
+    }
+
+    private String extractCost(String notes) {
+        if (notes != null && notes.contains("Estimated Cost:")) {
+            String[] parts = notes.split("Estimated Cost: ");
+            if (parts.length > 1) {
+                String[] costParts = parts[1].split("\n");
+                return costParts[0].trim();
+            }
+        }
+        return "RM 0.00";
     }
 
     private void initialize() {
@@ -473,6 +568,10 @@ public class SenderDashboard extends JFrame {
         }
         if (deliveredOrders > 0) {
             message.append("• ").append(deliveredOrders).append(" orders delivered\n");
+        }
+        
+        if (activeOrders == 0 && pendingPayments == 0 && deliveredOrders == 0) {
+            message.append("No notifications at this time.");
         }
         
         JOptionPane.showMessageDialog(this, 

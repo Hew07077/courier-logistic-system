@@ -788,95 +788,182 @@ public class NewOrderPanel extends JPanel {
         }
     }
 
+    /**
+     * Generate order ID in format YYYYMMDD + 3-digit sequence
+     * Example: 20240308001, 20240308002, etc.
+     */
+    private String generateCustomOrderId() {
+        // Get current date in YYYYMMDD format
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+        String datePrefix = dateFormat.format(new Date());
+        
+        // Get all existing orders
+        List<Order> allOrders = orderStorage.getAllOrders();
+        int maxSequence = 0;
+        
+        for (Order order : allOrders) {
+            // Check if order has an ID and if it starts with today's date prefix
+            if (order != null && order.id != null && order.id.startsWith(datePrefix)) {
+                try {
+                    // Extract the sequence number (the last 3 digits)
+                    String seqStr = order.id.substring(datePrefix.length());
+                    // Remove any non-numeric characters just in case
+                    seqStr = seqStr.replaceAll("[^0-9]", "");
+                    
+                    if (!seqStr.isEmpty()) {
+                        int seq = Integer.parseInt(seqStr);
+                        if (seq > maxSequence) {
+                            maxSequence = seq;
+                        }
+                    }
+                } catch (Exception e) {
+                    // Skip if parsing fails
+                    System.err.println("Error parsing order ID: " + order.id);
+                }
+            }
+        }
+        
+        // Generate next sequence number (padded with zeros to 3 digits)
+        int nextSequence = maxSequence + 1;
+        String sequenceStr = String.format("%03d", nextSequence);
+        
+        String newOrderId = datePrefix + sequenceStr;
+        System.out.println("Generated new order ID: " + newOrderId);
+        
+        return newOrderId;
+    }
+
     private void createOrder() {
+        // Validate form first
         if (!validateForm()) {
             return;
         }
 
         try {
-            // Generate order ID using OrderStorage
-            String orderId = orderStorage.generateOrderId();
+            // Generate custom order ID
+            String orderId = generateCustomOrderId();
+            System.out.println("Generated Order ID: " + orderId);
+            
+            // Get current date and time
+            String currentDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
             
             // Build full addresses
-            String fromAddress = fromAddressField.getText().trim() + ", " + 
-                                 fromCityCombo.getSelectedItem() + ", " +
-                                 fromStateCombo.getSelectedItem() + " " +
-                                 fromPostcodeField.getText();
+            String fromState = (String) fromStateCombo.getSelectedItem();
+            String fromCity = (String) fromCityCombo.getSelectedItem();
+            String fromPostcode = fromPostcodeField.getText();
+            String fromAddressLine = fromAddressField.getText().trim();
             
-            String toAddress = toAddressField.getText().trim() + ", " + 
-                               toCityCombo.getSelectedItem() + ", " +
-                               toStateCombo.getSelectedItem() + " " +
-                               toPostcodeField.getText();
+            String toState = (String) toStateCombo.getSelectedItem();
+            String toCity = (String) toCityCombo.getSelectedItem();
+            String toPostcode = toPostcodeField.getText();
+            String toAddressLine = toAddressField.getText().trim();
+            
+            String fromAddress = fromAddressLine + ", " + fromCity + ", " + fromState + " " + fromPostcode;
+            String toAddress = toAddressLine + ", " + toCity + ", " + toState + " " + toPostcode;
             
             // Build dimensions string
-            String dimensions = "";
-            if (!lengthField.getText().isEmpty() && 
-                !widthField.getText().isEmpty() && 
-                !heightField.getText().isEmpty()) {
-                dimensions = lengthField.getText() + "x" + 
-                            widthField.getText() + "x" + 
-                            heightField.getText();
+            String dimensions;
+            if (!lengthField.getText().isEmpty() && !widthField.getText().isEmpty() && !heightField.getText().isEmpty()) {
+                dimensions = lengthField.getText() + "x" + widthField.getText() + "x" + heightField.getText();
             } else {
                 dimensions = "0x0x0";
             }
             
-            // Create order using the logistics.orders.Order constructor
+            double weight = Double.parseDouble(weightField.getText());
+            String recipientName = recipientNameField.getText().trim();
+            String recipientPhone = recipientPhoneField.getText().trim();
+            
+            // Create order using the constructor
             Order order = new Order(
                 orderId,
                 senderName,
                 senderPhone,
                 senderEmail,
                 fromAddress,
-                recipientNameField.getText().trim(),
-                recipientPhoneField.getText().trim(),
+                recipientName,
+                recipientPhone,
                 toAddress,
-                Double.parseDouble(weightField.getText()),
+                weight,
                 dimensions
             );
             
-            // Set additional fields in notes
-            String packageInfo = "Package Type: " + packageTypeCombo.getSelectedItem();
-            String costInfo = "\nEstimated Cost: " + estimatedCostLabel.getText();
-            String deliveryInfo = "\nEstimated Delivery: " + deliveryTimeLabel.getText();
-            String descInfo = "\nDescription: " + descriptionArea.getText();
+            // Set additional fields
+            order.status = "Pending";
+            order.orderDate = currentDateTime;
+            order.paymentStatus = "Pending";
+            order.paymentMethod = "Not Selected";
             
-            order.notes = packageInfo + costInfo + deliveryInfo + descInfo;
+            // Build notes with all package information
+            StringBuilder notesBuilder = new StringBuilder();
+            notesBuilder.append("Package Type: ").append(packageTypeCombo.getSelectedItem());
+            notesBuilder.append("\nEstimated Cost: ").append(estimatedCostLabel.getText());
+            notesBuilder.append("\nEstimated Delivery: ").append(deliveryTimeLabel.getText());
+            notesBuilder.append("\nDescription: ").append(descriptionArea.getText().trim());
+            
+            order.notes = notesBuilder.toString();
+            
+            // Debug: Print order details before saving
+            System.out.println("Attempting to save order:");
+            System.out.println("Order ID: " + order.id);
+            System.out.println("Customer Email: " + order.customerEmail);
+            System.out.println("Status: " + order.status);
+            System.out.println("Notes: " + order.notes);
             
             // Save order using FileDataManager
-            FileDataManager.getInstance().addOrder(order);
+            FileDataManager fileDataManager = FileDataManager.getInstance();
+            fileDataManager.addOrder(order);
             
-            // Verify the order was saved (silently)
-            Order savedOrder = FileDataManager.getInstance().getOrderById(orderId);
+            // Verify the order was saved by trying to retrieve it
+            Order savedOrder = fileDataManager.getOrderById(orderId);
+            
             if (savedOrder != null) {
+                System.out.println("Order successfully saved and verified!");
+                
+                // Clear the form
                 clearForm();
                 
                 // Show success message
-                JOptionPane.showMessageDialog(this, 
+                JOptionPane.showMessageDialog(this,
                     "✅ Order created successfully!\n\n" +
                     "Order ID: " + orderId + "\n" +
-                    "From: " + fromAddress + "\n" +
-                    "To: " + toAddress + "\n\n" +
+                    "Date: " + currentDateTime + "\n" +
+                    "From: " + fromCity + ", " + fromState + "\n" +
+                    "To: " + toCity + ", " + toState + "\n\n" +
                     "You can now track this order.",
-                    "Success", JOptionPane.INFORMATION_MESSAGE);
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
                 
                 // Jump to tracking page
                 dashboard.showPanel("TRACK");
                 
                 // Set the tracking number
+                final String finalOrderId = orderId;
                 SwingUtilities.invokeLater(() -> {
-                    findAndSetTrackingNumber(dashboard, orderId);
+                    findAndSetTrackingNumber(dashboard, finalOrderId);
                 });
+                
             } else {
-                JOptionPane.showMessageDialog(this, 
-                    "⚠️ Order was created but may not have been saved properly.",
-                    "Warning", JOptionPane.WARNING_MESSAGE);
+                System.err.println("Order was not found after saving!");
+                JOptionPane.showMessageDialog(this,
+                    "⚠️ Order was created but could not be verified.\n" +
+                    "Please check your orders list to confirm.",
+                    "Warning",
+                    JOptionPane.WARNING_MESSAGE);
             }
             
+        } catch (NumberFormatException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                "❌ Invalid number format: " + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, 
-                "❌ Error creating order: " + e.getMessage(), 
-                "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this,
+                "❌ Error creating order: " + e.getMessage() + "\n" +
+                "Please check the console for details.",
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -914,6 +1001,7 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
 
+        // Validate from address
         if (fromAddressField.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, 
                 "Please enter the sender's address line", 
@@ -921,6 +1009,7 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
 
+        // Validate to address
         if (toAddressField.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, 
                 "Please enter the recipient's address line", 
@@ -928,6 +1017,7 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
 
+        // Validate recipient name
         if (recipientNameField.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, 
                 "Please enter recipient name", 
@@ -935,6 +1025,7 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
 
+        // Validate recipient phone
         if (recipientPhoneField.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, 
                 "Please enter recipient phone", 
@@ -942,14 +1033,22 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
 
-        if (fromStateCombo.getSelectedItem().equals(toStateCombo.getSelectedItem()) &&
-            fromCityCombo.getSelectedItem().equals(toCityCombo.getSelectedItem())) {
-            JOptionPane.showMessageDialog(this, 
-                "From and To addresses cannot be the same!", 
-                "Validation Error", JOptionPane.ERROR_MESSAGE);
-            return false;
+        // Validate addresses are not the same
+        String fromState = (String) fromStateCombo.getSelectedItem();
+        String fromCity = (String) fromCityCombo.getSelectedItem();
+        String toState = (String) toStateCombo.getSelectedItem();
+        String toCity = (String) toCityCombo.getSelectedItem();
+        
+        if (fromState != null && toState != null && fromCity != null && toCity != null) {
+            if (fromState.equals(toState) && fromCity.equals(toCity)) {
+                JOptionPane.showMessageDialog(this, 
+                    "From and To addresses cannot be the same city!", 
+                    "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
         }
 
+        // Validate weight
         try {
             double weight = Double.parseDouble(weightField.getText());
             if (weight <= 0 || weight > 100) {
@@ -965,6 +1064,7 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
 
+        // Validate description
         if (descriptionArea.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, 
                 "Please enter a package description", 
