@@ -27,10 +27,10 @@ public class CourierDashboard extends JFrame {
     private static final Color INFO = new Color(23, 162, 184);
     private static final Color WARNING = new Color(255, 193, 7);
     
-    // 实心按钮颜色
-    private final Color BUTTON_SELECTED = new Color(46, 125, 50);
-    private final Color BUTTON_HOVER = new Color(27, 94, 32);
-    private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0);
+    // Button colors - matching AdminDashboard pattern
+    private final Color BUTTON_SELECTED = new Color(27, 94, 32);  // Dark green for selected
+    private final Color BUTTON_HOVER = new Color(35, 110, 40);    // Medium green for hover
+    private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0);    // Transparent
 
     private CardLayout cardLayout;
     private JPanel contentPanel;
@@ -52,6 +52,9 @@ public class CourierDashboard extends JFrame {
     private CourierDataLoader dataLoader;
     private CourierData currentCourier;
     private String loggedInCourierName;
+    
+    // Vehicle Report
+    private VehicleReport vehicleReport;
 
     public CourierDashboard() {
         this("Alex Wong"); // Default name if none provided
@@ -69,11 +72,14 @@ public class CourierDashboard extends JFrame {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); 
         } catch (Exception ignored) {}
 
-        initUI();
-        
-        // Load courier data
+        // Load courier data first
         dataLoader = new CourierDataLoader();
         loadCourierData(loggedInCourierName);
+        
+        // Initialize vehicle report
+        vehicleReport = new VehicleReport(currentCourier);
+        
+        initUI();
     }
 
     private void initUI() {
@@ -86,24 +92,8 @@ public class CourierDashboard extends JFrame {
     private void loadCourierData(String courierName) {
         currentCourier = dataLoader.findCourierByName(courierName);
         if (currentCourier != null) {
-            // Update profile fields
-            nameField.setText(currentCourier.name);
-            staffIdField.setText(currentCourier.id);
-            emailField.setText(currentCourier.email);
-            phoneField.setText(currentCourier.phone);
-            
-            // Load vehicle info if assigned
-            if (currentCourier.vehicleId != null) {
-                vehicleModelField.setText("Vehicle ID: " + currentCourier.vehicleId);
-            }
-            
-            // Load photo if exists
-            if (currentCourier.photoPath != null && !currentCourier.photoPath.isEmpty()) {
-                loadDriverPhoto(currentCourier.photoPath);
-            }
-            
-            // Update sidebar user info
-            updateUserProfile(currentCourier);
+            // Update profile fields will be done when creating the profile page
+            loggedInCourierName = currentCourier.name;
         }
     }
     
@@ -255,14 +245,13 @@ public class CourierDashboard extends JFrame {
         menu.setOpaque(false);
         menu.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
 
-        menu.add(createNavButton("My Profile", "PROFILE", 
-            "Personal information", true));
-        menu.add(createNavButton("Deliveries & Updates", "DELIVERIES", 
-            "Track & manage parcels", false));
-        menu.add(createNavButton("Vehicle Report", "VEHICLE", 
-            "Report vehicle issues", false));
-        menu.add(createNavButton("Statistics", "STATS", 
-            "Performance metrics", false));
+        // Create buttons - matching AdminDashboard pattern
+        JButton profileBtn = createNavButton("My Profile", "PROFILE", "Personal information", true);
+        menu.add(profileBtn);
+        
+        menu.add(createNavButton("Deliveries & Updates", "DELIVERIES", "Track & manage parcels", false));
+        menu.add(createNavButton("Vehicle Report", "VEHICLE", "Report vehicle issues", false));
+        menu.add(createNavButton("Statistics", "STATS", "Performance metrics", false));
 
         sidebar.add(menu, BorderLayout.CENTER);
         sidebar.add(createUserProfile(), BorderLayout.SOUTH);
@@ -290,11 +279,12 @@ public class CourierDashboard extends JFrame {
         btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         btn.setForeground(Color.WHITE);
         
+        // Button styling - matching AdminDashboard pattern
         if (selected) {
-            btn.setBackground(BUTTON_SELECTED);
+            btn.setBackground(BUTTON_SELECTED); // Dark green for selected
             btn.setOpaque(true);
         } else {
-            btn.setBackground(BUTTON_NORMAL);
+            btn.setBackground(BUTTON_NORMAL); // Transparent for unselected
             btn.setOpaque(false);
         }
         
@@ -306,19 +296,13 @@ public class CourierDashboard extends JFrame {
 
         if (selected) activeButton = btn;
 
+        // Hover effect - matching AdminDashboard pattern
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
                 if (btn != activeButton) {
                     btn.setOpaque(true);
-                    btn.setBackground(BUTTON_HOVER);
-                    JLabel label = (JLabel) btn.getComponent(0);
-                    String currentText = label.getText();
-                    String updatedText = currentText.replace(
-                        "color: #A0D0A0;", 
-                        "color: #FFFFFF;"
-                    );
-                    label.setText(updatedText);
+                    btn.setBackground(BUTTON_HOVER); // Medium green for hover
                     btn.repaint();
                 }
             }
@@ -328,13 +312,6 @@ public class CourierDashboard extends JFrame {
                 if (btn != activeButton) {
                     btn.setOpaque(false);
                     btn.setBackground(BUTTON_NORMAL);
-                    JLabel label = (JLabel) btn.getComponent(0);
-                    String currentText = label.getText();
-                    String updatedText = currentText.replace(
-                        "color: #FFFFFF;", 
-                        "color: #A0D0A0;"
-                    );
-                    label.setText(updatedText);
                     btn.repaint();
                 }
             }
@@ -344,27 +321,14 @@ public class CourierDashboard extends JFrame {
             if (activeButton != null && activeButton != btn) {
                 activeButton.setOpaque(false);
                 activeButton.setBackground(BUTTON_NORMAL);
-                JLabel oldLabel = (JLabel) activeButton.getComponent(0);
-                String oldText = oldLabel.getText();
-                String updatedOldText = oldText.replace(
-                    "color: #FFFFFF;", 
-                    "color: #A0D0A0;"
-                );
-                oldLabel.setText(updatedOldText);
                 activeButton.repaint();
             }
             
+            // Selected button gets DARKER color
             btn.setOpaque(true);
-            btn.setBackground(BUTTON_SELECTED);
-            JLabel newLabel = (JLabel) btn.getComponent(0);
-            String newText = newLabel.getText();
-            String updatedNewText = newText.replace(
-                "color: #A0D0A0;", 
-                "color: #FFFFFF;"
-            );
-            newLabel.setText(updatedNewText);
-            
+            btn.setBackground(BUTTON_SELECTED); // Dark green
             activeButton = btn;
+            
             cardLayout.show(contentPanel, card);
         });
 
@@ -461,9 +425,9 @@ public class CourierDashboard extends JFrame {
         contentPanel = new JPanel(cardLayout);
         contentPanel.setBackground(BG_LIGHT);
 
-        contentPanel.add(createEditableProfilePage(), "PROFILE");
+        contentPanel.add(createEnhancedProfilePage(), "PROFILE");
         contentPanel.add(DeliveryPage(), "DELIVERIES");
-        contentPanel.add(createEnhancedVehiclePage(), "VEHICLE");
+        contentPanel.add(vehicleReport.createVehicleReportPanel(), "VEHICLE");
         contentPanel.add(createStatsPage(), "STATS");
 
         return contentPanel;
@@ -473,192 +437,344 @@ public class CourierDashboard extends JFrame {
         return new DeliveryPage();
     }
 
-    private JPanel createEditableProfilePage() {
-        JPanel mainPanel = new JPanel(new GridBagLayout());
+    private JPanel createEnhancedProfilePage() {
+        JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(BG_LIGHT);
+        mainPanel.setBorder(new EmptyBorder(25, 25, 25, 25));
         
-        JPanel profileCard = new JPanel();
-        profileCard.setLayout(new BoxLayout(profileCard, BoxLayout.Y_AXIS));
+        // Create a modern card with subtle shadow effect (same as vehicle page)
+        JPanel profileCard = new JPanel(new BorderLayout(20, 20));
         profileCard.setBackground(Color.WHITE);
         profileCard.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR), 
-            new EmptyBorder(30, 50, 30, 50)));
-        profileCard.setPreferredSize(new Dimension(500, 650));
-
-        JLabel header = new JLabel("My Profile", SwingConstants.CENTER);
-        header.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        header.setForeground(PRIMARY_GREEN);
-        header.setAlignmentX(0.5f);
+            BorderFactory.createMatteBorder(1, 1, 3, 3, new Color(0, 0, 0, 20)),
+            new EmptyBorder(30, 30, 30, 30)));
+        
+        // Header
+        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
+        headerPanel.setBackground(Color.WHITE);
+        
+        JLabel headerLabel = new JLabel("My Profile");
+        headerLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        headerLabel.setForeground(PRIMARY_GREEN);
+        
+        headerPanel.add(headerLabel);
+        
+        // Create a scroll pane for the content
+        JPanel contentPanel = new JPanel(new GridBagLayout());
+        contentPanel.setBackground(Color.WHITE);
+        
+        // Wrap content panel in a scroll pane
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setBorder(null);
+        scrollPane.setBackground(Color.WHITE);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16); // Smooth scrolling
+        
+        // Remove the border from the viewport
+        scrollPane.getViewport().setBackground(Color.WHITE);
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 15, 8, 15);
+        gbc.weightx = 1.0;
+        
+        // Set consistent sizes for all input fields
+        Dimension fieldSize = new Dimension(400, 35);
+        Dimension labelSize = new Dimension(120, 30);
+        
+        int row = 0;
+        
+        // ===== PHOTO SECTION =====
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        JLabel photoSectionLabel = new JLabel("PROFILE PHOTO");
+        photoSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        photoSectionLabel.setForeground(PRIMARY_GREEN);
+        contentPanel.add(photoSectionLabel, gbc);
+        
+        gbc.gridwidth = 1;
+        
+        // Photo Panel
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
         
         JPanel photoPanel = new JPanel();
         photoPanel.setLayout(new BoxLayout(photoPanel, BoxLayout.Y_AXIS));
         photoPanel.setBackground(Color.WHITE);
-        photoPanel.setAlignmentX(0.5f);
         
         profilePhotoLabel = new JLabel("", SwingConstants.CENTER);
         profilePhotoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 80));
         profilePhotoLabel.setPreferredSize(new Dimension(150, 150));
         profilePhotoLabel.setMaximumSize(new Dimension(150, 150));
         profilePhotoLabel.setBorder(BorderFactory.createLineBorder(PRIMARY_GREEN, 3));
-        profilePhotoLabel.setAlignmentX(0.5f);
         
         JButton uploadProfilePhotoBtn = new JButton("Upload Photo");
         uploadProfilePhotoBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         uploadProfilePhotoBtn.setBackground(Color.WHITE);
         uploadProfilePhotoBtn.setForeground(PRIMARY_GREEN);
         uploadProfilePhotoBtn.setBorder(BorderFactory.createLineBorder(PRIMARY_GREEN));
-        uploadProfilePhotoBtn.setAlignmentX(0.5f);
         uploadProfilePhotoBtn.setMaximumSize(new Dimension(120, 30));
+        uploadProfilePhotoBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         uploadProfilePhotoBtn.addActionListener(e -> uploadProfilePhoto());
+        
+        // Add hover effect
+        uploadProfilePhotoBtn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                uploadProfilePhotoBtn.setBackground(PRIMARY_GREEN);
+                uploadProfilePhotoBtn.setForeground(Color.WHITE);
+            }
+            
+            @Override
+            public void mouseExited(MouseEvent e) {
+                uploadProfilePhotoBtn.setBackground(Color.WHITE);
+                uploadProfilePhotoBtn.setForeground(PRIMARY_GREEN);
+            }
+        });
         
         photoPanel.add(profilePhotoLabel);
         photoPanel.add(Box.createVerticalStrut(10));
         photoPanel.add(uploadProfilePhotoBtn);
-
-        JPanel detailsPanel = new JPanel(new GridBagLayout());
-        detailsPanel.setBackground(Color.WHITE);
-        detailsPanel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            "Personal Information",
-            TitledBorder.LEFT,
-            TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 14),
-            PRIMARY_GREEN
-        ));
         
-        GridBagConstraints gbc = new GridBagConstraints();
+        contentPanel.add(photoPanel, gbc);
+        
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(8, 15, 8, 15);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridwidth = 1;
+        row++;
         
-        gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 0.3;
+        // Add some spacing
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        contentPanel.add(Box.createVerticalStrut(15), gbc);
+        gbc.gridwidth = 1;
+        
+        // ===== PERSONAL INFORMATION SECTION =====
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        JLabel personalSectionLabel = new JLabel("PERSONAL INFORMATION");
+        personalSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        personalSectionLabel.setForeground(PRIMARY_GREEN);
+        contentPanel.add(personalSectionLabel, gbc);
+        
+        gbc.gridwidth = 1;
+        
+        // Full Name
+        gbc.gridx = 0; gbc.gridy = row;
         JLabel nameLabel = new JLabel("Full Name:");
-        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        detailsPanel.add(nameLabel, gbc);
+        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        nameLabel.setForeground(TEXT_GRAY);
+        nameLabel.setPreferredSize(labelSize);
+        nameLabel.setMinimumSize(labelSize);
+        contentPanel.add(nameLabel, gbc);
         
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        nameField = new JTextField();
-        nameField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        nameField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        detailsPanel.add(nameField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = 1;
-        gbc.weightx = 0.3;
-        JLabel idLabel = new JLabel("Staff ID:");
-        idLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        detailsPanel.add(idLabel, gbc);
-        
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        staffIdField = new JTextField();
-        staffIdField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        staffIdField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        detailsPanel.add(staffIdField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = 2;
-        gbc.weightx = 0.3;
-        JLabel emailLabel = new JLabel("Email:");
-        emailLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        detailsPanel.add(emailLabel, gbc);
-        
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        emailField = new JTextField();
-        emailField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        emailField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        detailsPanel.add(emailField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = 3;
-        gbc.weightx = 0.3;
-        JLabel phoneLabel = new JLabel("Phone:");
-        phoneLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        detailsPanel.add(phoneLabel, gbc);
-        
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        phoneField = new JTextField();
-        phoneField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        phoneField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        detailsPanel.add(phoneField, gbc);
-        
-        JPanel vehiclePanel = new JPanel(new GridBagLayout());
-        vehiclePanel.setBackground(Color.WHITE);
-        vehiclePanel.setBorder(BorderFactory.createTitledBorder(
+        gbc.gridx = 1; gbc.gridy = row++;
+        nameField = new JTextField(currentCourier != null ? currentCourier.name : "");
+        nameField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        nameField.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
-            "Assigned Vehicle",
-            TitledBorder.LEFT,
-            TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 14),
-            PRIMARY_GREEN
-        ));
+            new EmptyBorder(8, 10, 8, 10)));
+        nameField.setBackground(new Color(250, 250, 250));
+        nameField.setPreferredSize(fieldSize);
+        nameField.setMinimumSize(fieldSize);
+        nameField.setMaximumSize(fieldSize);
+        contentPanel.add(nameField, gbc);
         
-        gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(8, 15, 8, 15);
+        // Staff ID
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel idLabel = new JLabel("Staff ID:");
+        idLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        idLabel.setForeground(TEXT_GRAY);
+        idLabel.setPreferredSize(labelSize);
+        idLabel.setMinimumSize(labelSize);
+        contentPanel.add(idLabel, gbc);
         
-        gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 0.3;
+        gbc.gridx = 1; gbc.gridy = row++;
+        staffIdField = new JTextField(currentCourier != null ? currentCourier.id : "");
+        staffIdField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        staffIdField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            new EmptyBorder(8, 10, 8, 10)));
+        staffIdField.setBackground(new Color(250, 250, 250));
+        staffIdField.setEditable(false);
+        staffIdField.setPreferredSize(fieldSize);
+        staffIdField.setMinimumSize(fieldSize);
+        staffIdField.setMaximumSize(fieldSize);
+        contentPanel.add(staffIdField, gbc);
+        
+        // Email
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel emailLabel = new JLabel("Email:");
+        emailLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        emailLabel.setForeground(TEXT_GRAY);
+        emailLabel.setPreferredSize(labelSize);
+        emailLabel.setMinimumSize(labelSize);
+        contentPanel.add(emailLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = row++;
+        emailField = new JTextField(currentCourier != null ? currentCourier.email : "");
+        emailField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        emailField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            new EmptyBorder(8, 10, 8, 10)));
+        emailField.setBackground(new Color(250, 250, 250));
+        emailField.setPreferredSize(fieldSize);
+        emailField.setMinimumSize(fieldSize);
+        emailField.setMaximumSize(fieldSize);
+        contentPanel.add(emailField, gbc);
+        
+        // Phone
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel phoneLabel = new JLabel("Phone:");
+        phoneLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        phoneLabel.setForeground(TEXT_GRAY);
+        phoneLabel.setPreferredSize(labelSize);
+        phoneLabel.setMinimumSize(labelSize);
+        contentPanel.add(phoneLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = row++;
+        phoneField = new JTextField(currentCourier != null ? currentCourier.phone : "");
+        phoneField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        phoneField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            new EmptyBorder(8, 10, 8, 10)));
+        phoneField.setBackground(new Color(250, 250, 250));
+        phoneField.setPreferredSize(fieldSize);
+        phoneField.setMinimumSize(fieldSize);
+        phoneField.setMaximumSize(fieldSize);
+        contentPanel.add(phoneField, gbc);
+        
+        // Add some spacing
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        contentPanel.add(Box.createVerticalStrut(15), gbc);
+        gbc.gridwidth = 1;
+        
+        // ===== VEHICLE INFORMATION SECTION =====
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        JLabel vehicleSectionLabel = new JLabel("VEHICLE INFORMATION");
+        vehicleSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        vehicleSectionLabel.setForeground(PRIMARY_GREEN);
+        contentPanel.add(vehicleSectionLabel, gbc);
+        
+        gbc.gridwidth = 1;
+        
+        // Vehicle
+        gbc.gridx = 0; gbc.gridy = row;
         JLabel vehicleTypeLabel = new JLabel("Vehicle:");
-        vehicleTypeLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        vehiclePanel.add(vehicleTypeLabel, gbc);
+        vehicleTypeLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        vehicleTypeLabel.setForeground(TEXT_GRAY);
+        vehicleTypeLabel.setPreferredSize(labelSize);
+        vehicleTypeLabel.setMinimumSize(labelSize);
+        contentPanel.add(vehicleTypeLabel, gbc);
         
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        vehicleModelField = new JTextField();
-        vehicleModelField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        vehicleModelField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        vehiclePanel.add(vehicleModelField, gbc);
+        gbc.gridx = 1; gbc.gridy = row++;
+        vehicleModelField = new JTextField(currentCourier != null && currentCourier.vehicleId != null ? 
+            currentCourier.vehicleId : "Not Assigned");
+        vehicleModelField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        vehicleModelField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            new EmptyBorder(8, 10, 8, 10)));
+        vehicleModelField.setBackground(new Color(250, 250, 250));
+        vehicleModelField.setPreferredSize(fieldSize);
+        vehicleModelField.setMinimumSize(fieldSize);
+        vehicleModelField.setMaximumSize(fieldSize);
+        contentPanel.add(vehicleModelField, gbc);
         
-        gbc.gridx = 0; gbc.gridy = 1;
-        gbc.weightx = 0.3;
+        // Plate No
+        gbc.gridx = 0; gbc.gridy = row;
         JLabel plateLabel = new JLabel("Plate No:");
-        plateLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        vehiclePanel.add(plateLabel, gbc);
+        plateLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        plateLabel.setForeground(TEXT_GRAY);
+        plateLabel.setPreferredSize(labelSize);
+        plateLabel.setMinimumSize(labelSize);
+        contentPanel.add(plateLabel, gbc);
         
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
+        gbc.gridx = 1; gbc.gridy = row++;
         plateNoField = new JTextField("VAF 1234");
-        plateNoField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        plateNoField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        vehiclePanel.add(plateNoField, gbc);
+        plateNoField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        plateNoField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            new EmptyBorder(8, 10, 8, 10)));
+        plateNoField.setBackground(new Color(250, 250, 250));
+        plateNoField.setPreferredSize(fieldSize);
+        plateNoField.setMinimumSize(fieldSize);
+        plateNoField.setMaximumSize(fieldSize);
+        contentPanel.add(plateNoField, gbc);
         
-        gbc.gridx = 0; gbc.gridy = 2;
-        gbc.weightx = 0.3;
+        // Current Mileage
+        gbc.gridx = 0; gbc.gridy = row;
         JLabel mileageLabel = new JLabel("Current Mileage:");
-        mileageLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        vehiclePanel.add(mileageLabel, gbc);
+        mileageLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        mileageLabel.setForeground(TEXT_GRAY);
+        mileageLabel.setPreferredSize(labelSize);
+        mileageLabel.setMinimumSize(labelSize);
+        contentPanel.add(mileageLabel, gbc);
         
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        mileageField = new JTextField("45,892 km");
-        mileageField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        mileageField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        vehiclePanel.add(mileageField, gbc);
-
+        gbc.gridx = 1; gbc.gridy = row++;
+        JPanel mileagePanel = new JPanel(new BorderLayout());
+        mileagePanel.setBackground(Color.WHITE);
+        mileagePanel.setPreferredSize(fieldSize);
+        mileagePanel.setMinimumSize(fieldSize);
+        mileagePanel.setMaximumSize(fieldSize);
+        
+        mileageField = new JTextField("45,892");
+        mileageField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        mileageField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            new EmptyBorder(8, 10, 8, 10)));
+        mileageField.setBackground(new Color(250, 250, 250));
+        mileageField.setHorizontalAlignment(JTextField.RIGHT);
+        
+        JLabel kmLabel = new JLabel(" km");
+        kmLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        kmLabel.setBorder(new EmptyBorder(0, 5, 0, 10));
+        
+        mileagePanel.add(mileageField, BorderLayout.CENTER);
+        mileagePanel.add(kmLabel, BorderLayout.EAST);
+        contentPanel.add(mileagePanel, gbc);
+        
+        // Load photo if exists
+        if (currentCourier != null && currentCourier.photoPath != null && !currentCourier.photoPath.isEmpty()) {
+            loadDriverPhoto(currentCourier.photoPath);
+        }
+        
+        // Button panel
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(Color.WHITE);
+        
         JButton saveBtn = new JButton("Save Changes");
         saveBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        saveBtn.setBackground(PRIMARY_GREEN);
         saveBtn.setForeground(Color.WHITE);
+        saveBtn.setBackground(PRIMARY_GREEN);
+        saveBtn.setBorder(BorderFactory.createEmptyBorder(10, 25, 10, 25));
+        saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        saveBtn.setFocusPainted(false);
         saveBtn.setContentAreaFilled(true);
         saveBtn.setOpaque(true);
         saveBtn.setBorderPainted(false);
-        saveBtn.setAlignmentX(0.5f);
-        saveBtn.setMaximumSize(new Dimension(150, 40));
-        saveBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        saveBtn.addActionListener(e -> saveProfileChanges());
-
-        profileCard.add(header);
-        profileCard.add(Box.createVerticalStrut(20));
-        profileCard.add(photoPanel);
-        profileCard.add(Box.createVerticalStrut(20));
-        profileCard.add(detailsPanel);
-        profileCard.add(Box.createVerticalStrut(15));
-        profileCard.add(vehiclePanel);
-        profileCard.add(Box.createVerticalStrut(20));
-        profileCard.add(saveBtn);
+        saveBtn.setPreferredSize(new Dimension(150, 40));
         
-        mainPanel.add(profileCard);
+        // Add hover effect
+        saveBtn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                saveBtn.setBackground(GREEN_DARK);
+            }
+            
+            @Override
+            public void mouseExited(MouseEvent e) {
+                saveBtn.setBackground(PRIMARY_GREEN);
+            }
+        });
+        
+        saveBtn.addActionListener(e -> saveProfileChanges());
+        
+        buttonPanel.add(saveBtn);
+        
+        // Assemble the card
+        profileCard.add(headerPanel, BorderLayout.NORTH);
+        profileCard.add(scrollPane, BorderLayout.CENTER);
+        profileCard.add(buttonPanel, BorderLayout.SOUTH);
+        
+        mainPanel.add(profileCard, BorderLayout.CENTER);
+        
         return mainPanel;
     }
 
@@ -700,260 +816,6 @@ public class CourierDashboard extends JFrame {
             message,
             "Profile Saved",
             JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    private JPanel createEnhancedVehiclePage() {
-        JPanel mainPanel = new JPanel(new GridBagLayout());
-        mainPanel.setBackground(BG_LIGHT);
-        
-        JPanel vehicleCard = new JPanel();
-        vehicleCard.setLayout(new BoxLayout(vehicleCard, BoxLayout.Y_AXIS));
-        vehicleCard.setBackground(Color.WHITE);
-        vehicleCard.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            new EmptyBorder(30, 40, 30, 40)));
-        vehicleCard.setPreferredSize(new Dimension(550, 700));
-
-        JLabel header = new JLabel("Vehicle Management", SwingConstants.CENTER);
-        header.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        header.setForeground(PRIMARY_GREEN);
-        header.setAlignmentX(0.5f);
-
-        JPanel personalDetailsPanel = new JPanel(new GridBagLayout());
-        personalDetailsPanel.setBackground(Color.WHITE);
-        personalDetailsPanel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            "Personal Details",
-            TitledBorder.LEFT,
-            TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 14),
-            PRIMARY_GREEN
-        ));
-        personalDetailsPanel.setAlignmentX(0.5f);
-        personalDetailsPanel.setMaximumSize(new Dimension(500, 150));
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 10, 5, 10);
-
-        gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 0.3;
-        JLabel driverNameLabel = new JLabel("Driver Name:");
-        driverNameLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        personalDetailsPanel.add(driverNameLabel, gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        JTextField driverNameField = new JTextField(currentCourier != null ? currentCourier.name : "Alex Wong");
-        driverNameField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        driverNameField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        personalDetailsPanel.add(driverNameField, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 1;
-        gbc.weightx = 0.3;
-        JLabel licenseLabel = new JLabel("License No:");
-        licenseLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        personalDetailsPanel.add(licenseLabel, gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        JTextField licenseField = new JTextField(currentCourier != null ? currentCourier.licenseNumber : "D12345678");
-        licenseField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        licenseField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        personalDetailsPanel.add(licenseField, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 2;
-        gbc.weightx = 0.3;
-        JLabel phoneLabel = new JLabel("Phone No:");
-        phoneLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        personalDetailsPanel.add(phoneLabel, gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        JTextField phoneField = new JTextField(currentCourier != null ? currentCourier.phone : "012-3456789");
-        phoneField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        phoneField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        personalDetailsPanel.add(phoneField, gbc);
-
-        JPanel vehicleDetailsPanel = new JPanel(new GridBagLayout());
-        vehicleDetailsPanel.setBackground(Color.WHITE);
-        vehicleDetailsPanel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            "Vehicle Details",
-            TitledBorder.LEFT,
-            TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 14),
-            PRIMARY_GREEN
-        ));
-        vehicleDetailsPanel.setAlignmentX(0.5f);
-        vehicleDetailsPanel.setMaximumSize(new Dimension(500, 120));
-
-        gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 10, 5, 10);
-
-        gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 0.3;
-        JLabel modelLabel = new JLabel("Vehicle Model:");
-        modelLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        vehicleDetailsPanel.add(modelLabel, gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        JTextField modelField = new JTextField("Toyota Hiace 2023");
-        modelField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        modelField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        vehicleDetailsPanel.add(modelField, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 1;
-        gbc.weightx = 0.3;
-        JLabel plateLabel = new JLabel("License Plate:");
-        plateLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        vehicleDetailsPanel.add(plateLabel, gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        JTextField plateField = new JTextField("VAF 1234");
-        plateField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        plateField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        vehicleDetailsPanel.add(plateField, gbc);
-
-        JPanel reportPanel = new JPanel();
-        reportPanel.setLayout(new BoxLayout(reportPanel, BoxLayout.Y_AXIS));
-        reportPanel.setBackground(Color.WHITE);
-        reportPanel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            "Report Vehicle Issue",
-            TitledBorder.LEFT,
-            TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 14),
-            PRIMARY_GREEN
-        ));
-        reportPanel.setAlignmentX(0.5f);
-        reportPanel.setMaximumSize(new Dimension(500, 180));
-
-        JPanel mileageInputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        mileageInputPanel.setBackground(Color.WHITE);
-        JLabel mileageInputLabel = new JLabel("Current Mileage (km):");
-        mileageInputLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        JTextField mileageField = new JTextField(15);
-        mileageField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        mileageField.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        mileageInputPanel.add(mileageInputLabel);
-        mileageInputPanel.add(mileageField);
-        
-        JPanel issuePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        issuePanel.setBackground(Color.WHITE);
-        JLabel issueLabel = new JLabel("Issue Type:");
-        issueLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        JComboBox<String> issueCombo = new JComboBox<>(new String[]{
-            "Select Issue Type...",
-            "No Issues - Routine Check",
-            "Engine Light On",
-            "Brake Noise", 
-            "Tire Pressure Low",
-            "Battery Problem",
-            "AC Not Working",
-            "Transmission Issue",
-            "Electrical Problem"
-        });
-        issueCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        issueCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        issueCombo.setBackground(Color.WHITE);
-        issueCombo.setPreferredSize(new Dimension(200, 30));
-        issuePanel.add(issueLabel);
-        issuePanel.add(issueCombo);
-        
-        JPanel descPanel = new JPanel(new BorderLayout());
-        descPanel.setBackground(Color.WHITE);
-        JLabel descLabel = new JLabel("Description:");
-        descLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        JTextArea descArea = new JTextArea(3, 30);
-        descArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        descArea.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        descArea.setLineWrap(true);
-        descArea.setWrapStyleWord(true);
-        JScrollPane descScroll = new JScrollPane(descArea);
-        descScroll.setBorder(null);
-        descScroll.setPreferredSize(new Dimension(450, 60));
-        
-        descPanel.add(descLabel, BorderLayout.NORTH);
-        descPanel.add(descScroll, BorderLayout.CENTER);
-        
-        reportPanel.add(mileageInputPanel);
-        reportPanel.add(Box.createVerticalStrut(5));
-        reportPanel.add(issuePanel);
-        reportPanel.add(Box.createVerticalStrut(5));
-        reportPanel.add(descPanel);
-
-        JButton submitBtn = new JButton("Submit Report");
-        submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        submitBtn.setBackground(PRIMARY_GREEN);
-        submitBtn.setForeground(Color.WHITE);
-        submitBtn.setContentAreaFilled(true);
-        submitBtn.setOpaque(true);
-        submitBtn.setBorderPainted(false);
-        submitBtn.setAlignmentX(0.5f);
-        submitBtn.setMaximumSize(new Dimension(200, 40));
-        submitBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        
-        submitBtn.addActionListener(e -> {
-            if (driverNameField.getText().trim().isEmpty() || 
-                licenseField.getText().trim().isEmpty() || 
-                phoneField.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "Please fill in all personal details.", 
-                    "Validation Error", 
-                    JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            
-            if (issueCombo.getSelectedIndex() == 0) {
-                JOptionPane.showMessageDialog(this, 
-                    "Please select an issue type.", 
-                    "Validation Error", 
-                    JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            
-            String mileage = mileageField.getText().trim();
-            if (mileage.isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "Please enter current mileage.", 
-                    "Validation Error", 
-                    JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            
-            JOptionPane.showMessageDialog(this, 
-                "Vehicle report submitted successfully!\n\n" +
-                "Driver: " + driverNameField.getText() + "\n" +
-                "License: " + licenseField.getText() + "\n" +
-                "Phone: " + phoneField.getText() + "\n" +
-                "Vehicle: " + modelField.getText() + " (" + plateField.getText() + ")\n" +
-                "Mileage: " + mileage + " km\n" +
-                "Issue: " + issueCombo.getSelectedItem() + "\n" +
-                "Description: " + (descArea.getText().trim().isEmpty() ? "No description" : descArea.getText().trim()),
-                "Report Submitted",
-                JOptionPane.INFORMATION_MESSAGE);
-            
-            mileageField.setText("");
-            issueCombo.setSelectedIndex(0);
-            descArea.setText("");
-        });
-
-        vehicleCard.add(header);
-        vehicleCard.add(Box.createVerticalStrut(15));
-        vehicleCard.add(personalDetailsPanel);
-        vehicleCard.add(Box.createVerticalStrut(15));
-        vehicleCard.add(vehicleDetailsPanel);
-        vehicleCard.add(Box.createVerticalStrut(15));
-        vehicleCard.add(reportPanel);
-        vehicleCard.add(Box.createVerticalStrut(20));
-        vehicleCard.add(submitBtn);
-        
-        mainPanel.add(vehicleCard);
-        return mainPanel;
     }
 
     private JPanel createStatsPage() {
