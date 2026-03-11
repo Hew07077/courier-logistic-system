@@ -4,6 +4,8 @@ import javax.swing.*;
 import javax.swing.Timer;
 
 import sender.SenderDashboard;
+import sender.SenderDataManager;
+import sender.DemoDataManager;
 import courier.CourierDashboard;
 import admin.AdminDashboard;
 
@@ -187,10 +189,17 @@ public class Login extends JFrame {
             saveAdminData();
         }
         
-        // Add default sender
+        // Add default sender (demo account)
+        if (!senderDatabase.containsKey("demo")) {
+            senderDatabase.put("demo", new SenderAccount(
+                "Demo User", DemoDataManager.DEMO_EMAIL, "0123456789", "demo", "demo123"));
+            saveSenderData();
+        }
+        
+        // Add default sender (regular account)
         if (!senderDatabase.containsKey("sender")) {
             senderDatabase.put("sender", new SenderAccount(
-                "Demo Sender", "sender@example.com", "1234567890", "sender", "sender123"));
+                "Regular Sender", "sender@example.com", "1234567890", "sender", "sender123"));
             saveSenderData();
         }
         
@@ -1582,7 +1591,19 @@ public class Login extends JFrame {
             SenderAccount acc = senderDatabase.get(username);
             if (verifyPassword(password, acc.passwordHash)) {
                 JOptionPane.showMessageDialog(this, "Login successful! Welcome, " + acc.fullName + "!");
-                new SenderDashboard(acc.fullName, acc.email,acc.phone, username ).setVisible(true);
+                
+                // ========== DEMO DATA INJECTION ==========
+                // Check if this is the demo account and inject sample orders
+                if (acc.email != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(acc.email)) {
+                    System.out.println("Demo account detected. Injecting sample orders...");
+                    SenderDataManager dataManager = SenderDataManager.getInstance();
+                    DemoDataManager demoManager = DemoDataManager.getInstance();
+                    demoManager.addDemoOrdersToSystem(dataManager);
+                    System.out.println("Sample orders injected successfully");
+                }
+                // ===========================================
+                
+                new SenderDashboard(acc.fullName, acc.email, acc.phone, username).setVisible(true);
                 dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid password!");
