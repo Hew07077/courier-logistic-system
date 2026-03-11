@@ -1582,7 +1582,7 @@ public class Login extends JFrame {
             SenderAccount acc = senderDatabase.get(username);
             if (verifyPassword(password, acc.passwordHash)) {
                 JOptionPane.showMessageDialog(this, "Login successful! Welcome, " + acc.fullName + "!");
-                new SenderDashboard(acc.fullName, acc.email).setVisible(true);
+                new SenderDashboard(acc.fullName, acc.email,acc.phone, username ).setVisible(true);
                 dispose();
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid password!");
@@ -1606,9 +1606,10 @@ public class Login extends JFrame {
         if (courierDatabase.containsKey(userId)) {
             CourierAccount acc = courierDatabase.get(userId);
             if (verifyPassword(password, acc.passwordHash)) {
-                if ("APPROVED".equals(acc.status)) {
+               if ("APPROVED".equals(acc.status)) {
                     JOptionPane.showMessageDialog(this, "Login successful! Welcome, " + acc.fullName + "!");
-                    new CourierDashboard().setVisible(true);
+                    CourierDashboard dashboard = new CourierDashboard(acc.fullName); // Pass the name
+                    dashboard.setVisible(true);
                     dispose();
                 } else if ("PENDING".equals(acc.status)) {
                     JOptionPane.showMessageDialog(this, "Your account is pending approval.");
@@ -1698,53 +1699,87 @@ public class Login extends JFrame {
         senderUsernameField.setText(username);
     }
     
+    // MODIFIED: processCourierApplication() with CourierStorage integration
     private void processCourierApplication() {
-        String name = courierRegNameField.getText().trim();
-        String email = courierRegEmailField.getText().trim();
-        String phone = courierRegPhoneField.getText().trim();
-        String ic = courierRegIcField.getText().trim();
-        String license = (String) courierRegLicenseCombo.getSelectedItem();
-        
-        if (name.isEmpty() || email.isEmpty() || phone.isEmpty() || ic.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please fill all fields!");
-            return;
+        try {
+            System.out.println("=== Starting Courier Application Process ===");
+            
+            String name = courierRegNameField.getText().trim();
+            String email = courierRegEmailField.getText().trim();
+            String phone = courierRegPhoneField.getText().trim();
+            String ic = courierRegIcField.getText().trim();
+            String license = (String) courierRegLicenseCombo.getSelectedItem();
+            
+            System.out.println("Form data - Name: " + name + ", Email: " + email + ", Phone: " + phone);
+            
+            if (name.isEmpty() || email.isEmpty() || phone.isEmpty() || ic.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please fill all fields!");
+                System.out.println("Validation failed: Empty fields");
+                return;
+            }
+            
+            if (licensePhotoPath == null || icPhotoPath == null) {
+                JOptionPane.showMessageDialog(this, "Please upload both IC and License photos!");
+                System.out.println("Validation failed: Photos not uploaded");
+                return;
+            }
+            
+            String userId = email.split("@")[0].replaceAll("[^a-zA-Z0-9]", "") + 
+                           System.currentTimeMillis() % 10000;
+            String password = "courier" + (int)(Math.random() * 9000 + 1000);
+            
+            System.out.println("Generated UserId: " + userId);
+            
+            // Save to .dat file (existing)
+            CourierAccount courier = new CourierAccount(name, email, phone, userId, password);
+            courier.icNumber = ic;
+            courier.licenseType = license;
+            courier.licensePhotoPath = licensePhotoPath;
+            courier.icPhotoPath = icPhotoPath;
+            
+            courierDatabase.put(userId, courier);
+            saveCourierData();
+            System.out.println("Saved to .dat file successfully");
+            
+            // Save to text file using CourierStorage
+            try {
+                CourierStorage storage = new CourierStorage();
+                storage.saveCourier(courier);
+                System.out.println("Saved to courier_data.txt successfully");
+            } catch (Exception e) {
+                System.err.println("Error saving to text file: " + e.getMessage());
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Warning: Application saved but text file failed: " + e.getMessage());
+            }
+            
+            String msg = String.format(
+                "Application Submitted!\n\nUser ID: %s\nPassword: %s\n\nPlease save these credentials.\n\n" +
+                "Your application is pending admin approval.",
+                userId, password);
+            
+            JOptionPane.showMessageDialog(this, msg, "Application Submitted", JOptionPane.INFORMATION_MESSAGE);
+            System.out.println("Dialog shown successfully");
+            
+            // Clear fields
+            courierRegNameField.setText("");
+            courierRegEmailField.setText("");
+            courierRegPhoneField.setText("");
+            courierRegIcField.setText("");
+            licensePhotoPath = null;
+            icPhotoPath = null;
+            licenseFileNameLabel.setText("No file");
+            icFileNameLabel.setText("No file");
+            
+            courierTabbedPane.setSelectedIndex(0);
+            courierUserIdField.setText(userId);
+            
+            System.out.println("=== Application Process Completed ===");
+            
+        } catch (Exception e) {
+            System.err.println("Unexpected error in processCourierApplication: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-        
-        if (licensePhotoPath == null || icPhotoPath == null) {
-            JOptionPane.showMessageDialog(this, "Please upload both IC and License photos!");
-            return;
-        }
-        
-        String userId = email.split("@")[0].replaceAll("[^a-zA-Z0-9]", "") + 
-                       System.currentTimeMillis() % 10000;
-        String password = "courier" + (int)(Math.random() * 9000 + 1000);
-        
-        CourierAccount courier = new CourierAccount(name, email, phone, userId, password);
-        courier.icNumber = ic;
-        courier.licenseType = license;
-        courier.licensePhotoPath = licensePhotoPath;
-        courier.icPhotoPath = icPhotoPath;
-        
-        courierDatabase.put(userId, courier);
-        saveCourierData();
-        
-        String msg = String.format(
-            "Application Submitted!\n\nUser ID: %s\nPassword: %s\n\nPlease save these credentials.",
-            userId, password);
-        
-        JOptionPane.showMessageDialog(this, msg, "Application Successful", JOptionPane.INFORMATION_MESSAGE);
-        
-        courierRegNameField.setText("");
-        courierRegEmailField.setText("");
-        courierRegPhoneField.setText("");
-        courierRegIcField.setText("");
-        licensePhotoPath = null;
-        icPhotoPath = null;
-        licenseFileNameLabel.setText("No file");
-        icFileNameLabel.setText("No file");
-        
-        courierTabbedPane.setSelectedIndex(0);
-        courierUserIdField.setText(userId);
     }
     
     public static void main(String[] args) {

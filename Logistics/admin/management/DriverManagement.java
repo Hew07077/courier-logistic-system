@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 
 public class DriverManagement {
@@ -26,6 +27,11 @@ public class DriverManagement {
     private JPanel[] statCards;
     
     private DriverStorage storage;
+    
+    // References to other management modules
+    private VehicleManagement vehicleManagement;
+    @SuppressWarnings("unused")
+    private OrderManagement orderManagement;
     
     // Filter state
     private String currentStatusFilter = null;
@@ -61,10 +67,24 @@ public class DriverManagement {
     private static final Font BUTTON_FONT = new Font("Segoe UI", Font.BOLD, 11);
     
     public DriverManagement() {
+        this(null, null);
+    }
+    
+    public DriverManagement(VehicleManagement vehicleMgmt, OrderManagement orderMgmt) {
+        this.vehicleManagement = vehicleMgmt;
+        this.orderManagement = orderMgmt;
         storage = new DriverStorage();
         ensurePhotoDirectoryExists();
         createMainPanel();
         refreshTable();
+    }
+    
+    public void setVehicleManagement(VehicleManagement vehicleMgmt) {
+        this.vehicleManagement = vehicleMgmt;
+    }
+    
+    public void setOrderManagement(OrderManagement orderMgmt) {
+        this.orderManagement = orderMgmt;
     }
     
     private void ensurePhotoDirectoryExists() {
@@ -1145,6 +1165,8 @@ public class DriverManagement {
         });
         
         saveBtn.addActionListener(e -> {
+            String oldVehicleId = driver.vehicleId;
+            
             driver.name = nameField.getText().trim();
             driver.phone = phoneField.getText().trim();
             driver.email = emailField.getText().trim().isEmpty() ? null : emailField.getText().trim();
@@ -1157,6 +1179,18 @@ public class DriverManagement {
             driver.address = addressArea.getText().trim().isEmpty() ? null : addressArea.getText().trim();
             driver.notes = notesArea.getText().trim().isEmpty() ? null : notesArea.getText().trim();
             driver.photoPath = currentPhotoPath;
+            
+            // Update vehicle assignment in VehicleManagement
+            if (vehicleManagement != null) {
+                if (oldVehicleId != null && !oldVehicleId.equals(driver.vehicleId)) {
+                    // Unassign from old vehicle
+                    vehicleManagement.assignDriverToVehicle(null, oldVehicleId);
+                }
+                if (driver.vehicleId != null && !driver.vehicleId.equals(oldVehicleId)) {
+                    // Assign to new vehicle
+                    vehicleManagement.assignDriverToVehicle(driver.name, driver.vehicleId);
+                }
+            }
             
             storage.updateDriver(driver);
             refreshTable();
@@ -1204,6 +1238,11 @@ public class DriverManagement {
                 }
             }
             
+            // Unassign from vehicle if assigned
+            if (vehicleManagement != null && driver.vehicleId != null) {
+                vehicleManagement.assignDriverToVehicle(null, driver.vehicleId);
+            }
+            
             storage.removeDriver(id);
             refreshTable();
             JOptionPane.showMessageDialog(mainPanel, "Driver deleted successfully", 
@@ -1229,7 +1268,19 @@ public class DriverManagement {
             driver.vehicleId != null ? driver.vehicleId : "");
         
         if (vehicleId != null) {
+            String oldVehicleId = driver.vehicleId;
             driver.vehicleId = vehicleId.trim().isEmpty() ? null : vehicleId.trim();
+            
+            // Update vehicle assignment in VehicleManagement
+            if (vehicleManagement != null) {
+                if (oldVehicleId != null && !oldVehicleId.equals(driver.vehicleId)) {
+                    vehicleManagement.assignDriverToVehicle(null, oldVehicleId);
+                }
+                if (driver.vehicleId != null) {
+                    vehicleManagement.assignDriverToVehicle(driver.name, driver.vehicleId);
+                }
+            }
+            
             storage.updateDriver(driver);
             refreshTable();
             
@@ -1250,7 +1301,6 @@ public class DriverManagement {
         }
         
         int modelRow = driversTable.convertRowIndexToModel(row);
-        String id = (String) tableModel.getValueAt(modelRow, 0);
         String name = (String) tableModel.getValueAt(modelRow, 1);
         
         String[] options = {"Morning Shift (6AM-2PM)", "Afternoon Shift (2PM-10PM)", 
@@ -1351,5 +1401,75 @@ public class DriverManagement {
         // For compatibility with OrderManagement's method pattern
         // Returns drivers that are available (pending assignment)
         return storage.getAvailableCount();
+    }
+    
+    // ==================== INTEGRATION METHODS ====================
+    
+    /**
+     * Helper method to find driver by name (case-insensitive)
+     * This is a workaround since DriverStorage doesn't have findDriverByName
+     */
+    private Driver findDriverByName(String name) {
+        if (name == null) return null;
+        for (Driver driver : storage.getAllDrivers()) {
+            if (driver.name.equalsIgnoreCase(name)) {
+                return driver;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Get driver by name (for other modules)
+     */
+    public Driver getDriverByName(String name) {
+        return findDriverByName(name);
+    }
+    
+    /**
+     * Get driver by ID (for other modules)
+     */
+    public Driver getDriverById(String id) {
+        return storage.findDriver(id);
+    }
+    
+    /**
+     * Update driver status (called by VehicleManagement) - using name
+     */
+    public void updateDriverStatus(String driverName, String newStatus) {
+        Driver driver = findDriverByName(driverName);
+        if (driver != null) {
+            driver.status = newStatus;
+            storage.updateDriver(driver);
+            refreshTable();
+        }
+    }
+    
+    /**
+     * Assign vehicle to driver (called by VehicleManagement) - using name
+     */
+    public boolean assignVehicleToDriver(String driverName, String vehicleId) {
+        Driver driver = findDriverByName(driverName);
+        if (driver != null) {
+            driver.vehicleId = vehicleId;
+            driver.status = "Active";
+            storage.updateDriver(driver);
+            refreshTable();
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Get available drivers (for order assignment)
+     */
+    public List<Driver> getAvailableDrivers() {
+        List<Driver> available = new ArrayList<>();
+        for (Driver driver : storage.getAllDrivers()) {
+            if ("Available".equals(driver.status)) {
+                available.add(driver);
+            }
+        }
+        return available;
     }
 }

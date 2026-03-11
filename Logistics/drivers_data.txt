@@ -1,7 +1,3 @@
 John Smith|DL12345|(555) 123-4567|john.smith@email.com|Active|1769923830175|TRK001
 Mike Johnson|DL12346|(555) 234-5678|mike.j@email.com|Active|1771219830175|CAR001
 Sarah Wilson|DL12347|(555) 345-6789|sarah.w@email.com|Active|1771651830175|CAR002
-Robert Brown|DL12348|(555) 456-7890|robert.b@email.com|Available|1772083830175|
-Emily Davis|DL12349|(555) 567-8901|emily.d@email.com|Available|1772515830175|
-David Lee|DL12350|(555) 678-9012|david.l@email.com|Available|1772515830175|
-Unassigned||||Available|1772515830175|

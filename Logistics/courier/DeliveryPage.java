@@ -3,18 +3,17 @@ package courier;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.io.File;
-import java.io.FileNotFoundException;
 
 public class DeliveryPage extends JPanel {
     
-    // --- Color Palette (从CourierDashboard复制) ---
+    // --- Color Palette ---
     private final Color PRIMARY_GREEN = new Color(46, 125, 50);
-    private final Color GREEN_DARK = new Color(27, 94, 32);
     private final Color GREEN_LIGHT = new Color(220, 245, 220);
     private final Color BG_LIGHT = new Color(245, 247, 250);
     private final Color BORDER_COLOR = new Color(224, 224, 224);
@@ -29,7 +28,6 @@ public class DeliveryPage extends JPanel {
     private JTable deliveryTable;
     private DefaultTableModel deliveryModel;
     private TableRowSorter<DefaultTableModel> rowSorter;
-    private JTextField searchField;
     private JComboBox<String> filterColumnCombo;
     private JTextField searchTextField;
     private JComboBox<String> statusCombo;
@@ -41,7 +39,6 @@ public class DeliveryPage extends JPanel {
     private JPanel photoPanel;
     private JLabel photoLabel;
 
-    // 私有构造器，防止外部直接创建实例
     public DeliveryPage() {
         setLayout(new BorderLayout(15, 15));
         setBackground(BG_LIGHT);
@@ -51,16 +48,10 @@ public class DeliveryPage extends JPanel {
     }
     
     private void initUI() {
-        // --- 1. Header Section ---
         JPanel headerPanel = createHeaderPanel();
-        
-        // --- 2. Stats Cards Section ---
         JPanel statsPanel = createStatsPanel();
-        
-        // --- 3. Table and Form Section ---
         JSplitPane splitPane = createSplitPane();
         
-        // Assemble top parts
         JPanel topContainer = new JPanel(new BorderLayout());
         topContainer.setBackground(BG_LIGHT);
         topContainer.add(headerPanel, BorderLayout.NORTH);
@@ -88,7 +79,6 @@ public class DeliveryPage extends JPanel {
         titleContainer.add(subtitleLabel, BorderLayout.SOUTH);
         headerPanel.add(titleContainer, BorderLayout.WEST);
         
-        // 高级筛选面板
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 15));
         filterPanel.setBackground(BG_LIGHT);
         
@@ -169,12 +159,10 @@ public class DeliveryPage extends JPanel {
         splitPane.setDividerSize(8);
         splitPane.setBorder(null);
         
-        // Table Container
         JPanel tableContainer = new JPanel(new BorderLayout());
         tableContainer.setBackground(Color.WHITE);
         tableContainer.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
         
-        // Initialize Table Model
         String[] columns = {"Parcel ID", "Recipient", "Phone No.", "Location", "Status", "Priority", "Last Updated"};
         deliveryModel = new DefaultTableModel(new Object[][]{
             {"LX-901", "Justin Khoo", "012-3456789", "Petaling Jaya", "In Transit", "High", "10:30 AM"},
@@ -279,7 +267,7 @@ public class DeliveryPage extends JPanel {
         photoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         photoPanel.setBackground(Color.WHITE);
         
-        uploadPhotoBtn = new JButton("📷 Select Photo");
+        uploadPhotoBtn = new JButton("Select Photo");
         uploadPhotoBtn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         uploadPhotoBtn.setBackground(Color.WHITE);
         uploadPhotoBtn.setForeground(PRIMARY_GREEN);
@@ -291,12 +279,12 @@ public class DeliveryPage extends JPanel {
         photoFileNameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         photoFileNameLabel.setForeground(TEXT_GRAY);
         
-        JButton removePhotoBtn = new JButton("✕");
+        JButton removePhotoBtn = new JButton("Remove");
         removePhotoBtn.setFont(new Font("Segoe UI", Font.BOLD, 10));
         removePhotoBtn.setBackground(Color.WHITE);
         removePhotoBtn.setForeground(Color.RED);
         removePhotoBtn.setBorder(BorderFactory.createLineBorder(Color.RED));
-        removePhotoBtn.setPreferredSize(new Dimension(22, 22));
+        removePhotoBtn.setPreferredSize(new Dimension(70, 22));
         removePhotoBtn.addActionListener(e -> removePhoto());
         
         photoPanel.add(uploadPhotoBtn);
@@ -364,7 +352,6 @@ public class DeliveryPage extends JPanel {
         return formPanel;
     }
     
-    // Helper method to create stat cards
     private JPanel createStatCard(String title, String desc, String val, Color color) {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
@@ -417,7 +404,7 @@ public class DeliveryPage extends JPanel {
         table.getColumnModel().getColumn(5).setPreferredWidth(80);
         table.getColumnModel().getColumn(6).setPreferredWidth(100);
         
-        // Status column renderer
+        // Status column renderer (只保留文字颜色)
         table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
@@ -427,19 +414,12 @@ public class DeliveryPage extends JPanel {
                 
                 if (val.equals("Delivered")) {
                     lbl.setForeground(new Color(46, 125, 50));
-                    lbl.setText("✓ " + val);
-                } else if (val.equals("Out for Delivery")) {
+                } else if (val.equals("Out for Delivery") || val.equals("In Transit")) {
                     lbl.setForeground(new Color(25, 118, 210));
-                    lbl.setText("🚚 " + val);
-                } else if (val.equals("In Transit")) {
-                    lbl.setForeground(new Color(25, 118, 210));
-                    lbl.setText("⏱️ " + val);
                 } else if (val.equals("Pending")) {
                     lbl.setForeground(new Color(237, 108, 2));
-                    lbl.setText("⏳ " + val);
                 } else if (val.equals("Failed Delivery")) {
                     lbl.setForeground(new Color(198, 40, 40));
-                    lbl.setText("❌ " + val);
                 }
                 
                 lbl.setFont(new Font("Segoe UI", Font.BOLD, 11));
@@ -447,7 +427,7 @@ public class DeliveryPage extends JPanel {
             }
         });
         
-        // Priority column renderer
+        // Priority column renderer (只保留文字颜色)
         table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
@@ -457,13 +437,10 @@ public class DeliveryPage extends JPanel {
                 
                 if (val.equals("Urgent")) {
                     lbl.setForeground(new Color(198, 40, 40));
-                    lbl.setText("🔴 " + val);
                 } else if (val.equals("High")) {
                     lbl.setForeground(new Color(237, 108, 2));
-                    lbl.setText("🟠 " + val);
                 } else {
                     lbl.setForeground(new Color(46, 125, 50));
-                    lbl.setText("🟢 " + val);
                 }
                 
                 return lbl;
@@ -550,7 +527,7 @@ public class DeliveryPage extends JPanel {
             }
             photoFileNameLabel.setText(fileName);
             photoFileNameLabel.setForeground(PRIMARY_GREEN);
-            uploadPhotoBtn.setText("📷 Change Photo");
+            uploadPhotoBtn.setText("Change Photo");
         }
     }
     
@@ -558,7 +535,7 @@ public class DeliveryPage extends JPanel {
         selectedPhotoFile = null;
         photoFileNameLabel.setText("No file selected");
         photoFileNameLabel.setForeground(TEXT_GRAY);
-        uploadPhotoBtn.setText("📷 Select Photo");
+        uploadPhotoBtn.setText("Select Photo");
     }
     
     private void updateSelectedParcelDetails() {
@@ -673,9 +650,7 @@ public class DeliveryPage extends JPanel {
         togglePhotoVisibility();
     }
     
-    // Public method to refresh data (if needed)
     public void refreshData() {
-        // Add any refresh logic here if needed
         deliveryTable.repaint();
     }
 }

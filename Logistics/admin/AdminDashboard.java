@@ -17,10 +17,10 @@ public class AdminDashboard extends JFrame {
 
     // Refined color palette
     private final Color ORANGE_PRIMARY = new Color(255, 140, 0);
-    private final Color ORANGE_DARK = new Color(215, 115, 0); // Darker for selected/hover
+    private final Color ORANGE_DARK = new Color(215, 115, 0);
     private final Color ORANGE_LIGHT = new Color(255, 200, 130);
     private final Color ORANGE_PALE = new Color(255, 245, 235);
-    private final Color ORANGE_TOP_BAR = new Color(255, 160, 40); // Lighter orange for top bar
+    private final Color ORANGE_TOP_BAR = new Color(255, 160, 40);
     private final Color BG_LIGHT = new Color(250, 250, 250);
     private final Color CARD_BG = Color.WHITE;
     private final Color TEXT_DARK = new Color(33, 37, 41);
@@ -28,9 +28,9 @@ public class AdminDashboard extends JFrame {
     private final Color BORDER_COLOR = new Color(230, 230, 230);
     
     // Button colors
-    private final Color BUTTON_SELECTED = new Color(215, 115, 0); // Darker orange for selected
-    private final Color BUTTON_HOVER = new Color(235, 120, 0); // Medium orange for hover
-    private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0); // Transparent
+    private final Color BUTTON_SELECTED = new Color(215, 115, 0);
+    private final Color BUTTON_HOVER = new Color(235, 120, 0);
+    private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0);
 
     private CardLayout cardLayout;
     private JPanel contentPanel;
@@ -71,11 +71,31 @@ public class AdminDashboard extends JFrame {
     }
 
     private void initializeModules() {
-        orderManagement = new OrderManagement();
-        vehicleManagement = new VehicleManagement();
+        // 首先创建 DriverManagement，因为它被其他模块依赖
         driverManagement = new DriverManagement();
+        
+        // 创建 VehicleManagement
+        vehicleManagement = new VehicleManagement();
+        
+        // 创建其他模块，传递必要的依赖
+        orderManagement = new OrderManagement(driverManagement, vehicleManagement);
         maintenanceManagement = new MaintenanceManagement();
         reportManagement = new ReportManagement();
+        
+        // 设置模块间的相互引用
+        driverManagement.setVehicleManagement(vehicleManagement);
+        driverManagement.setOrderManagement(orderManagement);
+        
+        vehicleManagement.setDriverManagement(driverManagement);
+        vehicleManagement.setOrderManagement(orderManagement);
+        vehicleManagement.setMaintenanceManagement(maintenanceManagement);
+        
+        if (maintenanceManagement != null) {
+            maintenanceManagement.setVehicleManagement(vehicleManagement);
+        }
+        
+        // 为 OrderManagement 设置 VehicleManagement
+        orderManagement.setVehicleManagement(vehicleManagement);
         
         // 缓存面板
         panelCache.put("ORDER", orderManagement.getMainPanel());
@@ -101,10 +121,10 @@ public class AdminDashboard extends JFrame {
         add(createStatusBar(), BorderLayout.SOUTH);
     }
 
-    // ================= TOP BAR (Lighter Orange) =================
+    // ================= TOP BAR =================
     private JPanel createTopBar() {
         JPanel bar = new JPanel(new BorderLayout());
-        bar.setBackground(ORANGE_TOP_BAR); // Lighter orange
+        bar.setBackground(ORANGE_TOP_BAR);
         bar.setPreferredSize(new Dimension(getWidth(), 80));
         bar.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 25));
 
@@ -321,10 +341,10 @@ public class AdminDashboard extends JFrame {
         
         // Button styling - selected button gets DARKER
         if (selected) {
-            btn.setBackground(BUTTON_SELECTED); // Darker orange for selected
+            btn.setBackground(BUTTON_SELECTED);
             btn.setOpaque(true);
         } else {
-            btn.setBackground(BUTTON_NORMAL); // Transparent for unselected
+            btn.setBackground(BUTTON_NORMAL);
             btn.setOpaque(false);
         }
         
@@ -342,7 +362,7 @@ public class AdminDashboard extends JFrame {
             public void mouseEntered(MouseEvent e) {
                 if (btn != activeButton) {
                     btn.setOpaque(true);
-                    btn.setBackground(BUTTON_HOVER); // Medium orange for hover
+                    btn.setBackground(BUTTON_HOVER);
                     btn.repaint();
                 }
             }
@@ -364,12 +384,10 @@ public class AdminDashboard extends JFrame {
                 activeButton.repaint();
             }
             
-            // Selected button gets DARKER color
             btn.setOpaque(true);
-            btn.setBackground(BUTTON_SELECTED); // Darker orange
+            btn.setBackground(BUTTON_SELECTED);
             activeButton = btn;
             
-            // Switch panel
             cardLayout.show(contentPanel, card);
             refreshCurrentView();
         });

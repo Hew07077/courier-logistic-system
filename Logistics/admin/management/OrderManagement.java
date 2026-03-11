@@ -2,6 +2,7 @@ package admin.management;
 
 import logistics.orders.Order;
 import logistics.orders.OrderStorage;
+import logistics.driver.Driver;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -11,6 +12,7 @@ import java.awt.event.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.swing.Timer;
 
 public class OrderManagement {
@@ -18,12 +20,15 @@ public class OrderManagement {
     private JTable ordersTable;
     private DefaultTableModel tableModel;
     private TableRowSorter<DefaultTableModel> rowSorter;
-    private JLabel totalLabel, pendingLabel, transitLabel, delayedLabel, deliveredLabel;
     private JPanel statsPanel;
     private JLabel[] statValues;
     private JPanel[] statCards;
     
     private OrderStorage storage;
+    
+    // References to other modules
+    private DriverManagement driverManagement;
+    private VehicleManagement vehicleManagement;
     
     // Modern color scheme
     private static final Color PRIMARY = new Color(255, 140, 0);
@@ -60,9 +65,27 @@ public class OrderManagement {
     private int currentFilterIndex = -1;
     
     public OrderManagement() {
+        this(null, null);
+    }
+    
+    public OrderManagement(DriverManagement driverMgmt) {
+        this(driverMgmt, null);
+    }
+    
+    public OrderManagement(DriverManagement driverMgmt, VehicleManagement vehicleMgmt) {
+        this.driverManagement = driverMgmt;
+        this.vehicleManagement = vehicleMgmt;
         storage = new OrderStorage();
         createMainPanel();
         refreshTable();
+    }
+    
+    public void setDriverManagement(DriverManagement driverMgmt) {
+        this.driverManagement = driverMgmt;
+    }
+    
+    public void setVehicleManagement(VehicleManagement vehicleMgmt) {
+        this.vehicleManagement = vehicleMgmt;
     }
     
     private void createMainPanel() {
@@ -696,7 +719,7 @@ public class OrderManagement {
         }
     }
     
-    // ==================== FIXED ADD ORDER METHODS ====================
+    // ==================== ADD ORDER METHODS ====================
     
     private void addOrder() {
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
@@ -1166,6 +1189,9 @@ public class OrderManagement {
         }
     }
     
+    /**
+     * Assign driver and vehicle to order with dropdown lists
+     */
     private void assignDriver() {
         int row = ordersTable.getSelectedRow();
         if (row < 0) {
@@ -1183,32 +1209,234 @@ public class OrderManagement {
             return;
         }
         
-        String driverId = JOptionPane.showInputDialog(mainPanel, 
-            "Enter Driver ID (e.g., DRV001):", 
-            "Assign Driver", 
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (driverId != null && !driverId.trim().isEmpty()) {
-            order.driverId = driverId.trim();
-            
-            // Auto-assign vehicle based on driver
-            if (driverId.equals("DRV001")) order.vehicleId = "TRK001";
-            else if (driverId.equals("DRV002")) order.vehicleId = "TRK002";
-            else if (driverId.equals("DRV003")) order.vehicleId = "VAN001";
-            else if (driverId.equals("DRV004")) order.vehicleId = "VAN002";
-            else order.vehicleId = "VAN003";
-            
-            order.status = "In Transit";
-            
-            // Update estimated delivery
-            Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.DAY_OF_MONTH, 3);
-            order.estimatedDelivery = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-            
-            storage.updateOrder(order);
-            refreshTable();
-            JOptionPane.showMessageDialog(mainPanel, "Driver " + driverId + " assigned to " + order.id, "Success", JOptionPane.INFORMATION_MESSAGE);
+        // Check if DriverManagement is available
+        if (driverManagement == null) {
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Driver Management module not available.", 
+                "Module Unavailable", 
+                JOptionPane.WARNING_MESSAGE);
+            return;
         }
+        
+        // Get list of available drivers
+        List<Driver> availableDrivers = driverManagement.getAvailableDrivers();
+        
+        if (availableDrivers.isEmpty()) {
+            JOptionPane.showMessageDialog(mainPanel,
+                "No available drivers at the moment.\nPlease try again later or check driver status.",
+                "No Available Drivers",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Show driver and vehicle selection dialog
+        showDriverAndVehicleSelection(order, availableDrivers);
+    }
+
+    /**
+     * Shows a dialog with driver and vehicle selection dropdowns
+     */
+    private void showDriverAndVehicleSelection(Order order, List<Driver> availableDrivers) {
+        JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
+                                      "Assign Driver and Vehicle", true);
+        dialog.setSize(650, 450);
+        dialog.setLocationRelativeTo(mainPanel);
+        dialog.setResizable(false);
+        
+        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        mainPanel.setBackground(CARD_BG);
+        
+        // Header
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(CARD_BG);
+        
+        JLabel titleLabel = new JLabel("Assign Resources to Order: " + order.id);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLabel.setForeground(PRIMARY);
+        
+        JLabel recipientLabel = new JLabel("Recipient: " + order.recipientName);
+        recipientLabel.setFont(REGULAR_FONT);
+        recipientLabel.setForeground(TEXT_SECONDARY);
+        
+        headerPanel.add(titleLabel, BorderLayout.NORTH);
+        headerPanel.add(recipientLabel, BorderLayout.SOUTH);
+        
+        // Selection panel
+        JPanel selectionPanel = new JPanel(new GridBagLayout());
+        selectionPanel.setBackground(CARD_BG);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(10, 10, 10, 10);
+        
+        // Driver selection
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0.3;
+        JLabel driverLabel = new JLabel("Select Driver:");
+        driverLabel.setFont(HEADER_FONT);
+        selectionPanel.add(driverLabel, gbc);
+        
+        gbc.gridx = 1;
+        gbc.weightx = 0.7;
+        
+        // Create driver dropdown with detailed information
+        String[] driverOptions = new String[availableDrivers.size()];
+        for (int i = 0; i < availableDrivers.size(); i++) {
+            Driver d = availableDrivers.get(i);
+            String vehicleInfo = d.vehicleId != null ? d.vehicleId : "No Vehicle Assigned";
+            String ratingInfo = String.format("%.1f⭐", d.rating);
+            driverOptions[i] = String.format("%s - %s | Current Vehicle: %s | Rating: %s | Deliveries: %d", 
+                d.id, d.name, vehicleInfo, ratingInfo, d.totalDeliveries);
+        }
+        
+        JComboBox<String> driverCombo = new JComboBox<>(driverOptions);
+        driverCombo.setFont(REGULAR_FONT);
+        driverCombo.setPreferredSize(new Dimension(380, 35));
+        driverCombo.setBackground(Color.WHITE);
+        driverCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        selectionPanel.add(driverCombo, gbc);
+        
+        // Vehicle selection
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0.3;
+        JLabel vehicleLabel = new JLabel("Select Vehicle:");
+        vehicleLabel.setFont(HEADER_FONT);
+        selectionPanel.add(vehicleLabel, gbc);
+        
+        gbc.gridx = 1;
+        gbc.weightx = 0.7;
+        
+        // Get vehicles from VehicleManagement if available, otherwise use default list
+        String[] vehicleOptions;
+        
+        // Try to get vehicles from VehicleManagement
+        if (vehicleManagement != null && vehicleManagement.getAllVehicles() != null) {
+            List<VehicleManagement.Vehicle> vehicles = vehicleManagement.getAllVehicles();
+            vehicleOptions = new String[vehicles.size()];
+            for (int i = 0; i < vehicles.size(); i++) {
+                VehicleManagement.Vehicle v = vehicles.get(i);
+                String status = v.status != null ? v.status : "Unknown";
+                String driverInfo = v.driverName != null ? " | Driver: " + v.driverName : " | No Driver";
+                vehicleOptions[i] = String.format("%s - %s (%s) | %s%s", 
+                    v.id, v.model, v.type, v.fuelType, driverInfo);
+            }
+        } else {
+            // Default vehicle options if VehicleManagement is not available
+            vehicleOptions = new String[]{
+                "TRK001 - Freightliner Cascadia (Diesel) | No Driver",
+                "TRK002 - Peterbilt 579 (Diesel) | No Driver", 
+                "VAN001 - Ford Transit (Gasoline) | No Driver",
+                "VAN002 - Mercedes Sprinter (Diesel) | No Driver",
+                "VAN003 - RAM ProMaster (Diesel) | No Driver",
+                "CAR001 - Toyota Camry (Gasoline) | No Driver",
+                "CAR002 - Honda Civic (Gasoline) | No Driver",
+                "MTC001 - Harley Davidson (Gasoline) | No Driver"
+            };
+        }
+        
+        JComboBox<String> vehicleCombo = new JComboBox<>(vehicleOptions);
+        vehicleCombo.setFont(REGULAR_FONT);
+        vehicleCombo.setPreferredSize(new Dimension(380, 35));
+        vehicleCombo.setBackground(Color.WHITE);
+        vehicleCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        selectionPanel.add(vehicleCombo, gbc);
+        
+        // Estimated delivery date
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weightx = 0.3;
+        JLabel dateLabel = new JLabel("Est. Delivery Date:");
+        dateLabel.setFont(HEADER_FONT);
+        selectionPanel.add(dateLabel, gbc);
+        
+        gbc.gridx = 1;
+        gbc.weightx = 0.7;
+        
+        // Date spinner for estimated delivery
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_MONTH, 3); // Default to 3 days from now
+        SpinnerDateModel dateModel = new SpinnerDateModel(cal.getTime(), null, null, Calendar.DAY_OF_MONTH);
+        JSpinner dateSpinner = new JSpinner(dateModel);
+        JSpinner.DateEditor dateEditor = new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd");
+        dateSpinner.setEditor(dateEditor);
+        dateSpinner.setFont(REGULAR_FONT);
+        dateSpinner.setPreferredSize(new Dimension(380, 35));
+        dateSpinner.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        selectionPanel.add(dateSpinner, gbc);
+        
+        // Button panel
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        buttonPanel.setBackground(CARD_BG);
+        
+        JButton assignBtn = new JButton("Assign");
+        assignBtn.setFont(BUTTON_FONT);
+        assignBtn.setForeground(Color.WHITE);
+        assignBtn.setBackground(SUCCESS);
+        assignBtn.setBorderPainted(false);
+        assignBtn.setPreferredSize(new Dimension(100, 35));
+        assignBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        JButton cancelBtn = new JButton("Cancel");
+        cancelBtn.setFont(BUTTON_FONT);
+        cancelBtn.setForeground(TEXT_SECONDARY);
+        cancelBtn.setBackground(CARD_BG);
+        cancelBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
+        cancelBtn.setPreferredSize(new Dimension(100, 35));
+        cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        assignBtn.addActionListener(e -> {
+            int selectedDriverIndex = driverCombo.getSelectedIndex();
+            if (selectedDriverIndex >= 0) {
+                Driver selectedDriver = availableDrivers.get(selectedDriverIndex);
+                String selectedVehicle = (String) vehicleCombo.getSelectedItem();
+                String vehicleId = selectedVehicle.split(" - ")[0]; // Extract vehicle ID
+                Date estimatedDate = (Date) dateSpinner.getValue();
+                
+                assignDriverAndVehicleToOrder(order, selectedDriver.id, vehicleId, estimatedDate);
+                dialog.dispose();
+            }
+        });
+        
+        cancelBtn.addActionListener(e -> dialog.dispose());
+        
+        buttonPanel.add(cancelBtn);
+        buttonPanel.add(assignBtn);
+        
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(selectionPanel, BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.add(mainPanel);
+        dialog.setVisible(true);
+    }
+
+    /**
+     * Assign driver and vehicle to order
+     */
+    private void assignDriverAndVehicleToOrder(Order order, String driverId, String vehicleId, Date estimatedDate) {
+        order.driverId = driverId;
+        order.vehicleId = vehicleId;
+        order.status = "In Transit";
+        
+        // Update estimated delivery
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        order.estimatedDelivery = sdf.format(estimatedDate);
+        
+        storage.updateOrder(order);
+        refreshTable();
+        
+        // Update driver status if DriverManagement is available
+        if (driverManagement != null) {
+            driverManagement.updateDriverStatus(driverId, "On Delivery");
+        }
+        
+        JOptionPane.showMessageDialog(mainPanel, 
+            "Driver " + driverId + " and vehicle " + vehicleId + " assigned to " + order.id + "\n" +
+            "Estimated Delivery: " + sdf.format(estimatedDate), 
+            "Success", 
+            JOptionPane.INFORMATION_MESSAGE);
     }
     
     private void markAsDelivered() {
@@ -1236,6 +1464,12 @@ public class OrderManagement {
         
         if (confirm == JOptionPane.YES_OPTION) {
             order.status = "Delivered";
+            
+            // Update driver status if DriverManagement is available
+            if (driverManagement != null && order.driverId != null) {
+                driverManagement.updateDriverStatus(order.driverId, "Available");
+            }
+            
             storage.updateOrder(order);
             refreshTable();
             JOptionPane.showMessageDialog(mainPanel, "Order marked as delivered", "Success", JOptionPane.INFORMATION_MESSAGE);
@@ -1314,5 +1548,58 @@ public class OrderManagement {
     
     public int getDeliveredCount() {
         return storage.getDeliveredCount();
+    }
+    
+    // ==================== INTEGRATION METHODS ====================
+    
+    /**
+     * Assign driver to order (called by DriverManagement)
+     */
+    public boolean assignDriverToOrder(String orderId, String driverId) {
+        Order order = storage.findOrder(orderId);
+        if (order != null && ("Pending".equals(order.status) || "Delayed".equals(order.status))) {
+            order.driverId = driverId;
+            order.status = "In Transit";
+            
+            // Update estimated delivery
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_MONTH, 3);
+            order.estimatedDelivery = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+            
+            storage.updateOrder(order);
+            refreshTable();
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Get orders by driver (for driver schedule)
+     */
+    public List<Order> getOrdersByDriver(String driverId) {
+        return storage.getAllOrders().stream()
+            .filter(o -> driverId.equals(o.driverId))
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get pending orders (for driver assignment)
+     */
+    public List<Order> getPendingOrders() {
+        return storage.getAllOrders().stream()
+            .filter(o -> "Pending".equals(o.status))
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * Update order status (called by other modules)
+     */
+    public void updateOrderStatus(String orderId, String newStatus) {
+        Order order = storage.findOrder(orderId);
+        if (order != null) {
+            order.status = newStatus;
+            storage.updateOrder(order);
+            refreshTable();
+        }
     }
 }

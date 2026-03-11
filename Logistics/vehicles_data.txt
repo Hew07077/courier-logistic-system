@@ -1,6 +1,6 @@
 TRK001|Freightliner Cascadia|Active|John Smith|Truck|ABC-1234|1804051830175|Diesel
 VAN001|Ford Transit|Maintenance||Van|DEF-5678|1769923830175|Gasoline
-TRK002|Peterbilt 579|Active||Truck|GHI-9012|1767331830175|Diesel
+TRK002|Peterbilt 579|Maintenance||Truck|GHI-9012|1767331830175|Diesel
 VAN002|Mercedes Sprinter|Active||Van|JKL-3456|1788067830175|Diesel
 TRK003|International LT|Active||Truck|MNO-7890|1780291830175|Diesel
 CAR001|Toyota Camry|Active|Mike Johnson|Car|PQR-2345|1780291830175|Gasoline
