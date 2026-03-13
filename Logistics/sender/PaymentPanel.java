@@ -278,6 +278,9 @@ public class PaymentPanel extends JPanel {
         tableModel.setRowCount(0);
         paymentRecords.clear();
         
+        // Refresh data from main system
+        SenderDataManager.getInstance().refreshData();
+        
         String userEmail = dashboard.getSenderEmail();
         List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(userEmail);
         
@@ -340,19 +343,8 @@ public class PaymentPanel extends JPanel {
     }
 
     private double extractCostFromOrder(SenderOrder order) {
-        if (order.getNotes() != null && order.getNotes().contains("Estimated Cost:")) {
-            try {
-                String[] parts = order.getNotes().split("Estimated Cost: ");
-                if (parts.length > 1) {
-                    String[] costParts = parts[1].split("\n");
-                    String costStr = costParts[0].replace("RM", "").replace("$", "").trim();
-                    return Double.parseDouble(costStr);
-                }
-            } catch (NumberFormatException e) {
-                // Return default if parsing fails
-            }
-        }
-        return 50.0;
+        // Use the helper method from SenderOrder
+        return order.getEstimatedCost();
     }
 
     private String generateTransactionId(SenderOrder order) {
@@ -454,11 +446,14 @@ public class PaymentPanel extends JPanel {
                     record.transactionId = transactionId;
                     record.date = paymentDate;
                     
+                    // This now syncs with main system automatically
                     SenderDataManager.getInstance().updateOrderPaymentStatus(
                         record.orderId, "Paid", paymentMethod, transactionId, paymentDate
                     );
                 }
                 
+                // Refresh data from main system
+                SenderDataManager.getInstance().refreshData();
                 refreshData();
                 
                 JOptionPane.showMessageDialog(PaymentPanel.this,

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class SenderDataManager {
-    private static final String ORDER_FILE = "orders.txt"; // Changed from sender_orders.txt to orders.txt
+    private static final String ORDER_FILE = "orders.txt";
     private static SenderDataManager instance;
     private List<SenderOrder> orders;
     
@@ -35,6 +35,7 @@ public class SenderDataManager {
         }
         
         System.out.println("Loading orders from: " + file.getAbsolutePath());
+        System.out.println("File size: " + file.length() + " bytes");
         
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
@@ -61,6 +62,15 @@ public class SenderDataManager {
             System.out.println("Error loading orders: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    /**
+     * Refresh data from the main orders.txt file
+     * Call this method to ensure you have the latest data
+     */
+    public void refreshData() {
+        System.out.println("Refreshing sender data from main orders file...");
+        loadOrders();
     }
     
     private SenderOrder parseOrderFromString(String line) {
@@ -139,7 +149,7 @@ public class SenderDataManager {
             safeString(order.getEstimatedDelivery()),
             String.valueOf(order.getWeight()),
             safeString(order.getDimensions()),
-            cleanNotes,  // Use cleaned notes without newlines
+            cleanNotes,
             safeString(order.getPaymentStatus()),
             safeString(order.getPaymentMethod()),
             safeString(order.getTransactionId()),
@@ -156,6 +166,12 @@ public class SenderDataManager {
             File file = new File(ORDER_FILE);
             System.out.println("Saving orders to: " + file.getAbsolutePath());
             
+            // Create parent directories if needed
+            File parentDir = file.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+            
             try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
                 // Write header
                 bw.write("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|weight|dimensions|notes|paymentStatus|paymentMethod|transactionId|paymentDate");
@@ -166,9 +182,10 @@ public class SenderDataManager {
                     bw.newLine();
                 }
                 
+                bw.flush();
                 System.out.println("Saved " + orders.size() + " orders to " + file.getAbsolutePath());
-                
             }
+            
         } catch (IOException e) {
             System.out.println("Error saving orders: " + e.getMessage());
             e.printStackTrace();
@@ -231,12 +248,54 @@ public class SenderDataManager {
             .collect(Collectors.toList());
     }
     
+    /**
+     * Update order status and sync with main system
+     */
+    public boolean updateOrderStatus(String orderId, String newStatus) {
+        SenderOrder order = getOrderById(orderId);
+        
+        if (order != null) {
+            order.setStatus(newStatus);
+            saveOrders();
+            
+            // Also update in main OrderStorage
+            try {
+                logistics.orders.OrderStorage mainStorage = new logistics.orders.OrderStorage();
+                logistics.orders.Order mainOrder = mainStorage.findOrder(orderId);
+                if (mainOrder != null) {
+                    mainOrder.status = newStatus;
+                    mainStorage.updateOrder(mainOrder);
+                    System.out.println("Synced status update to main system for order: " + orderId);
+                }
+            } catch (Exception e) {
+                System.err.println("Error syncing status to main system: " + e.getMessage());
+            }
+            
+            return true;
+        }
+        return false;
+    }
+    
     public boolean cancelOrder(String orderId) {
         SenderOrder order = getOrderById(orderId);
         
         if (order != null && !"Delivered".equals(order.getStatus()) && !"Cancelled".equals(order.getStatus())) {
             order.setStatus("Cancelled");
             saveOrders();
+            
+            // Also cancel in main OrderStorage
+            try {
+                logistics.orders.OrderStorage mainStorage = new logistics.orders.OrderStorage();
+                logistics.orders.Order mainOrder = mainStorage.findOrder(orderId);
+                if (mainOrder != null) {
+                    mainOrder.status = "Cancelled";
+                    mainStorage.updateOrder(mainOrder);
+                    System.out.println("Synced cancellation to main system for order: " + orderId);
+                }
+            } catch (Exception e) {
+                System.err.println("Error syncing cancellation to main system: " + e.getMessage());
+            }
+            
             return true;
         }
         return false;
@@ -252,6 +311,23 @@ public class SenderDataManager {
             order.setTransactionId(transactionId);
             order.setPaymentDate(paymentDate);
             saveOrders();
+            
+            // Also update in main OrderStorage
+            try {
+                logistics.orders.OrderStorage mainStorage = new logistics.orders.OrderStorage();
+                logistics.orders.Order mainOrder = mainStorage.findOrder(orderId);
+                if (mainOrder != null) {
+                    mainOrder.paymentStatus = status;
+                    mainOrder.paymentMethod = paymentMethod;
+                    mainOrder.transactionId = transactionId;
+                    mainOrder.paymentDate = paymentDate;
+                    mainStorage.updateOrder(mainOrder);
+                    System.out.println("Synced payment update to main system for order: " + orderId);
+                }
+            } catch (Exception e) {
+                System.err.println("Error syncing payment to main system: " + e.getMessage());
+            }
+            
             return true;
         }
         return false;
@@ -278,29 +354,11 @@ public class SenderDataManager {
     public double getTotalSpent(String email) {
         return getOrdersByEmail(email).stream()
             .filter(o -> "Paid".equals(o.getPaymentStatus()))
-            .mapToDouble(o -> extractCostFromNotes(o.getNotes()))
+            .mapToDouble(o -> extractCostFromNotes(o))
             .sum();
     }
     
-    private double extractCostFromNotes(String notes) {
-        if (notes == null) return 0.0;
-        
-        try {
-            if (notes.contains("Estimated Cost:")) {
-                String[] parts = notes.split("Estimated Cost: ");
-                if (parts.length > 1) {
-                    String costPart = parts[1];
-                    // Extract just the RM value (e.g., "RM 85.50" from "RM 85.50 Estimated Delivery...")
-                    String[] costParts = costPart.split(" ");
-                    if (costParts.length > 0) {
-                        String costStr = costParts[0].replace("RM", "").replace("$", "").replace(",", "").trim();
-                        return Double.parseDouble(costStr);
-                    }
-                }
-            }
-            return 0.0;
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
+    private double extractCostFromNotes(SenderOrder order) {
+        return order.getEstimatedCost();
     }
 }

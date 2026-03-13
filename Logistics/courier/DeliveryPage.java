@@ -1,18 +1,13 @@
 package courier;
 
-import logistics.orders.Order;
-import logistics.orders.OrderStorage;
-
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
 import javax.swing.table.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
 import java.io.File;
 
 public class DeliveryPage extends JPanel {
@@ -28,40 +23,6 @@ public class DeliveryPage extends JPanel {
     private static final Color SUCCESS = new Color(40, 167, 69);
     private static final Color INFO = new Color(23, 162, 184);
     private static final Color WARNING = new Color(255, 193, 7);
-    private static final Color DANGER = new Color(220, 53, 69);
-    
-    // Status colors
-    private static final Color STATUS_DELIVERED = new Color(40, 167, 69);
-    private static final Color STATUS_TRANSIT = new Color(23, 162, 184);
-    private static final Color STATUS_PENDING = new Color(255, 193, 7);
-    private static final Color STATUS_DELAYED = new Color(220, 53, 69);
-    private static final Color STATUS_FAILED = new Color(220, 53, 69);
-    
-    // Status background colors
-    private static final Color STATUS_BG_DELIVERED = new Color(232, 245, 233);
-    private static final Color STATUS_BG_TRANSIT = new Color(227, 242, 253);
-    private static final Color STATUS_BG_PENDING = new Color(255, 243, 224);
-    private static final Color STATUS_BG_DELAYED = new Color(255, 235, 238);
-    private static final Color STATUS_BG_FAILED = new Color(255, 235, 238);
-    
-    // Row highlight color for delivered parcels
-    private static final Color DELIVERED_ROW_COLOR = new Color(232, 245, 233); // Light green
-    private static final Color DELIVERED_ROW_COLOR_ALT = new Color(220, 240, 220); // Slightly darker for alternating
-    
-    // Priority colors
-    private static final Color PRIORITY_URGENT = DANGER;
-    private static final Color PRIORITY_HIGH = new Color(237, 108, 2);
-    private static final Color PRIORITY_NORMAL = SUCCESS;
-    
-    // Fonts
-    private static final Font TITLE_FONT = new Font("Segoe UI", Font.BOLD, 28);
-    private static final Font SUBTITLE_FONT = new Font("Segoe UI", Font.PLAIN, 14);
-    private static final Font HEADER_FONT = new Font("Segoe UI", Font.BOLD, 13);
-    private static final Font REGULAR_FONT = new Font("Segoe UI", Font.PLAIN, 13);
-    private static final Font SMALL_FONT = new Font("Segoe UI", Font.PLAIN, 11);
-    private static final Font STATS_FONT = new Font("Segoe UI", Font.BOLD, 22);
-    private static final Font STATUS_FONT = new Font("Segoe UI", Font.BOLD, 11);
-    private static final Font BUTTON_FONT = new Font("Segoe UI", Font.BOLD, 11);
     
     // Table Components
     private JTable deliveryTable;
@@ -77,26 +38,11 @@ public class DeliveryPage extends JPanel {
     private JButton uploadPhotoBtn;
     private JPanel photoPanel;
     private JLabel photoLabel;
-    private JPanel statsPanel;
-    private JLabel[] statValues = new JLabel[4];
-    private JPanel[] statCards = new JPanel[4];
-    
-    // Data Storage
-    private OrderStorage orderStorage;
-    private List<Order> orders;
-    
-    private String currentStatusFilter = null;
-    private int currentFilterIndex = -1;
-    private static final Color ACTIVE_FILTER_BORDER = new Color(46, 125, 50);
 
     public DeliveryPage() {
         setLayout(new BorderLayout(15, 15));
         setBackground(BG_LIGHT);
         setBorder(new EmptyBorder(25, 25, 25, 25));
-        
-        // Initialize order storage and load data
-        orderStorage = new OrderStorage();
-        orders = orderStorage.getAllOrders();
         
         initUI();
     }
@@ -123,11 +69,10 @@ public class DeliveryPage extends JPanel {
         titleContainer.setBackground(BG_LIGHT);
         
         JLabel titleLabel = new JLabel("Deliveries & Management");
-        titleLabel.setFont(TITLE_FONT);
-        titleLabel.setForeground(new Color(33, 37, 41));
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
         
         JLabel subtitleLabel = new JLabel("Track parcels and update delivery status in real-time");
-        subtitleLabel.setFont(SUBTITLE_FONT);
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitleLabel.setForeground(TEXT_GRAY);
         
         titleContainer.add(titleLabel, BorderLayout.NORTH);
@@ -138,17 +83,17 @@ public class DeliveryPage extends JPanel {
         filterPanel.setBackground(BG_LIGHT);
         
         JLabel filterLabel = new JLabel("Search by:");
-        filterLabel.setFont(HEADER_FONT);
+        filterLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         
         String[] columns = {"Parcel ID", "Recipient", "Phone No.", "Location", "Status", "Priority", "Last Updated"};
         filterColumnCombo = new JComboBox<>(columns);
         filterColumnCombo.setPreferredSize(new Dimension(120, 35));
         filterColumnCombo.setBackground(Color.WHITE);
-        filterColumnCombo.setFont(REGULAR_FONT);
+        filterColumnCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         
         searchTextField = new JTextField(15);
         searchTextField.setPreferredSize(new Dimension(150, 35));
-        searchTextField.setFont(REGULAR_FONT);
+        searchTextField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         searchTextField.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
             BorderFactory.createEmptyBorder(5, 8, 5, 8)
@@ -162,7 +107,7 @@ public class DeliveryPage extends JPanel {
         });
         
         JButton clearFilterBtn = new JButton("Clear");
-        clearFilterBtn.setFont(REGULAR_FONT);
+        clearFilterBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         clearFilterBtn.setBackground(Color.WHITE);
         clearFilterBtn.setForeground(TEXT_GRAY);
         clearFilterBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
@@ -171,9 +116,6 @@ public class DeliveryPage extends JPanel {
             searchTextField.setText("");
             rowSorter.setRowFilter(null);
             filterColumnCombo.setSelectedIndex(0);
-            resetCardBorders();
-            currentStatusFilter = null;
-            currentFilterIndex = -1;
         });
         
         filterPanel.add(filterLabel);
@@ -187,158 +129,33 @@ public class DeliveryPage extends JPanel {
     }
     
     private JPanel createStatsPanel() {
-        statsPanel = new JPanel(new GridLayout(1, 4, 15, 0));
+        JPanel statsPanel = new JPanel(new GridLayout(1, 4, 15, 0));
         statsPanel.setBackground(BG_LIGHT);
         statsPanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 15, 0));
         
-        int pendingCount = orderStorage.getPendingCount();
-        int inTransitCount = orderStorage.getInTransitCount();
-        int delayedCount = orderStorage.getDelayedCount();
-        int totalCount = orders.size();
+        JPanel pendingCard = createStatCard("Pending", "To be delivered", "3", WARNING);
+        pendingCard.addMouseListener(new StatCardClickListener("Pending"));
         
-        // Define colors for stat cards
-        Color[] colors = {WARNING, INFO, DANGER, PRIMARY_GREEN};
-        Color[] bgColors = {
-            new Color(255, 243, 224),  // Light orange for pending
-            new Color(227, 242, 253),  // Light blue for transit
-            new Color(255, 235, 238),  // Light red for delayed
-            new Color(232, 245, 233)   // Light green for total
-        };
+        JPanel transitCard = createStatCard("In Transit", "Currently out", "2", INFO);
+        transitCard.addMouseListener(new StatCardClickListener("In Transit"));
         
-        String[] values = {String.valueOf(pendingCount), String.valueOf(inTransitCount), 
-                          String.valueOf(delayedCount), String.valueOf(totalCount)};
-        String[] titles = {"Pending", "In Transit", "Delayed", "Total Tasks"};
-        String[] descriptions = {"Awaiting pickup", "Currently out", "Delivery issues", "All deliveries"};
+        JPanel deliveredCard = createStatCard("Delivered", "Completed today", "1", SUCCESS);
+        deliveredCard.addMouseListener(new StatCardClickListener("Delivered"));
         
-        for (int i = 0; i < 4; i++) {
-            JPanel card = createStatCard(titles[i], descriptions[i], values[i], colors[i], bgColors[i], i);
-            statCards[i] = card;
-            statsPanel.add(card);
-        }
+        JPanel totalCard = createStatCard("Total Tasks", "Assigned parcels", "6", PRIMARY_GREEN);
+        totalCard.addMouseListener(new StatCardClickListener(""));
+        
+        statsPanel.add(pendingCard);
+        statsPanel.add(transitCard);
+        statsPanel.add(deliveredCard);
+        statsPanel.add(totalCard);
         
         return statsPanel;
     }
     
-    private JPanel createStatCard(String title, String description, String value, 
-                                  Color color, Color bgColor, int index) {
-        JPanel card = new JPanel();
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(BORDER_COLOR, 1, true),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        ));
-        
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(HEADER_FONT);
-        titleLabel.setForeground(TEXT_GRAY);
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(STATS_FONT);
-        valueLabel.setForeground(color);
-        valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
-        JLabel descLabel = new JLabel(description);
-        descLabel.setFont(SMALL_FONT);
-        descLabel.setForeground(TEXT_GRAY);
-        descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
-        card.add(titleLabel);
-        card.add(Box.createVerticalStrut(2));
-        card.add(valueLabel);
-        card.add(Box.createVerticalStrut(2));
-        card.add(descLabel);
-        
-        statValues[index] = valueLabel;
-        
-        // Add click handler for filtering (except for total tasks)
-        if (index < 3) {
-            card.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            final String filterStatus = title;
-            final int cardIndex = index;
-            
-            card.addMouseListener(new MouseAdapter() {
-                public void mouseEntered(MouseEvent e) {
-                    if (currentFilterIndex != cardIndex) {
-                        card.setBackground(bgColor);
-                    }
-                }
-                
-                public void mouseExited(MouseEvent e) {
-                    if (currentFilterIndex != cardIndex) {
-                        card.setBackground(Color.WHITE);
-                    }
-                }
-                
-                public void mouseClicked(MouseEvent e) {
-                    applyStatusFilter(filterStatus, cardIndex, color);
-                }
-            });
-        } else {
-            // Total tasks card - clear filter
-            card.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            card.addMouseListener(new MouseAdapter() {
-                public void mouseEntered(MouseEvent e) {
-                    card.setBackground(new Color(245, 245, 245));
-                }
-                public void mouseExited(MouseEvent e) {
-                    card.setBackground(Color.WHITE);
-                }
-                public void mouseClicked(MouseEvent e) {
-                    clearAllFilters();
-                }
-            });
-        }
-        
-        return card;
-    }
-    
-    private void resetCardBorders() {
-        if (statCards != null) {
-            for (int i = 0; i < statCards.length; i++) {
-                statCards[i].setBorder(BorderFactory.createCompoundBorder(
-                    new LineBorder(BORDER_COLOR, 1, true),
-                    BorderFactory.createEmptyBorder(8, 12, 8, 12)
-                ));
-                statCards[i].setBackground(Color.WHITE);
-            }
-        }
-    }
-    
-    private void applyStatusFilter(String status, int cardIndex, Color color) {
-        resetCardBorders();
-        
-        if (currentFilterIndex == cardIndex) {
-            currentStatusFilter = null;
-            currentFilterIndex = -1;
-            rowSorter.setRowFilter(null);
-        } else {
-            currentStatusFilter = status;
-            currentFilterIndex = cardIndex;
-            
-            statCards[cardIndex].setBorder(BorderFactory.createCompoundBorder(
-                new LineBorder(ACTIVE_FILTER_BORDER, 2, true),
-                BorderFactory.createEmptyBorder(7, 11, 7, 11)
-            ));
-            statCards[cardIndex].setBackground(color.brighter());
-            
-            rowSorter.setRowFilter(RowFilter.regexFilter("^" + status + "$", 4));
-        }
-    }
-    
-    private void clearAllFilters() {
-        resetCardBorders();
-        currentStatusFilter = null;
-        currentFilterIndex = -1;
-        rowSorter.setRowFilter(null);
-        filterColumnCombo.setSelectedIndex(0);
-        searchTextField.setText("");
-    }
-    
     private JSplitPane createSplitPane() {
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        splitPane.setResizeWeight(0.75);
+        splitPane.setResizeWeight(0.85);
         splitPane.setDividerSize(8);
         splitPane.setBorder(null);
         
@@ -347,11 +164,14 @@ public class DeliveryPage extends JPanel {
         tableContainer.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
         
         String[] columns = {"Parcel ID", "Recipient", "Phone No.", "Location", "Status", "Priority", "Last Updated"};
-        
-        // Load data from orders
-        Object[][] data = loadDeliveryData();
-        
-        deliveryModel = new DefaultTableModel(data, columns) {
+        deliveryModel = new DefaultTableModel(new Object[][]{
+            {"LX-901", "Justin Khoo", "012-3456789", "Petaling Jaya", "In Transit", "High", "10:30 AM"},
+            {"LX-902", "Sarah Tan", "013-4567890", "Subang Jaya", "Pending", "Normal", "09:15 AM"},
+            {"LX-903", "Ahmad Zaki", "014-5678901", "Kuala Lumpur", "Delivered", "Normal", "Yesterday"},
+            {"LX-904", "Linda Chen", "015-6789012", "Shah Alam", "Pending", "Urgent", "08:45 AM"},
+            {"LX-905", "Muthu Kumar", "016-7890123", "Bangsar", "In Transit", "High", "11:20 AM"},
+            {"LX-906", "Emily Wong", "017-8901234", "Damansara", "Out for Delivery", "Normal", "10:05 AM"}
+        }, columns) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         
@@ -359,7 +179,7 @@ public class DeliveryPage extends JPanel {
         
         deliveryTable = new JTable(deliveryModel);
         deliveryTable.setRowSorter(rowSorter);
-        styleDeliveryTable(deliveryTable);
+        styleCombinedTable(deliveryTable);
         deliveryTable.setRowHeight(50);
         deliveryTable.getTableHeader().setPreferredSize(new Dimension(0, 45));
         
@@ -375,267 +195,6 @@ public class DeliveryPage extends JPanel {
         splitPane.setBottomComponent(createUpdateForm());
         
         return splitPane;
-    }
-    
-    private void styleDeliveryTable(JTable table) {
-        table.setRowHeight(45);
-        table.setIntercellSpacing(new Dimension(8, 3));
-        table.setSelectionBackground(GREEN_LIGHT);
-        table.setSelectionForeground(Color.BLACK);
-        table.setShowGrid(true);
-        table.setGridColor(new Color(230, 230, 230));
-        table.setFont(REGULAR_FONT);
-        table.setFillsViewportHeight(true);
-        table.setAutoCreateRowSorter(true);
-        
-        // Custom renderer for row highlighting based on status
-        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                    boolean isSelected, boolean hasFocus, int row, int column) {
-                
-                Component c = super.getTableCellRendererComponent(table, value, 
-                        isSelected, hasFocus, row, column);
-                
-                // Get the status for this row
-                int modelRow = table.convertRowIndexToModel(row);
-                String status = table.getModel().getValueAt(modelRow, 4).toString();
-                
-                // Apply background color based on status
-                if (!isSelected) {
-                    if ("Delivered".equals(status)) {
-                        // Light green for delivered rows
-                        if (row % 2 == 0) {
-                            c.setBackground(DELIVERED_ROW_COLOR);
-                        } else {
-                            c.setBackground(DELIVERED_ROW_COLOR_ALT);
-                        }
-                    } else {
-                        // Normal alternating rows for other statuses
-                        if (row % 2 == 0) {
-                            c.setBackground(new Color(252, 252, 253));
-                        } else {
-                            c.setBackground(Color.WHITE);
-                        }
-                    }
-                } else {
-                    c.setBackground(GREEN_LIGHT);
-                }
-                
-                // Set horizontal alignment for specific columns
-                if (column == 4 || column == 5) {
-                    setHorizontalAlignment(SwingConstants.CENTER);
-                } else {
-                    setHorizontalAlignment(SwingConstants.LEFT);
-                }
-                
-                return c;
-            }
-        });
-        
-        JTableHeader header = table.getTableHeader();
-        header.setFont(HEADER_FONT);
-        header.setBackground(new Color(245, 245, 245));
-        header.setForeground(new Color(33, 37, 41));
-        header.setPreferredSize(new Dimension(header.getWidth(), 40));
-        header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY_GREEN));
-        
-        table.getColumnModel().getColumn(0).setPreferredWidth(80);
-        table.getColumnModel().getColumn(1).setPreferredWidth(150);
-        table.getColumnModel().getColumn(2).setPreferredWidth(100);
-        table.getColumnModel().getColumn(3).setPreferredWidth(200);
-        table.getColumnModel().getColumn(4).setPreferredWidth(120);
-        table.getColumnModel().getColumn(5).setPreferredWidth(80);
-        table.getColumnModel().getColumn(6).setPreferredWidth(100);
-        
-        // Status column renderer with pill-shaped frames
-        table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
-            private final JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-            private final JLabel label = new JLabel();
-            
-            {
-                panel.setOpaque(true);
-                label.setFont(STATUS_FONT);
-                label.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
-                panel.add(label);
-            }
-            
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object v, 
-                    boolean isSelected, boolean hasFocus, int row, int column) {
-                
-                // Set panel background based on selection and row status
-                int modelRow = t.convertRowIndexToModel(row);
-                String status = t.getModel().getValueAt(modelRow, 4).toString();
-                
-                if (!isSelected) {
-                    if ("Delivered".equals(status)) {
-                        if (row % 2 == 0) {
-                            panel.setBackground(DELIVERED_ROW_COLOR);
-                        } else {
-                            panel.setBackground(DELIVERED_ROW_COLOR_ALT);
-                        }
-                    } else {
-                        if (row % 2 == 0) {
-                            panel.setBackground(new Color(252, 252, 253));
-                        } else {
-                            panel.setBackground(Color.WHITE);
-                        }
-                    }
-                } else {
-                    panel.setBackground(GREEN_LIGHT);
-                }
-                
-                if (v != null) {
-                    String statusText = v.toString();
-                    label.setText(statusText);
-                    label.setOpaque(true);
-                    
-                    switch (statusText) {
-                        case "Delivered":
-                            label.setForeground(STATUS_DELIVERED.darker());
-                            label.setBackground(STATUS_BG_DELIVERED);
-                            label.setBorder(BorderFactory.createCompoundBorder(
-                                new LineBorder(STATUS_DELIVERED, 1, true),
-                                BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                            ));
-                            break;
-                        case "In Transit":
-                        case "Out for Delivery":
-                            label.setForeground(STATUS_TRANSIT.darker());
-                            label.setBackground(STATUS_BG_TRANSIT);
-                            label.setBorder(BorderFactory.createCompoundBorder(
-                                new LineBorder(STATUS_TRANSIT, 1, true),
-                                BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                            ));
-                            break;
-                        case "Pending":
-                            label.setForeground(STATUS_PENDING.darker());
-                            label.setBackground(STATUS_BG_PENDING);
-                            label.setBorder(BorderFactory.createCompoundBorder(
-                                new LineBorder(STATUS_PENDING, 1, true),
-                                BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                            ));
-                            break;
-                        case "Delayed":
-                            label.setForeground(STATUS_DELAYED.darker());
-                            label.setBackground(STATUS_BG_DELAYED);
-                            label.setBorder(BorderFactory.createCompoundBorder(
-                                new LineBorder(STATUS_DELAYED, 1, true),
-                                BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                            ));
-                            break;
-                        case "Failed Delivery":
-                            label.setForeground(STATUS_FAILED.darker());
-                            label.setBackground(STATUS_BG_FAILED);
-                            label.setBorder(BorderFactory.createCompoundBorder(
-                                new LineBorder(STATUS_FAILED, 1, true),
-                                BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                            ));
-                            break;
-                        default:
-                            label.setForeground(TEXT_GRAY);
-                            label.setBackground(new Color(245, 245, 245));
-                            label.setBorder(BorderFactory.createCompoundBorder(
-                                new LineBorder(TEXT_GRAY, 1, true),
-                                BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                            ));
-                            break;
-                    }
-                }
-                
-                return panel;
-            }
-        });
-        
-        // Priority column renderer
-        table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object v, 
-                    boolean isSelected, boolean hasFocus, int row, int column) {
-                super.getTableCellRendererComponent(t, v, isSelected, hasFocus, row, column);
-                
-                setHorizontalAlignment(SwingConstants.CENTER);
-                setFont(STATUS_FONT);
-                
-                if (v != null) {
-                    String val = v.toString();
-                    
-                    if (val.equals("Urgent")) {
-                        setForeground(PRIORITY_URGENT);
-                    } else if (val.equals("High")) {
-                        setForeground(PRIORITY_HIGH);
-                    } else {
-                        setForeground(PRIORITY_NORMAL);
-                    }
-                }
-                
-                // Set background based on selection and row status
-                int modelRow = t.convertRowIndexToModel(row);
-                String status = t.getModel().getValueAt(modelRow, 4).toString();
-                
-                if (!isSelected) {
-                    if ("Delivered".equals(status)) {
-                        if (row % 2 == 0) {
-                            setBackground(DELIVERED_ROW_COLOR);
-                        } else {
-                            setBackground(DELIVERED_ROW_COLOR_ALT);
-                        }
-                    } else {
-                        if (row % 2 == 0) {
-                            setBackground(new Color(252, 252, 253));
-                        } else {
-                            setBackground(Color.WHITE);
-                        }
-                    }
-                } else {
-                    setBackground(GREEN_LIGHT);
-                }
-                
-                return this;
-            }
-        });
-    }
-    
-    private Object[][] loadDeliveryData() {
-        Object[][] data = new Object[orders.size()][7];
-        
-        for (int i = 0; i < orders.size(); i++) {
-            Order order = orders.get(i);
-            data[i][0] = order.id;
-            data[i][1] = order.customer;
-            data[i][2] = order.phone;
-            data[i][3] = order.address;
-            data[i][4] = order.status;
-            data[i][5] = determinePriority(order);
-            data[i][6] = formatLastUpdated(order.date);
-        }
-        
-        return data;
-    }
-    
-    private String determinePriority(Order order) {
-        if ("Delayed".equals(order.status)) {
-            return "Urgent";
-        } else if (order.estDate != null) {
-            return "High";
-        } else {
-            return "Normal";
-        }
-    }
-    
-    private String formatLastUpdated(String date) {
-        if (date == null || date.isEmpty()) {
-            return "Not set";
-        }
-        try {
-            SimpleDateFormat dbFormat = new SimpleDateFormat("yyyy-MM-dd");
-            Date orderDate = dbFormat.parse(date);
-            SimpleDateFormat displayFormat = new SimpleDateFormat("dd MMM yyyy");
-            return displayFormat.format(orderDate);
-        } catch (Exception e) {
-            return date;
-        }
     }
     
     private JPanel createUpdateForm() {
@@ -662,13 +221,13 @@ public class DeliveryPage extends JPanel {
         gbc.gridx = 0; gbc.gridy = 0;
         gbc.weightx = 0.2;
         JLabel parcelLabel = new JLabel("Selected Parcel:");
-        parcelLabel.setFont(HEADER_FONT);
+        parcelLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         fieldsPanel.add(parcelLabel, gbc);
         
         gbc.gridx = 1;
         gbc.weightx = 0.8;
         selectedParcelLabel = new JLabel("None selected");
-        selectedParcelLabel.setFont(REGULAR_FONT);
+        selectedParcelLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         selectedParcelLabel.setForeground(PRIMARY_GREEN);
         fieldsPanel.add(selectedParcelLabel, gbc);
         
@@ -676,7 +235,7 @@ public class DeliveryPage extends JPanel {
         gbc.gridx = 0; gbc.gridy = 1;
         gbc.weightx = 0.2;
         JLabel statusLabel = new JLabel("New Status:");
-        statusLabel.setFont(HEADER_FONT);
+        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         fieldsPanel.add(statusLabel, gbc);
         
         gbc.gridx = 1;
@@ -687,10 +246,9 @@ public class DeliveryPage extends JPanel {
             "Delivered", 
             "Failed Delivery",
             "Returning to Hub",
-            "Held at Facility",
-            "Delayed"
+            "Held at Facility"
         });
-        statusCombo.setFont(REGULAR_FONT);
+        statusCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         statusCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
         statusCombo.setBackground(Color.WHITE);
         statusCombo.addActionListener(e -> togglePhotoVisibility());
@@ -700,7 +258,7 @@ public class DeliveryPage extends JPanel {
         gbc.gridx = 0; gbc.gridy = 2;
         gbc.weightx = 0.2;
         photoLabel = new JLabel("Photo Proof:");
-        photoLabel.setFont(HEADER_FONT);
+        photoLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         fieldsPanel.add(photoLabel, gbc);
         
         gbc.gridx = 1;
@@ -710,7 +268,7 @@ public class DeliveryPage extends JPanel {
         photoPanel.setBackground(Color.WHITE);
         
         uploadPhotoBtn = new JButton("Select Photo");
-        uploadPhotoBtn.setFont(SMALL_FONT);
+        uploadPhotoBtn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         uploadPhotoBtn.setBackground(Color.WHITE);
         uploadPhotoBtn.setForeground(PRIMARY_GREEN);
         uploadPhotoBtn.setBorder(BorderFactory.createLineBorder(PRIMARY_GREEN));
@@ -718,14 +276,14 @@ public class DeliveryPage extends JPanel {
         uploadPhotoBtn.addActionListener(e -> selectPhotoFromFile());
         
         photoFileNameLabel = new JLabel("No file selected");
-        photoFileNameLabel.setFont(SMALL_FONT);
+        photoFileNameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         photoFileNameLabel.setForeground(TEXT_GRAY);
         
         JButton removePhotoBtn = new JButton("Remove");
-        removePhotoBtn.setFont(SMALL_FONT);
+        removePhotoBtn.setFont(new Font("Segoe UI", Font.BOLD, 10));
         removePhotoBtn.setBackground(Color.WHITE);
-        removePhotoBtn.setForeground(DANGER);
-        removePhotoBtn.setBorder(BorderFactory.createLineBorder(DANGER));
+        removePhotoBtn.setForeground(Color.RED);
+        removePhotoBtn.setBorder(BorderFactory.createLineBorder(Color.RED));
         removePhotoBtn.setPreferredSize(new Dimension(70, 22));
         removePhotoBtn.addActionListener(e -> removePhoto());
         
@@ -742,13 +300,13 @@ public class DeliveryPage extends JPanel {
         gbc.weightx = 0.2;
         gbc.anchor = GridBagConstraints.NORTH;
         JLabel remarksLabel = new JLabel("Remarks:");
-        remarksLabel.setFont(HEADER_FONT);
+        remarksLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         fieldsPanel.add(remarksLabel, gbc);
         
         gbc.gridx = 1;
         gbc.weightx = 0.8;
         remarksArea = new JTextArea(2, 30);
-        remarksArea.setFont(REGULAR_FONT);
+        remarksArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         remarksArea.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
             BorderFactory.createEmptyBorder(5, 8, 5, 8)
@@ -766,7 +324,7 @@ public class DeliveryPage extends JPanel {
         buttonPanel.setBackground(Color.WHITE);
         
         JButton clearBtn = new JButton("Clear");
-        clearBtn.setFont(BUTTON_FONT);
+        clearBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         clearBtn.setBackground(Color.WHITE);
         clearBtn.setForeground(TEXT_GRAY);
         clearBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
@@ -774,7 +332,7 @@ public class DeliveryPage extends JPanel {
         clearBtn.addActionListener(e -> clearUpdateForm());
         
         JButton updateBtn = new JButton("Update Status");
-        updateBtn.setFont(BUTTON_FONT);
+        updateBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         updateBtn.setBackground(PRIMARY_GREEN);
         updateBtn.setForeground(Color.WHITE);
         updateBtn.setContentAreaFilled(true);
@@ -794,6 +352,102 @@ public class DeliveryPage extends JPanel {
         return formPanel;
     }
     
+    private JPanel createStatCard(String title, String desc, String val, Color color) {
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR, 1, true), 
+            BorderFactory.createEmptyBorder(10, 15, 10, 15)));
+        
+        JLabel tLabel = new JLabel(title);
+        tLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tLabel.setForeground(TEXT_GRAY);
+        
+        JLabel vLabel = new JLabel(val);
+        vLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        vLabel.setForeground(color);
+        
+        JLabel dLabel = new JLabel(desc);
+        dLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        dLabel.setForeground(TEXT_GRAY);
+        
+        card.add(tLabel);
+        card.add(Box.createVerticalStrut(2));
+        card.add(vLabel);
+        card.add(Box.createVerticalStrut(2));
+        card.add(dLabel);
+        
+        return card;
+    }
+    
+    private void styleCombinedTable(JTable table) {
+        table.setRowHeight(40);
+        table.setIntercellSpacing(new Dimension(8, 3));
+        table.setSelectionBackground(GREEN_LIGHT);
+        table.setSelectionForeground(Color.BLACK);
+        table.setShowGrid(true);
+        table.setGridColor(new Color(230, 230, 230));
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        
+        JTableHeader header = table.getTableHeader();
+        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        header.setBackground(Color.WHITE);
+        header.setPreferredSize(new Dimension(100, 35));
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY_GREEN));
+        
+        table.getColumnModel().getColumn(0).setPreferredWidth(80);
+        table.getColumnModel().getColumn(1).setPreferredWidth(120);
+        table.getColumnModel().getColumn(2).setPreferredWidth(100);
+        table.getColumnModel().getColumn(3).setPreferredWidth(120);
+        table.getColumnModel().getColumn(4).setPreferredWidth(120);
+        table.getColumnModel().getColumn(5).setPreferredWidth(80);
+        table.getColumnModel().getColumn(6).setPreferredWidth(100);
+        
+        // Status column renderer (只保留文字颜色)
+        table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
+                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, isS, hasF, r, c);
+                lbl.setHorizontalAlignment(SwingConstants.CENTER);
+                String val = v.toString();
+                
+                if (val.equals("Delivered")) {
+                    lbl.setForeground(new Color(46, 125, 50));
+                } else if (val.equals("Out for Delivery") || val.equals("In Transit")) {
+                    lbl.setForeground(new Color(25, 118, 210));
+                } else if (val.equals("Pending")) {
+                    lbl.setForeground(new Color(237, 108, 2));
+                } else if (val.equals("Failed Delivery")) {
+                    lbl.setForeground(new Color(198, 40, 40));
+                }
+                
+                lbl.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                return lbl;
+            }
+        });
+        
+        // Priority column renderer (只保留文字颜色)
+        table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
+                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, isS, hasF, r, c);
+                lbl.setHorizontalAlignment(SwingConstants.CENTER);
+                String val = v.toString();
+                
+                if (val.equals("Urgent")) {
+                    lbl.setForeground(new Color(198, 40, 40));
+                } else if (val.equals("High")) {
+                    lbl.setForeground(new Color(237, 108, 2));
+                } else {
+                    lbl.setForeground(new Color(46, 125, 50));
+                }
+                
+                return lbl;
+            }
+        });
+    }
+    
     private void applyFilter() {
         String text = searchTextField.getText().trim();
         int columnIndex = filterColumnCombo.getSelectedIndex();
@@ -802,6 +456,43 @@ public class DeliveryPage extends JPanel {
             rowSorter.setRowFilter(null);
         } else {
             rowSorter.setRowFilter(RowFilter.regexFilter("(?i)" + text, columnIndex));
+        }
+    }
+    
+    private class StatCardClickListener extends MouseAdapter {
+        private String filterStatus;
+        public StatCardClickListener(String status) { this.filterStatus = status; }
+        
+        @Override
+        public void mouseClicked(MouseEvent e) {
+            if (filterStatus.isEmpty()) {
+                rowSorter.setRowFilter(null);
+                filterColumnCombo.setSelectedIndex(4);
+                searchTextField.setText("");
+            } else {
+                rowSorter.setRowFilter(RowFilter.regexFilter("^" + filterStatus + "$", 4));
+                filterColumnCombo.setSelectedIndex(4);
+                searchTextField.setText(filterStatus);
+            }
+        }
+        
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            JPanel source = (JPanel)e.getSource();
+            source.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            source.setBackground(new Color(252, 252, 252));
+            source.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(PRIMARY_GREEN, 1), 
+                BorderFactory.createEmptyBorder(10, 15, 10, 15)));
+        }
+        
+        @Override
+        public void mouseExited(MouseEvent e) {
+            JPanel source = (JPanel)e.getSource();
+            source.setBackground(Color.WHITE);
+            source.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true), 
+                BorderFactory.createEmptyBorder(10, 15, 10, 15)));
         }
     }
     
@@ -859,10 +550,11 @@ public class DeliveryPage extends JPanel {
             selectedParcelLabel.setText(String.format("%s - %s (%s) [Current: %s]", 
                 parcelId, recipient, phoneNo, currentStatus));
             
-            // Suggest next status based on current status
             if (currentStatus.equals("Pending")) {
                 statusCombo.setSelectedItem("Out for Delivery");
-            } else if (currentStatus.equals("In Transit") || currentStatus.equals("Out for Delivery")) {
+            } else if (currentStatus.equals("In Transit")) {
+                statusCombo.setSelectedItem("Delivered");
+            } else if (currentStatus.equals("Out for Delivery")) {
                 statusCombo.setSelectedItem("Delivered");
             } else {
                 statusCombo.setSelectedIndex(0);
@@ -920,19 +612,8 @@ public class DeliveryPage extends JPanel {
         String parcelId = deliveryModel.getValueAt(modelRow, 0).toString();
         String oldStatus = deliveryModel.getValueAt(modelRow, 4).toString();
         
-        // Update the table
         deliveryModel.setValueAt(selectedStatus, modelRow, 4);
         deliveryModel.setValueAt(new SimpleDateFormat("hh:mm a").format(new Date()), modelRow, 6);
-        
-        // Update the Order object and save to file
-        Order updatedOrder = orderStorage.findOrder(parcelId);
-        if (updatedOrder != null) {
-            updatedOrder.status = selectedStatus;
-            if (!remarks.isEmpty()) {
-                updatedOrder.reason = remarks;
-            }
-            orderStorage.saveOrders();
-        }
         
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
         String timestamp = sdf.format(new Date());
@@ -956,32 +637,9 @@ public class DeliveryPage extends JPanel {
             "Status Updated Successfully",
             JOptionPane.INFORMATION_MESSAGE);
         
-        // Refresh stats
-        refreshStatsPanel();
-        
         deliveryTable.clearSelection();
         clearUpdateForm();
         deliveryTable.repaint();
-    }
-    
-    private void refreshStatsPanel() {
-        // Update stat values
-        int pendingCount = orderStorage.getPendingCount();
-        int inTransitCount = orderStorage.getInTransitCount();
-        int delayedCount = orderStorage.getDelayedCount();
-        int totalCount = orders.size();
-        
-        if (statValues[0] != null) statValues[0].setText(String.valueOf(pendingCount));
-        if (statValues[1] != null) statValues[1].setText(String.valueOf(inTransitCount));
-        if (statValues[2] != null) statValues[2].setText(String.valueOf(delayedCount));
-        if (statValues[3] != null) statValues[3].setText(String.valueOf(totalCount));
-        
-        Component topContainer = ((BorderLayout)getLayout()).getLayoutComponent(BorderLayout.NORTH);
-        if (topContainer instanceof JPanel) {
-            JPanel container = (JPanel) topContainer;
-            container.revalidate();
-            container.repaint();
-        }
     }
     
     private void clearUpdateForm() {
@@ -993,17 +651,6 @@ public class DeliveryPage extends JPanel {
     }
     
     public void refreshData() {
-        // Reload orders from storage
-        orderStorage = new OrderStorage();
-        orders = orderStorage.getAllOrders();
-        
-        // Update table data
-        Object[][] newData = loadDeliveryData();
-        deliveryModel.setDataVector(newData, new String[]{"Parcel ID", "Recipient", "Phone No.", "Location", "Status", "Priority", "Last Updated"});
-        
-        // Refresh stats panel
-        refreshStatsPanel();
-        
         deliveryTable.repaint();
     }
 }

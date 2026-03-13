@@ -30,11 +30,11 @@ public class DriverManagement {
     
     // References to other management modules
     private VehicleManagement vehicleManagement;
-    @SuppressWarnings("unused")
     private OrderManagement orderManagement;
     
     // Filter state
-    private String currentStatusFilter = null;
+    private String currentApprovalFilter = null;
+    private String currentWorkFilter = null;
     private int currentFilterIndex = -1;
     
     // Photo related
@@ -48,6 +48,7 @@ public class DriverManagement {
     private static final Color WARNING = new Color(255, 193, 7);
     private static final Color INFO = new Color(23, 162, 184);
     private static final Color DANGER = new Color(220, 53, 69);
+    private static final Color PURPLE = new Color(111, 66, 193);
     private static final Color BG_COLOR = new Color(248, 249, 250);
     private static final Color CARD_BG = Color.WHITE;
     private static final Color BORDER_COLOR = new Color(222, 226, 230);
@@ -57,6 +58,11 @@ public class DriverManagement {
     private static final Color HOVER_COLOR = new Color(245, 247, 250);
     private static final Color SELECTION_COLOR = new Color(232, 245, 233);
     private static final Color ACTIVE_FILTER_BORDER = PRIMARY;
+    
+    // Approval status colors
+    private static final Color APPROVED_COLOR = new Color(40, 167, 69);
+    private static final Color PENDING_COLOR = new Color(255, 193, 7);
+    private static final Color REJECTED_COLOR = new Color(220, 53, 69);
     
     // Fonts
     private static final Font TITLE_FONT = new Font("Segoe UI", Font.BOLD, 28);
@@ -99,16 +105,13 @@ public class DriverManagement {
         
         ensurePhotoDirectoryExists();
         
-        // Get file extension
         String fileName = sourceFile.getName();
         String extension = fileName.substring(fileName.lastIndexOf('.'));
         
-        // Create new filename with driver ID
         String newFileName = driverId + extension;
         File destFile = new File(PHOTO_DIR + newFileName);
         
         try {
-            // Copy file
             java.nio.file.Files.copy(sourceFile.toPath(), destFile.toPath(), 
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             return PHOTO_DIR + newFileName;
@@ -142,7 +145,6 @@ public class DriverManagement {
         BufferedImage defaultImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = defaultImg.createGraphics();
         
-        // Draw a colored circle
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setColor(PRIMARY);
         g2d.fillOval(0, 0, width, height);
@@ -167,13 +169,11 @@ public class DriverManagement {
             BorderFactory.createLineBorder(BORDER_COLOR), "Driver Photo",
             TitledBorder.LEFT, TitledBorder.TOP, HEADER_FONT, PRIMARY));
         
-        // Photo display
         JLabel photoLabel = new JLabel();
         photoLabel.setPreferredSize(new Dimension(150, 150));
         photoLabel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
         photoLabel.setHorizontalAlignment(SwingConstants.CENTER);
         
-        // Load existing photo if available
         if (existingDriver != null && existingDriver.photoPath != null) {
             photoLabel.setIcon(loadDriverPhoto(existingDriver.photoPath, 150, 150));
             currentPhotoPath = existingDriver.photoPath;
@@ -182,7 +182,6 @@ public class DriverManagement {
             photoLabel.setIcon(createDefaultPhoto(150, 150, initial));
         }
         
-        // Upload button
         JButton uploadBtn = new JButton("Upload Photo");
         uploadBtn.setFont(REGULAR_FONT);
         uploadBtn.setForeground(Color.WHITE);
@@ -201,7 +200,6 @@ public class DriverManagement {
                 String tempId = driverId != null ? driverId : "temp_" + System.currentTimeMillis();
                 currentPhotoPath = savePhoto(selectedFile, tempId);
                 
-                // Update photo display
                 ImageIcon icon = loadDriverPhoto(currentPhotoPath, 150, 150);
                 photoLabel.setIcon(icon);
             }
@@ -236,7 +234,6 @@ public class DriverManagement {
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         mainPanel.setBackground(BG_COLOR);
         
-        // Top container with header and stats
         JPanel topContainer = new JPanel(new BorderLayout(10, 10));
         topContainer.setBackground(BG_COLOR);
         topContainer.add(createHeaderPanel(), BorderLayout.NORTH);
@@ -256,7 +253,7 @@ public class DriverManagement {
         title.setFont(TITLE_FONT);
         title.setForeground(TEXT_PRIMARY);
         
-        JLabel subtitle = new JLabel("Manage drivers, assignments, and performance");
+        JLabel subtitle = new JLabel("Manage drivers, approvals, assignments, and performance");
         subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitle.setForeground(TEXT_SECONDARY);
         
@@ -271,24 +268,36 @@ public class DriverManagement {
     }
     
     private JPanel createStatsPanel() {
-        statsPanel = new JPanel(new GridLayout(1, 4, 15, 0));
+        statsPanel = new JPanel(new GridLayout(2, 5, 15, 10));
         statsPanel.setBackground(BG_COLOR);
         statsPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
-        String[] titles = {"Total Drivers", "Available", "On Delivery", "Off Duty"};
-        String[] descriptions = {"All drivers", "Ready for work", "Currently delivering", "Not working"};
-        Color[] colors = {PRIMARY, SUCCESS, INFO, TEXT_SECONDARY};
+        String[] titles = {
+            "Total Drivers", "Approved", "Pending", "Rejected",
+            "Available", "On Delivery", "Off Duty"
+        };
+        String[] descriptions = {
+            "All drivers", "Active drivers", "Awaiting approval", "Rejected applications",
+            "Ready for work", "Currently delivering", "Not working"
+        };
+        Color[] colors = {
+            PRIMARY, SUCCESS, WARNING, DANGER,
+            SUCCESS, INFO, TEXT_SECONDARY
+        };
         Color[] bgColors = {
             new Color(232, 245, 233),
+            new Color(232, 245, 233),
+            new Color(255, 243, 224),
+            new Color(255, 235, 238),
             new Color(232, 245, 233),
             new Color(227, 242, 253),
             new Color(245, 245, 245)
         };
         
-        statValues = new JLabel[4];
-        statCards = new JPanel[4];
+        statValues = new JLabel[7];
+        statCards = new JPanel[7];
         
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 7; i++) {
             JPanel card = createStatCard(titles[i], descriptions[i], "0", colors[i], bgColors[i], i);
             statCards[i] = card;
             statsPanel.add(card);
@@ -330,8 +339,8 @@ public class DriverManagement {
         
         statValues[index] = valueLabel;
         
-        // Make cards clickable (all except Total)
-        if (index > 0) {
+        // Make approval status cards clickable (index 1,2,3)
+        if (index >= 1 && index <= 3) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             final String filterStatus = title;
             final int cardIndex = index;
@@ -358,11 +367,46 @@ public class DriverManagement {
                 }
                 
                 public void mouseClicked(MouseEvent e) {
-                    applyStatusFilter(filterStatus, cardIndex, color);
+                    applyApprovalFilter(filterStatus.toUpperCase(), cardIndex, color);
                 }
             });
-        } else {
-            // Total card - clear all filters
+        }
+        
+        // Make work status cards clickable (index 4,5,6)
+        if (index >= 4 && index <= 6) {
+            card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            final String filterStatus = title;
+            final int cardIndex = index;
+            
+            card.addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) {
+                    if (currentFilterIndex != cardIndex) {
+                        card.setBackground(bgColor);
+                        card.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(color, 1, true),
+                            BorderFactory.createEmptyBorder(7, 11, 7, 11)
+                        ));
+                    }
+                }
+                
+                public void mouseExited(MouseEvent e) {
+                    if (currentFilterIndex != cardIndex) {
+                        card.setBackground(CARD_BG);
+                        card.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(BORDER_COLOR, 1, true),
+                            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+                        ));
+                    }
+                }
+                
+                public void mouseClicked(MouseEvent e) {
+                    applyWorkFilter(filterStatus, cardIndex, color);
+                }
+            });
+        }
+        
+        // Total card - clear filters
+        if (index == 0) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             card.addMouseListener(new MouseAdapter() {
                 public void mouseEntered(MouseEvent e) {
@@ -392,20 +436,46 @@ public class DriverManagement {
         }
     }
     
-    private void applyStatusFilter(String status, int cardIndex, Color color) {
+    private void applyApprovalFilter(String status, int cardIndex, Color color) {
         resetCardBorders();
         
         if (currentFilterIndex == cardIndex) {
-            // Clicking the same card again - clear filter
-            currentStatusFilter = null;
+            // Clear filter
+            currentApprovalFilter = null;
+            currentWorkFilter = null;
             currentFilterIndex = -1;
             applyFilters();
         } else {
             // Apply new filter
-            currentStatusFilter = status;
+            currentApprovalFilter = status;
+            currentWorkFilter = null;
             currentFilterIndex = cardIndex;
             
-            // Highlight selected card
+            statCards[cardIndex].setBorder(BorderFactory.createCompoundBorder(
+                new LineBorder(ACTIVE_FILTER_BORDER, 2, true),
+                BorderFactory.createEmptyBorder(7, 11, 7, 11)
+            ));
+            statCards[cardIndex].setBackground(color.brighter());
+            
+            applyFilters();
+        }
+    }
+    
+    private void applyWorkFilter(String status, int cardIndex, Color color) {
+        resetCardBorders();
+        
+        if (currentFilterIndex == cardIndex) {
+            // Clear filter
+            currentApprovalFilter = null;
+            currentWorkFilter = null;
+            currentFilterIndex = -1;
+            applyFilters();
+        } else {
+            // Apply new filter
+            currentApprovalFilter = null;
+            currentWorkFilter = status;
+            currentFilterIndex = cardIndex;
+            
             statCards[cardIndex].setBorder(BorderFactory.createCompoundBorder(
                 new LineBorder(ACTIVE_FILTER_BORDER, 2, true),
                 BorderFactory.createEmptyBorder(7, 11, 7, 11)
@@ -418,7 +488,8 @@ public class DriverManagement {
     
     private void clearAllFilters() {
         resetCardBorders();
-        currentStatusFilter = null;
+        currentApprovalFilter = null;
+        currentWorkFilter = null;
         currentFilterIndex = -1;
         rowSorter.setRowFilter(null);
     }
@@ -426,9 +497,14 @@ public class DriverManagement {
     private void applyFilters() {
         List<RowFilter<DefaultTableModel, Integer>> filters = new ArrayList<>();
         
-        // Add status filter
-        if (currentStatusFilter != null) {
-            String status = currentStatusFilter;
+        // Add approval status filter (column 10)
+        if (currentApprovalFilter != null) {
+            filters.add(RowFilter.regexFilter("^" + currentApprovalFilter + "$", 10));
+        }
+        
+        // Add work status filter (column 3 - original status column)
+        if (currentWorkFilter != null) {
+            String status = currentWorkFilter;
             if (status.equals("Available")) {
                 filters.add(RowFilter.regexFilter("^Available$", 3));
             } else if (status.equals("On Delivery")) {
@@ -449,7 +525,7 @@ public class DriverManagement {
         JScrollPane scrollPane = new JScrollPane(createTable());
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getViewport().setBackground(CARD_BG);
-        scrollPane.setPreferredSize(new Dimension(1000, 400));
+        scrollPane.setPreferredSize(new Dimension(1200, 400));
         
         panel.add(scrollPane, BorderLayout.CENTER);
         
@@ -457,8 +533,8 @@ public class DriverManagement {
     }
     
     private JTable createTable() {
-        String[] columns = {"ID", "Name", "Phone", "Status", "License No", "License Expiry", 
-                            "Vehicle ID", "Deliveries", "Rating", "Join Date"};
+        String[] columns = {"ID", "Name", "Phone", "Work Status", "License No", "License Expiry", 
+                            "Vehicle ID", "Deliveries", "Rating", "Join Date", "Approval Status", "Remarks"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int col) { return false; }
@@ -474,7 +550,6 @@ public class DriverManagement {
         driversTable.setIntercellSpacing(new Dimension(8, 3));
         driversTable.setFillsViewportHeight(true);
         
-        // Table header styling
         JTableHeader header = driversTable.getTableHeader();
         header.setFont(HEADER_FONT);
         header.setBackground(new Color(245, 245, 245));
@@ -482,11 +557,9 @@ public class DriverManagement {
         header.setPreferredSize(new Dimension(header.getWidth(), 35));
         header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY));
         
-        // Row sorter
         rowSorter = new TableRowSorter<>(tableModel);
         driversTable.setRowSorter(rowSorter);
         
-        // Set column widths
         driversTable.getColumnModel().getColumn(0).setPreferredWidth(70);
         driversTable.getColumnModel().getColumn(1).setPreferredWidth(150);
         driversTable.getColumnModel().getColumn(2).setPreferredWidth(100);
@@ -497,12 +570,13 @@ public class DriverManagement {
         driversTable.getColumnModel().getColumn(7).setPreferredWidth(70);
         driversTable.getColumnModel().getColumn(8).setPreferredWidth(70);
         driversTable.getColumnModel().getColumn(9).setPreferredWidth(100);
+        driversTable.getColumnModel().getColumn(10).setPreferredWidth(100);
+        driversTable.getColumnModel().getColumn(11).setPreferredWidth(150);
         
-        // Set custom renderers
-        driversTable.getColumnModel().getColumn(3).setCellRenderer(new StatusCellRenderer());
+        driversTable.getColumnModel().getColumn(3).setCellRenderer(new WorkStatusCellRenderer());
         driversTable.getColumnModel().getColumn(8).setCellRenderer(new RatingCellRenderer());
+        driversTable.getColumnModel().getColumn(10).setCellRenderer(new ApprovalStatusCellRenderer());
         
-        // Double-click listener
         driversTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -517,7 +591,7 @@ public class DriverManagement {
         return driversTable;
     }
     
-    private class StatusCellRenderer extends DefaultTableCellRenderer {
+    private class WorkStatusCellRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
@@ -546,6 +620,40 @@ public class DriverManagement {
                     case "On Leave":
                         label.setForeground(WARNING);
                         label.setText("✗ " + status);
+                        break;
+                }
+            }
+            
+            label.setFont(new Font("Segoe UI", Font.BOLD, 11));
+            return label;
+        }
+    }
+    
+    private class ApprovalStatusCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            
+            JLabel label = (JLabel) super.getTableCellRendererComponent(
+                table, value, isSelected, hasFocus, row, column);
+            
+            label.setHorizontalAlignment(SwingConstants.CENTER);
+            
+            if (!isSelected && value != null) {
+                String status = value.toString();
+                
+                switch (status) {
+                    case "APPROVED":
+                        label.setForeground(APPROVED_COLOR);
+                        label.setText("✓ APPROVED");
+                        break;
+                    case "PENDING":
+                        label.setForeground(PENDING_COLOR);
+                        label.setText("⏳ PENDING");
+                        break;
+                    case "REJECTED":
+                        label.setForeground(REJECTED_COLOR);
+                        label.setText("✗ REJECTED");
                         break;
                 }
             }
@@ -612,6 +720,22 @@ public class DriverManagement {
         scheduleBtn.addActionListener(e -> scheduleDriver());
         panel.add(scheduleBtn);
         
+        // Approval buttons
+        panel.add(Box.createHorizontalStrut(20));
+        
+        JLabel approvalLabel = new JLabel("Approval Actions:");
+        approvalLabel.setFont(HEADER_FONT);
+        approvalLabel.setForeground(TEXT_PRIMARY);
+        panel.add(approvalLabel);
+        
+        JButton approveBtn = createButton("Approve", SUCCESS, new Color(30, 126, 52));
+        approveBtn.addActionListener(e -> approveDriver());
+        panel.add(approveBtn);
+        
+        JButton rejectBtn = createButton("Reject", DANGER, new Color(176, 42, 55));
+        rejectBtn.addActionListener(e -> rejectDriver());
+        panel.add(rejectBtn);
+        
         return panel;
     }
     
@@ -637,6 +761,86 @@ public class DriverManagement {
         return btn;
     }
     
+    // ==================== APPROVAL METHODS ====================
+    
+    private void approveDriver() {
+        int row = driversTable.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(mainPanel, "Please select a driver to approve", 
+                "No Selection", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int modelRow = driversTable.convertRowIndexToModel(row);
+        String id = (String) tableModel.getValueAt(modelRow, 0);
+        String name = (String) tableModel.getValueAt(modelRow, 1);
+        String currentApproval = (String) tableModel.getValueAt(modelRow, 10);
+        
+        if ("APPROVED".equals(currentApproval)) {
+            JOptionPane.showMessageDialog(mainPanel, "Driver is already approved!", 
+                "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        
+        int confirm = JOptionPane.showConfirmDialog(mainPanel,
+            "Approve driver " + name + " (" + id + ")?\n\nThey will be able to login and start working.",
+            "Confirm Approval",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            storage.approveDriver(id);
+            refreshTable();
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Driver " + name + " approved successfully!",
+                "Success", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+    
+    private void rejectDriver() {
+        int row = driversTable.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(mainPanel, "Please select a driver to reject", 
+                "No Selection", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int modelRow = driversTable.convertRowIndexToModel(row);
+        String id = (String) tableModel.getValueAt(modelRow, 0);
+        String name = (String) tableModel.getValueAt(modelRow, 1);
+        String currentApproval = (String) tableModel.getValueAt(modelRow, 10);
+        
+        if ("REJECTED".equals(currentApproval)) {
+            JOptionPane.showMessageDialog(mainPanel, "Driver is already rejected!", 
+                "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        
+        String reason = JOptionPane.showInputDialog(mainPanel, 
+            "Enter rejection reason for " + name + ":", 
+            "Reject Driver", JOptionPane.PLAIN_MESSAGE);
+        
+        if (reason != null && !reason.trim().isEmpty()) {
+            int confirm = JOptionPane.showConfirmDialog(mainPanel,
+                "Reject driver " + name + "?\nReason: " + reason,
+                "Confirm Rejection",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                storage.rejectDriver(id, reason);
+                refreshTable();
+                JOptionPane.showMessageDialog(mainPanel, 
+                    "Driver " + name + " rejected.\nReason: " + reason,
+                    "Success", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } else if (reason != null) {
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Please enter a rejection reason.", 
+                "Input Required", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+    
     private void showDriverDetails() {
         int row = driversTable.getSelectedRow();
         if (row < 0) {
@@ -652,27 +856,24 @@ public class DriverManagement {
         
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
                                       "Driver Details - " + driver.name, true);
-        dialog.setSize(700, 650);
+        dialog.setSize(700, 700);
         dialog.setLocationRelativeTo(mainPanel);
         
         JPanel panel = new JPanel(new BorderLayout(15, 15));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.setBackground(CARD_BG);
         
-        // Header with photo
         JPanel headerPanel = new JPanel(new BorderLayout(15, 0));
         headerPanel.setBackground(CARD_BG);
         
-        // Photo panel
         JPanel photoPanel = new JPanel();
         photoPanel.setBackground(CARD_BG);
         photoPanel.setPreferredSize(new Dimension(100, 100));
-        photoPanel.setBorder(BorderFactory.createLineBorder(PRIMARY, 2));
+        photoPanel.setBorder(BorderFactory.createLineBorder(getApprovalColor(driver.approvalStatus), 2));
         
         JLabel detailPhotoLabel = new JLabel();
         detailPhotoLabel.setPreferredSize(new Dimension(96, 96));
         
-        // Load driver photo
         if (driver.photoPath != null) {
             detailPhotoLabel.setIcon(loadDriverPhoto(driver.photoPath, 96, 96));
         } else {
@@ -681,29 +882,32 @@ public class DriverManagement {
         
         photoPanel.add(detailPhotoLabel);
         
-        JPanel titlePanel = new JPanel(new GridLayout(2, 1));
+        JPanel titlePanel = new JPanel(new GridLayout(3, 1));
         titlePanel.setBackground(CARD_BG);
         
         JLabel nameLabel = new JLabel(driver.name);
         nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         nameLabel.setForeground(PRIMARY);
         
-        JLabel idLabel = new JLabel(driver.id + " • " + driver.status);
+        JLabel idLabel = new JLabel(driver.id + " • " + driver.workStatus);
         idLabel.setFont(REGULAR_FONT);
         idLabel.setForeground(TEXT_SECONDARY);
         
+        JLabel approvalLabel = new JLabel("Approval: " + driver.approvalStatus);
+        approvalLabel.setFont(HEADER_FONT);
+        approvalLabel.setForeground(getApprovalColor(driver.approvalStatus));
+        
         titlePanel.add(nameLabel);
         titlePanel.add(idLabel);
+        titlePanel.add(approvalLabel);
         
         headerPanel.add(photoPanel, BorderLayout.WEST);
         headerPanel.add(titlePanel, BorderLayout.CENTER);
         
-        // Details panel
         JPanel detailsPanel = new JPanel();
         detailsPanel.setLayout(new BoxLayout(detailsPanel, BoxLayout.Y_AXIS));
         detailsPanel.setBackground(CARD_BG);
         
-        // Contact Information
         detailsPanel.add(createDetailSection("Contact Information", new String[]{
             "Phone: " + driver.phone,
             "Email: " + (driver.email != null ? driver.email : "-"),
@@ -714,24 +918,29 @@ public class DriverManagement {
         
         detailsPanel.add(Box.createVerticalStrut(10));
         
-        // License Information
         detailsPanel.add(createDetailSection("License Information", new String[]{
             "License Number: " + driver.licenseNumber,
+            "License Type: " + (driver.licenseType != null ? driver.licenseType : "-"),
             "Expiry Date: " + driver.licenseExpiry,
-            "Status: " + (isLicenseExpiring(driver.licenseExpiry) ? "⚠️ Expiring Soon" : "Valid")
+            "Status: " + (isLicenseExpiring(driver.licenseExpiry) ? "⚠️ Expiring Soon" : "Valid"),
+            "IC Number: " + (driver.icNumber != null ? driver.icNumber : "-")
         }));
         
         detailsPanel.add(Box.createVerticalStrut(10));
         
-        // Assignment Information
-        List<String> assignmentInfo = new ArrayList<>();
-        assignmentInfo.add("Vehicle: " + (driver.vehicleId != null ? driver.vehicleId : "Not Assigned"));
-        assignmentInfo.add("Join Date: " + driver.joinDate);
-        assignmentInfo.add("Total Deliveries: " + driver.totalDeliveries);
-        assignmentInfo.add("Rating: " + driver.getFormattedRating());
+        detailsPanel.add(createDetailSection("Assignment Information", new String[]{
+            "Vehicle: " + (driver.vehicleId != null ? driver.vehicleId : "Not Assigned"),
+            "Join Date: " + driver.joinDate,
+            "Total Deliveries: " + driver.totalDeliveries,
+            "Rating: " + driver.getFormattedRating()
+        }));
         
-        detailsPanel.add(createDetailSection("Assignment Information", 
-            assignmentInfo.toArray(new String[0])));
+        detailsPanel.add(Box.createVerticalStrut(10));
+        
+        detailsPanel.add(createDetailSection("Approval Information", new String[]{
+            "Approval Status: " + driver.approvalStatus,
+            "Remarks: " + (driver.remarks != null ? driver.remarks : "No remarks")
+        }));
         
         if (driver.notes != null && !driver.notes.isEmpty()) {
             detailsPanel.add(Box.createVerticalStrut(10));
@@ -741,9 +950,45 @@ public class DriverManagement {
         JScrollPane scrollPane = new JScrollPane(detailsPanel);
         scrollPane.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
         
-        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(CARD_BG);
+        
+        if ("PENDING".equals(driver.approvalStatus)) {
+            JButton approveBtn = new JButton("Approve");
+            approveBtn.setFont(BUTTON_FONT);
+            approveBtn.setForeground(Color.WHITE);
+            approveBtn.setBackground(SUCCESS);
+            approveBtn.setBorderPainted(false);
+            approveBtn.setPreferredSize(new Dimension(100, 32));
+            approveBtn.addActionListener(e -> {
+                storage.approveDriver(driver.id);
+                dialog.dispose();
+                refreshTable();
+                JOptionPane.showMessageDialog(mainPanel, 
+                    "Driver " + driver.name + " approved successfully!",
+                    "Success", JOptionPane.INFORMATION_MESSAGE);
+            });
+            buttonPanel.add(approveBtn);
+            
+            JButton rejectBtn = new JButton("Reject");
+            rejectBtn.setFont(BUTTON_FONT);
+            rejectBtn.setForeground(Color.WHITE);
+            rejectBtn.setBackground(DANGER);
+            rejectBtn.setBorderPainted(false);
+            rejectBtn.setPreferredSize(new Dimension(100, 32));
+            rejectBtn.addActionListener(e -> {
+                String reason = JOptionPane.showInputDialog(dialog, "Rejection reason:");
+                if (reason != null) {
+                    storage.rejectDriver(driver.id, reason);
+                    dialog.dispose();
+                    refreshTable();
+                    JOptionPane.showMessageDialog(mainPanel, 
+                        "Driver " + driver.name + " rejected.",
+                        "Success", JOptionPane.INFORMATION_MESSAGE);
+                }
+            });
+            buttonPanel.add(rejectBtn);
+        }
         
         JButton closeBtn = new JButton("Close");
         closeBtn.setFont(BUTTON_FONT);
@@ -760,6 +1005,13 @@ public class DriverManagement {
         
         dialog.add(panel);
         dialog.setVisible(true);
+    }
+    
+    private Color getApprovalColor(String status) {
+        if ("APPROVED".equals(status)) return APPROVED_COLOR;
+        if ("PENDING".equals(status)) return PENDING_COLOR;
+        if ("REJECTED".equals(status)) return REJECTED_COLOR;
+        return TEXT_SECONDARY;
     }
     
     private boolean isLicenseExpiring(String expiryDate) {
@@ -817,14 +1069,12 @@ public class DriverManagement {
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(PRIMARY);
         
-        // Main content panel with form and photo
         JPanel contentPanel = new JPanel(new GridBagLayout());
         contentPanel.setBackground(CARD_BG);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.BOTH;
         gbc.insets = new Insets(5, 10, 5, 10);
         
-        // Form panel (left side)
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(CARD_BG);
         GridBagConstraints fGbc = new GridBagConstraints();
@@ -832,11 +1082,10 @@ public class DriverManagement {
         fGbc.insets = new Insets(5, 10, 5, 10);
         
         String[] labels = {"Full Name:*", "Phone:*", "Email:", "License Number:*", 
-                          "License Expiry:* (YYYY-MM-DD)", "Emergency Contact:", 
-                          "Emergency Phone:", "Address:"};
+                          "License Expiry:* (YYYY-MM-DD)", "License Type:", "IC Number:", 
+                          "Emergency Contact:", "Emergency Phone:", "Address:"};
         
-        // Create arrays to store components
-        JTextField[] textFields = new JTextField[7];
+        JTextField[] textFields = new JTextField[9];
         JScrollPane addressScrollPane = null;
         
         for (int i = 0; i < labels.length; i++) {
@@ -863,7 +1112,7 @@ public class DriverManagement {
                 addressScrollPane.setPreferredSize(new Dimension(250, 60));
                 formPanel.add(addressScrollPane, fGbc);
             } else {
-                if (i < 7) {
+                if (i < 9) {
                     textFields[i] = new JTextField(20);
                     textFields[i].setFont(REGULAR_FONT);
                     textFields[i].setBorder(BorderFactory.createCompoundBorder(
@@ -875,11 +1124,11 @@ public class DriverManagement {
             }
         }
         
-        // Status selection
+        // Work Status selection
         fGbc.gridx = 0;
         fGbc.gridy = labels.length;
         fGbc.weightx = 0.3;
-        JLabel statusLabel = new JLabel("Initial Status:");
+        JLabel statusLabel = new JLabel("Initial Work Status:");
         statusLabel.setFont(HEADER_FONT);
         formPanel.add(statusLabel, fGbc);
         
@@ -890,7 +1139,22 @@ public class DriverManagement {
         statusCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
         formPanel.add(statusCombo, fGbc);
         
-        // Add form panel to left
+        // Approval Status - default to APPROVED for admin-added drivers
+        fGbc.gridx = 0;
+        fGbc.gridy = labels.length + 1;
+        fGbc.weightx = 0.3;
+        JLabel approvalLabel = new JLabel("Approval Status:");
+        approvalLabel.setFont(HEADER_FONT);
+        formPanel.add(approvalLabel, fGbc);
+        
+        fGbc.gridx = 1;
+        fGbc.weightx = 0.7;
+        JComboBox<String> approvalCombo = new JComboBox<>(new String[]{"APPROVED", "PENDING", "REJECTED"});
+        approvalCombo.setSelectedItem("APPROVED");
+        approvalCombo.setFont(REGULAR_FONT);
+        approvalCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        formPanel.add(approvalCombo, fGbc);
+        
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.6;
@@ -898,18 +1162,15 @@ public class DriverManagement {
         gbc.anchor = GridBagConstraints.NORTHWEST;
         contentPanel.add(new JScrollPane(formPanel), gbc);
         
-        // Photo upload panel (right side)
         gbc.gridx = 1;
         gbc.weightx = 0.4;
         gbc.weighty = 1.0;
         gbc.anchor = GridBagConstraints.NORTH;
         
-        // Generate temporary ID for photo
         String tempId = "temp_" + System.currentTimeMillis();
         JPanel photoPanel = createPhotoUploadPanel(tempId, null);
         contentPanel.add(photoPanel, gbc);
         
-        // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(CARD_BG);
         
@@ -933,11 +1194,12 @@ public class DriverManagement {
         
         final JTextField[] finalTextFields = textFields;
         final JComboBox<String> finalStatusCombo = statusCombo;
+        final JComboBox<String> finalApprovalCombo = approvalCombo;
         final JScrollPane finalAddressScrollPane = addressScrollPane;
         
         saveBtn.addActionListener(e -> {
             if (validateAndSaveDriverWithPhoto(dialog, finalTextFields, finalStatusCombo, 
-                                               finalAddressScrollPane, tempId)) {
+                                               finalApprovalCombo, finalAddressScrollPane, tempId)) {
                 dialog.dispose();
             }
         });
@@ -954,11 +1216,11 @@ public class DriverManagement {
     }
     
     private boolean validateAndSaveDriverWithPhoto(JDialog dialog, JTextField[] textFields, 
-                                                  JComboBox<String> statusCombo, 
+                                                  JComboBox<String> statusCombo,
+                                                  JComboBox<String> approvalCombo,
                                                   JScrollPane addressScrollPane,
                                                   String tempId) {
         try {
-            // Validate required fields
             if (textFields[0].getText().trim().isEmpty() || 
                 textFields[1].getText().trim().isEmpty() || 
                 textFields[3].getText().trim().isEmpty() || 
@@ -970,14 +1232,12 @@ public class DriverManagement {
                 return false;
             }
             
-            // Get address from text area
             String address = "";
             if (addressScrollPane != null) {
                 JTextArea addressArea = (JTextArea) addressScrollPane.getViewport().getView();
                 address = addressArea.getText().trim();
             }
             
-            // Create new driver
             String driverId = storage.generateNewId();
             Driver driver = new Driver(
                 driverId,
@@ -988,22 +1248,26 @@ public class DriverManagement {
                 textFields[4].getText().trim()
             );
             
-            // Set optional fields
             if (textFields.length > 5 && textFields[5] != null && !textFields[5].getText().trim().isEmpty()) {
-                driver.emergencyContact = textFields[5].getText().trim();
+                driver.licenseType = textFields[5].getText().trim();
             }
             if (textFields.length > 6 && textFields[6] != null && !textFields[6].getText().trim().isEmpty()) {
-                driver.emergencyPhone = textFields[6].getText().trim();
+                driver.icNumber = textFields[6].getText().trim();
+            }
+            if (textFields.length > 7 && textFields[7] != null && !textFields[7].getText().trim().isEmpty()) {
+                driver.emergencyContact = textFields[7].getText().trim();
+            }
+            if (textFields.length > 8 && textFields[8] != null && !textFields[8].getText().trim().isEmpty()) {
+                driver.emergencyPhone = textFields[8].getText().trim();
             }
             if (!address.isEmpty()) {
                 driver.address = address;
             }
             
-            driver.status = (String) statusCombo.getSelectedItem();
+            driver.workStatus = (String) statusCombo.getSelectedItem();
+            driver.approvalStatus = (String) approvalCombo.getSelectedItem();
             
-            // Handle photo
             if (currentPhotoPath != null && currentPhotoPath.contains("temp_")) {
-                // Rename the temp file to actual driver ID
                 File tempFile = new File(currentPhotoPath);
                 String extension = currentPhotoPath.substring(currentPhotoPath.lastIndexOf('.'));
                 String newPath = PHOTO_DIR + driverId + extension;
@@ -1016,11 +1280,14 @@ public class DriverManagement {
                 driver.photoPath = currentPhotoPath;
             }
             
+            // Generate a default password for admin-added drivers
+            driver.passwordHash = hashPassword("driver" + driverId.toLowerCase());
+            
             storage.addDriver(driver);
             refreshTable();
             
             JOptionPane.showMessageDialog(dialog, 
-                "Driver added successfully!\nID: " + driverId, 
+                "Driver added successfully!\nID: " + driverId + "\nDefault password: driver" + driverId.toLowerCase(), 
                 "Success", JOptionPane.INFORMATION_MESSAGE);
             
             currentPhotoPath = null;
@@ -1032,6 +1299,22 @@ public class DriverManagement {
                 "Error adding driver: " + e.getMessage(), 
                 "Error", JOptionPane.ERROR_MESSAGE);
             return false;
+        }
+    }
+    
+    private String hashPassword(String password) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(password.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            return password;
         }
     }
     
@@ -1050,7 +1333,7 @@ public class DriverManagement {
         
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
                                       "Edit Driver - " + driver.name, true);
-        dialog.setSize(850, 700);
+        dialog.setSize(850, 750);
         dialog.setLocationRelativeTo(mainPanel);
         
         JPanel panel = new JPanel(new BorderLayout(10, 10));
@@ -1061,14 +1344,12 @@ public class DriverManagement {
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(PRIMARY);
         
-        // Main content panel
         JPanel contentPanel = new JPanel(new GridBagLayout());
         contentPanel.setBackground(CARD_BG);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.BOTH;
         gbc.insets = new Insets(5, 10, 5, 10);
         
-        // Form panel
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(CARD_BG);
         GridBagConstraints fGbc = new GridBagConstraints();
@@ -1076,18 +1357,25 @@ public class DriverManagement {
         fGbc.insets = new Insets(5, 10, 5, 10);
         
         String[] labels = {"Name:*", "Phone:*", "Email:", "License Number:*", 
-                          "License Expiry:*", "Status:", "Vehicle ID:", 
-                          "Emergency Contact:", "Emergency Phone:", "Address:", "Notes:"};
+                          "License Expiry:*", "License Type:", "IC Number:",
+                          "Work Status:", "Approval Status:", "Vehicle ID:", 
+                          "Emergency Contact:", "Emergency Phone:", "Address:", "Notes:", "Remarks:"};
         
         JTextField nameField = new JTextField(driver.name, 20);
         JTextField phoneField = new JTextField(driver.phone, 20);
         JTextField emailField = new JTextField(driver.email != null ? driver.email : "", 20);
         JTextField licenseField = new JTextField(driver.licenseNumber, 20);
         JTextField expiryField = new JTextField(driver.licenseExpiry, 20);
+        JTextField licenseTypeField = new JTextField(driver.licenseType != null ? driver.licenseType : "", 20);
+        JTextField icField = new JTextField(driver.icNumber != null ? driver.icNumber : "", 20);
         
-        JComboBox<String> statusCombo = new JComboBox<>(
+        JComboBox<String> workStatusCombo = new JComboBox<>(
             new String[]{"Available", "On Delivery", "Off Duty", "On Leave"});
-        statusCombo.setSelectedItem(driver.status);
+        workStatusCombo.setSelectedItem(driver.workStatus);
+        
+        JComboBox<String> approvalStatusCombo = new JComboBox<>(
+            new String[]{"PENDING", "APPROVED", "REJECTED"});
+        approvalStatusCombo.setSelectedItem(driver.approvalStatus);
         
         JTextField vehicleField = new JTextField(driver.vehicleId != null ? driver.vehicleId : "", 20);
         JTextField emergencyContactField = new JTextField(
@@ -1107,10 +1395,18 @@ public class DriverManagement {
         JScrollPane notesScroll = new JScrollPane(notesArea);
         notesScroll.setPreferredSize(new Dimension(250, 60));
         
-        JComponent[] fields = {nameField, phoneField, emailField, licenseField, 
-                               expiryField, statusCombo, vehicleField, 
-                               emergencyContactField, emergencyPhoneField, 
-                               addressScroll, notesScroll};
+        JTextArea remarksArea = new JTextArea(driver.remarks != null ? driver.remarks : "", 2, 20);
+        remarksArea.setLineWrap(true);
+        remarksArea.setWrapStyleWord(true);
+        JScrollPane remarksScroll = new JScrollPane(remarksArea);
+        remarksScroll.setPreferredSize(new Dimension(250, 40));
+        
+        JComponent[] fields = {
+            nameField, phoneField, emailField, licenseField, expiryField,
+            licenseTypeField, icField, workStatusCombo, approvalStatusCombo,
+            vehicleField, emergencyContactField, emergencyPhoneField,
+            addressScroll, notesScroll, remarksScroll
+        };
         
         for (int i = 0; i < labels.length; i++) {
             fGbc.gridx = 0;
@@ -1125,7 +1421,6 @@ public class DriverManagement {
             formPanel.add(fields[i], fGbc);
         }
         
-        // Add form panel to left
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.6;
@@ -1133,7 +1428,6 @@ public class DriverManagement {
         gbc.anchor = GridBagConstraints.NORTHWEST;
         contentPanel.add(new JScrollPane(formPanel), gbc);
         
-        // Photo upload panel
         gbc.gridx = 1;
         gbc.weightx = 0.4;
         gbc.weighty = 1.0;
@@ -1142,7 +1436,6 @@ public class DriverManagement {
         JPanel photoPanel = createPhotoUploadPanel(driver.id, driver);
         contentPanel.add(photoPanel, gbc);
         
-        // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(CARD_BG);
         
@@ -1172,22 +1465,23 @@ public class DriverManagement {
             driver.email = emailField.getText().trim().isEmpty() ? null : emailField.getText().trim();
             driver.licenseNumber = licenseField.getText().trim();
             driver.licenseExpiry = expiryField.getText().trim();
-            driver.status = (String) statusCombo.getSelectedItem();
+            driver.licenseType = licenseTypeField.getText().trim().isEmpty() ? null : licenseTypeField.getText().trim();
+            driver.icNumber = icField.getText().trim().isEmpty() ? null : icField.getText().trim();
+            driver.workStatus = (String) workStatusCombo.getSelectedItem();
+            driver.approvalStatus = (String) approvalStatusCombo.getSelectedItem();
             driver.vehicleId = vehicleField.getText().trim().isEmpty() ? null : vehicleField.getText().trim();
             driver.emergencyContact = emergencyContactField.getText().trim().isEmpty() ? null : emergencyContactField.getText().trim();
             driver.emergencyPhone = emergencyPhoneField.getText().trim().isEmpty() ? null : emergencyPhoneField.getText().trim();
             driver.address = addressArea.getText().trim().isEmpty() ? null : addressArea.getText().trim();
             driver.notes = notesArea.getText().trim().isEmpty() ? null : notesArea.getText().trim();
+            driver.remarks = remarksArea.getText().trim().isEmpty() ? null : remarksArea.getText().trim();
             driver.photoPath = currentPhotoPath;
             
-            // Update vehicle assignment in VehicleManagement
             if (vehicleManagement != null) {
                 if (oldVehicleId != null && !oldVehicleId.equals(driver.vehicleId)) {
-                    // Unassign from old vehicle
                     vehicleManagement.assignDriverToVehicle(null, oldVehicleId);
                 }
                 if (driver.vehicleId != null && !driver.vehicleId.equals(oldVehicleId)) {
-                    // Assign to new vehicle
                     vehicleManagement.assignDriverToVehicle(driver.name, driver.vehicleId);
                 }
             }
@@ -1221,15 +1515,20 @@ public class DriverManagement {
         int modelRow = driversTable.convertRowIndexToModel(row);
         String id = (String) tableModel.getValueAt(modelRow, 0);
         String name = (String) tableModel.getValueAt(modelRow, 1);
+        String approval = (String) tableModel.getValueAt(modelRow, 10);
+        
+        String warning = "Are you sure you want to delete driver " + name + " (" + id + ")?";
+        if ("APPROVED".equals(approval)) {
+            warning = "WARNING: This driver is APPROVED and may have active deliveries.\n\n" + warning;
+        }
         
         int confirm = JOptionPane.showConfirmDialog(mainPanel,
-            "Are you sure you want to delete driver " + name + " (" + id + ")?",
+            warning,
             "Confirm Delete",
             JOptionPane.YES_NO_OPTION,
             JOptionPane.WARNING_MESSAGE);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            // Delete photo file if exists
             Driver driver = storage.findDriver(id);
             if (driver != null && driver.photoPath != null) {
                 File photoFile = new File(driver.photoPath);
@@ -1238,8 +1537,7 @@ public class DriverManagement {
                 }
             }
             
-            // Unassign from vehicle if assigned
-            if (vehicleManagement != null && driver.vehicleId != null) {
+            if (vehicleManagement != null && driver != null && driver.vehicleId != null) {
                 vehicleManagement.assignDriverToVehicle(null, driver.vehicleId);
             }
             
@@ -1260,6 +1558,15 @@ public class DriverManagement {
         
         int modelRow = driversTable.convertRowIndexToModel(row);
         String id = (String) tableModel.getValueAt(modelRow, 0);
+        String approval = (String) tableModel.getValueAt(modelRow, 10);
+        
+        if (!"APPROVED".equals(approval)) {
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Only approved drivers can be assigned vehicles.", 
+                "Driver Not Approved", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
         Driver driver = storage.findDriver(id);
         if (driver == null) return;
         
@@ -1271,7 +1578,6 @@ public class DriverManagement {
             String oldVehicleId = driver.vehicleId;
             driver.vehicleId = vehicleId.trim().isEmpty() ? null : vehicleId.trim();
             
-            // Update vehicle assignment in VehicleManagement
             if (vehicleManagement != null) {
                 if (oldVehicleId != null && !oldVehicleId.equals(driver.vehicleId)) {
                     vehicleManagement.assignDriverToVehicle(null, oldVehicleId);
@@ -1301,7 +1607,16 @@ public class DriverManagement {
         }
         
         int modelRow = driversTable.convertRowIndexToModel(row);
+        String id = (String) tableModel.getValueAt(modelRow, 0);
         String name = (String) tableModel.getValueAt(modelRow, 1);
+        String approval = (String) tableModel.getValueAt(modelRow, 10);
+        
+        if (!"APPROVED".equals(approval)) {
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Only approved drivers can be scheduled.", 
+                "Driver Not Approved", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         
         String[] options = {"Morning Shift (6AM-2PM)", "Afternoon Shift (2PM-10PM)", 
                            "Night Shift (10PM-6AM)", "Day Off", "On Leave"};
@@ -1315,6 +1630,18 @@ public class DriverManagement {
             options[0]);
         
         if (shift != null) {
+            // Update work status based on schedule
+            Driver driver = storage.findDriver(id);
+            if (driver != null) {
+                if (shift.contains("Day Off") || shift.contains("On Leave")) {
+                    driver.workStatus = shift.contains("Day Off") ? "Off Duty" : "On Leave";
+                } else {
+                    driver.workStatus = "Available";
+                }
+                storage.updateDriver(driver);
+                refreshTable();
+            }
+            
             JOptionPane.showMessageDialog(mainPanel,
                 name + " scheduled for: " + shift,
                 "Schedule Updated",
@@ -1329,13 +1656,15 @@ public class DriverManagement {
                 d.id,
                 d.name,
                 d.phone,
-                d.status,
+                d.workStatus,
                 d.licenseNumber,
                 d.licenseExpiry,
                 d.vehicleId != null ? d.vehicleId : "-",
                 d.totalDeliveries,
                 d.rating,
-                d.joinDate
+                d.joinDate,
+                d.approvalStatus != null ? d.approvalStatus : "PENDING",
+                d.remarks != null ? d.remarks : "-"
             });
         }
         
@@ -1345,14 +1674,20 @@ public class DriverManagement {
     private void updateStats() {
         SwingUtilities.invokeLater(() -> {
             int total = storage.getTotalCount();
+            int approved = storage.getApprovedCount();
+            int pending = storage.getPendingCount();
+            int rejected = storage.getRejectedCount();
             int available = storage.getAvailableCount();
             int onDelivery = storage.getOnDeliveryCount();
             int offDuty = storage.getOffDutyCount();
             
             if (statValues[0] != null) statValues[0].setText(String.valueOf(total));
-            if (statValues[1] != null) statValues[1].setText(String.valueOf(available));
-            if (statValues[2] != null) statValues[2].setText(String.valueOf(onDelivery));
-            if (statValues[3] != null) statValues[3].setText(String.valueOf(offDuty));
+            if (statValues[1] != null) statValues[1].setText(String.valueOf(approved));
+            if (statValues[2] != null) statValues[2].setText(String.valueOf(pending));
+            if (statValues[3] != null) statValues[3].setText(String.valueOf(rejected));
+            if (statValues[4] != null) statValues[4].setText(String.valueOf(available));
+            if (statValues[5] != null) statValues[5].setText(String.valueOf(onDelivery));
+            if (statValues[6] != null) statValues[6].setText(String.valueOf(offDuty));
             
             statsPanel.revalidate();
             statsPanel.repaint();
@@ -1380,6 +1715,18 @@ public class DriverManagement {
         return storage.getTotalCount();
     }
     
+    public int getApprovedCount() {
+        return storage.getApprovedCount();
+    }
+    
+    public int getPendingCount() {
+        return storage.getPendingCount();
+    }
+    
+    public int getRejectedCount() {
+        return storage.getRejectedCount();
+    }
+    
     public int getAvailableCount() {
         return storage.getAvailableCount();
     }
@@ -1389,7 +1736,6 @@ public class DriverManagement {
     }
     
     public int getOnDutyCount() {
-        // On Duty = Available + On Delivery
         return storage.getAvailableCount() + storage.getOnDeliveryCount();
     }
     
@@ -1397,18 +1743,8 @@ public class DriverManagement {
         return storage.getOffDutyCount();
     }
     
-    public int getPendingCount() {
-        // For compatibility with OrderManagement's method pattern
-        // Returns drivers that are available (pending assignment)
-        return storage.getAvailableCount();
-    }
-    
     // ==================== INTEGRATION METHODS ====================
     
-    /**
-     * Helper method to find driver by name (case-insensitive)
-     * This is a workaround since DriverStorage doesn't have findDriverByName
-     */
     private Driver findDriverByName(String name) {
         if (name == null) return null;
         for (Driver driver : storage.getAllDrivers()) {
@@ -1419,40 +1755,28 @@ public class DriverManagement {
         return null;
     }
     
-    /**
-     * Get driver by name (for other modules)
-     */
     public Driver getDriverByName(String name) {
         return findDriverByName(name);
     }
     
-    /**
-     * Get driver by ID (for other modules)
-     */
     public Driver getDriverById(String id) {
         return storage.findDriver(id);
     }
     
-    /**
-     * Update driver status (called by VehicleManagement) - using name
-     */
     public void updateDriverStatus(String driverName, String newStatus) {
         Driver driver = findDriverByName(driverName);
         if (driver != null) {
-            driver.status = newStatus;
+            driver.workStatus = newStatus;
             storage.updateDriver(driver);
             refreshTable();
         }
     }
     
-    /**
-     * Assign vehicle to driver (called by VehicleManagement) - using name
-     */
     public boolean assignVehicleToDriver(String driverName, String vehicleId) {
         Driver driver = findDriverByName(driverName);
-        if (driver != null) {
+        if (driver != null && "APPROVED".equals(driver.approvalStatus)) {
             driver.vehicleId = vehicleId;
-            driver.status = "Active";
+            driver.workStatus = "Active";
             storage.updateDriver(driver);
             refreshTable();
             return true;
@@ -1460,16 +1784,11 @@ public class DriverManagement {
         return false;
     }
     
-    /**
-     * Get available drivers (for order assignment)
-     */
     public List<Driver> getAvailableDrivers() {
-        List<Driver> available = new ArrayList<>();
-        for (Driver driver : storage.getAllDrivers()) {
-            if ("Available".equals(driver.status)) {
-                available.add(driver);
-            }
-        }
-        return available;
+        return storage.getAvailableDrivers();
+    }
+    
+    public List<Driver> getPendingDrivers() {
+        return storage.getPendingDrivers();
     }
 }

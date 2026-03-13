@@ -64,8 +64,11 @@ public class SenderDashboard extends JFrame {
     private int deliveredOrders = 0;
     private int pendingPayments = 0;
     private double totalSpent = 0.0;
+    
+    // Timer for auto-refresh
+    private Timer refreshTimer;
 
-    // Constructor with user data - FIXED VERSION
+    // Constructor with user data
     public SenderDashboard(String name, String email, String phone, String username) {
         this.senderName = name;
         this.senderEmail = email;
@@ -115,6 +118,7 @@ public class SenderDashboard extends JFrame {
         
         initializeStats();
         initialize();
+        startAutoRefresh();
     }
 
     private void initializeStats() {
@@ -159,7 +163,7 @@ public class SenderDashboard extends JFrame {
         if (notes != null && notes.contains("Estimated Cost:")) {
             String[] parts = notes.split("Estimated Cost: ");
             if (parts.length > 1) {
-                String[] costParts = parts[1].split("\n");
+                String[] costParts = parts[1].split(" ");
                 return costParts[0].trim();
             }
         }
@@ -273,6 +277,11 @@ public class SenderDashboard extends JFrame {
         notificationBtn.setToolTipText("Notifications");
         notificationBtn.addActionListener(e -> showNotifications());
         rightPanel.add(notificationBtn);
+
+        JButton refreshBtn = createButton("⟳ Refresh", SUCCESS_GREEN);
+        refreshBtn.setToolTipText("Refresh data from system");
+        refreshBtn.addActionListener(e -> refreshAllData());
+        rightPanel.add(refreshBtn);
 
         JButton logout = createButton("Logout", DANGER_RED);
         logout.addActionListener(e -> logout());
@@ -586,11 +595,150 @@ public class SenderDashboard extends JFrame {
             JOptionPane.QUESTION_MESSAGE);
             
         if (confirm == JOptionPane.YES_OPTION) {
+            // Stop auto-refresh timer
+            if (refreshTimer != null) {
+                refreshTimer.stop();
+            }
+            
             dispose();
             SwingUtilities.invokeLater(() -> {
                 Login login = new Login();
                 login.setVisible(true);
             });
+        }
+    }
+
+    /**
+     * Start auto-refresh timer to keep data in sync
+     */
+    private void startAutoRefresh() {
+        refreshTimer = new Timer(30000, e -> {
+            SwingUtilities.invokeLater(() -> {
+                refreshAllData();
+            });
+        });
+        refreshTimer.start();
+    }
+
+    /**
+     * Refresh all data from main system
+     */
+    public void refreshAllData() {
+        System.out.println("Refreshing all sender data from main system...");
+        
+        // Refresh data manager
+        SenderDataManager.getInstance().refreshData();
+        
+        // Update stats
+        refreshStats();
+        
+        // Refresh current panel
+        String currentCard = getCurrentCard();
+        if (currentCard != null) {
+            switch(currentCard) {
+                case "HOME":
+                    if (homePanel != null) homePanel.refreshData();
+                    break;
+                case "MY_ORDERS":
+                    if (myOrdersPanel != null) myOrdersPanel.refreshData();
+                    break;
+                case "PAYMENT":
+                    if (paymentPanel != null) paymentPanel.refreshData();
+                    break;
+                case "TRACK":
+                    if (trackOrderPanel != null) trackOrderPanel.refreshOrders();
+                    break;
+            }
+        }
+        
+        // Update sidebar notification counts
+        updateSidebarNotifications();
+    }
+
+    /**
+     * Refresh statistics from current data
+     */
+    public void refreshStats() {
+        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(senderEmail);
+        
+        activeOrders = 0;
+        deliveredOrders = 0;
+        pendingPayments = 0;
+        totalSpent = 0.0;
+        
+        for (SenderOrder order : userOrders) {
+            if (!"Delivered".equals(order.getStatus()) && !"Cancelled".equals(order.getStatus())) {
+                activeOrders++;
+            }
+            
+            if ("Delivered".equals(order.getStatus())) {
+                deliveredOrders++;
+            }
+            
+            if ("Pending".equals(order.getPaymentStatus())) {
+                pendingPayments++;
+            }
+            
+            if ("Paid".equals(order.getPaymentStatus())) {
+                String cost = extractCost(order.getNotes());
+                try {
+                    String cleanCost = cost.replace("RM", "").replace("$", "").trim();
+                    totalSpent += Double.parseDouble(cleanCost);
+                } catch (NumberFormatException e) {
+                    // Skip if cost can't be parsed
+                }
+            }
+        }
+        
+        System.out.println("Stats refreshed - Active: " + activeOrders + ", Delivered: " + deliveredOrders + 
+                           ", Pending Payments: " + pendingPayments + ", Total Spent: RM " + totalSpent);
+    }
+
+    /**
+     * Get current card being displayed
+     */
+    private String getCurrentCard() {
+        if (activeButton != null) {
+            JPanel contentPanel = (JPanel) activeButton.getComponent(0);
+            for (Component comp : contentPanel.getComponents()) {
+                if (comp instanceof JLabel) {
+                    JLabel label = (JLabel) comp;
+                    String text = label.getText();
+                    if (text.contains("Home")) return "HOME";
+                    if (text.contains("New Order")) return "NEW_ORDER";
+                    if (text.contains("My Orders")) return "MY_ORDERS";
+                    if (text.contains("Track")) return "TRACK";
+                    if (text.contains("Payments")) return "PAYMENT";
+                    if (text.contains("Support")) return "SUPPORT";
+                    if (text.contains("Profile")) return "PROFILE";
+                }
+            }
+        }
+        return "HOME";
+    }
+
+    /**
+     * Update notification counts in sidebar
+     */
+    private void updateSidebarNotifications() {
+        Component[] components = sidebar.getComponents();
+        for (Component comp : components) {
+            if (comp instanceof JPanel) {
+                JPanel panel = (JPanel) comp;
+                for (Component subComp : panel.getComponents()) {
+                    if (subComp instanceof JButton) {
+                        JButton btn = (JButton) subComp;
+                        String tooltip = btn.getToolTipText();
+                        if (tooltip != null) {
+                            if (tooltip.contains("My Orders")) {
+                                btn.setToolTipText("View and manage your orders (" + activeOrders + " active)");
+                            } else if (tooltip.contains("Payments")) {
+                                btn.setToolTipText("Manage payments and invoices (" + pendingPayments + " pending)");
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

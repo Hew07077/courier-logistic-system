@@ -346,6 +346,9 @@ public class HomePanel extends JPanel {
         ordersList.setLayout(new BoxLayout(ordersList, BoxLayout.Y_AXIS));
         ordersList.setOpaque(false);
 
+        // Refresh data from main system
+        SenderDataManager.getInstance().refreshData();
+        
         String userEmail = dashboard.getSenderEmail();
         List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(userEmail);
         
@@ -464,6 +467,17 @@ public class HomePanel extends JPanel {
     }
 
     public void refreshData() {
+        // Refresh data from main system
+        SenderDataManager.getInstance().refreshData();
+        
+        // Update dashboard stats
+        String userEmail = dashboard.getSenderEmail();
+        dashboard.setActiveOrders(SenderDataManager.getInstance().getActiveOrders(userEmail));
+        dashboard.setDeliveredOrders(SenderDataManager.getInstance().getDeliveredOrders(userEmail));
+        dashboard.setPendingPayments(SenderDataManager.getInstance().getPendingPayments(userEmail));
+        dashboard.setTotalSpent(SenderDataManager.getInstance().getTotalSpent(userEmail));
+        
+        // Refresh UI
         removeAll();
         initialize();
         revalidate();

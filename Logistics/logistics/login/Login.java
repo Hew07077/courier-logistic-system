@@ -4,10 +4,10 @@ import javax.swing.*;
 import javax.swing.Timer;
 
 import sender.SenderDashboard;
-import sender.SenderDataManager;
-import sender.DemoDataManager;
 import courier.CourierDashboard;
 import admin.AdminDashboard;
+import logistics.driver.Driver;
+import logistics.driver.DriverStorage;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -23,13 +23,12 @@ public class Login extends JFrame {
     
     // ========== Data Storage Files ==========
     private static final String SENDER_DATA_FILE = "sender_data.dat";
-    private static final String COURIER_DATA_FILE = "courier_data.dat";
     private static final String ADMIN_DATA_FILE = "admin_data.dat";
     
     // ========== In-Memory Databases ==========
     private static Map<String, SenderAccount> senderDatabase = new HashMap<>();
-    private static Map<String, CourierAccount> courierDatabase = new HashMap<>();
     private static Map<String, AdminAccount> adminDatabase = new HashMap<>();
+    private static DriverStorage driverStorage;
     
     // ========== Account Model Classes ==========
     static class AdminAccount implements Serializable {
@@ -58,32 +57,11 @@ public class Login extends JFrame {
         }
     }
     
-    static class CourierAccount implements Serializable {
-        private static final long serialVersionUID = 2L;
-        String fullName, email, phone, licenseType, icNumber, licensePhotoPath, icPhotoPath;
-        String userId, passwordHash, registrationDate, status, remarks;
-        
-        public CourierAccount(String fullName, String email, String phone, String userId, String password) {
-            this.fullName = fullName;
-            this.email = email;
-            this.phone = phone;
-            this.userId = userId;
-            this.passwordHash = hashPassword(password);
-            this.registrationDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            this.status = "PENDING";
-            this.remarks = "";
-            this.licenseType = "";
-            this.icNumber = "";
-            this.licensePhotoPath = "";
-            this.icPhotoPath = "";
-        }
-    }
-    
     // ========== Static Initialization ==========
     static {
         loadAdminData();
         loadSenderData();
-        loadCourierData();
+        driverStorage = new DriverStorage();
         addDefaultAccounts();
     }
     
@@ -157,31 +135,6 @@ public class Login extends JFrame {
         }
     }
     
-    @SuppressWarnings("unchecked")
-    private static void loadCourierData() {
-        File file = new File(COURIER_DATA_FILE);
-        if (!file.exists()) {
-            courierDatabase = new HashMap<>();
-            return;
-        }
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
-            Object obj = ois.readObject();
-            if (obj instanceof HashMap<?, ?>) {
-                courierDatabase = (HashMap<String, CourierAccount>) obj;
-            }
-        } catch (Exception e) {
-            courierDatabase = new HashMap<>();
-        }
-    }
-    
-    private static void saveCourierData() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(COURIER_DATA_FILE))) {
-            oos.writeObject(courierDatabase);
-        } catch (Exception e) {
-            // Silent fail
-        }
-    }
-    
     private static void addDefaultAccounts() {
         // Add default admin
         if (!adminDatabase.containsKey("admin")) {
@@ -189,58 +142,11 @@ public class Login extends JFrame {
             saveAdminData();
         }
         
-        // Add default sender (demo account)
-        if (!senderDatabase.containsKey("demo")) {
-            senderDatabase.put("demo", new SenderAccount(
-                "Demo User", DemoDataManager.DEMO_EMAIL, "0123456789", "demo", "demo123"));
-            saveSenderData();
-        }
-        
-        // Add default sender (regular account)
+        // Add default sender
         if (!senderDatabase.containsKey("sender")) {
             senderDatabase.put("sender", new SenderAccount(
-                "Regular Sender", "sender@example.com", "1234567890", "sender", "sender123"));
+                "Demo Sender", "sender@example.com", "1234567890", "sender", "sender123"));
             saveSenderData();
-        }
-        
-        // Add default courier
-        if (!courierDatabase.containsKey("courier")) {
-            CourierAccount courier = new CourierAccount(
-                "Demo Courier", "courier@example.com", "0987654321", "courier", "courier123");
-            courier.status = "APPROVED";
-            courier.licenseType = "D";
-            courier.icNumber = "123456-12-1234";
-            courier.licensePhotoPath = "default_license.jpg";
-            courier.icPhotoPath = "default_ic.jpg";
-            courierDatabase.put("courier", courier);
-            saveCourierData();
-        }
-        
-        // Add pending courier
-        if (!courierDatabase.containsKey("pending")) {
-            CourierAccount pending = new CourierAccount(
-                "Pending User", "pending@example.com", "0123456789", "pending", "pending123");
-            pending.status = "PENDING";
-            pending.licenseType = "B";
-            pending.icNumber = "987654-12-5678";
-            pending.licensePhotoPath = "pending_license.jpg";
-            pending.icPhotoPath = "pending_ic.jpg";
-            courierDatabase.put("pending", pending);
-            saveCourierData();
-        }
-        
-        // Add rejected courier
-        if (!courierDatabase.containsKey("rejected")) {
-            CourierAccount rejected = new CourierAccount(
-                "Rejected User", "rejected@example.com", "0112233445", "rejected", "rejected123");
-            rejected.status = "REJECTED";
-            rejected.remarks = "Invalid license document";
-            rejected.licenseType = "C";
-            rejected.icNumber = "555555-12-8888";
-            rejected.licensePhotoPath = "rejected_license.jpg";
-            rejected.icPhotoPath = "rejected_ic.jpg";
-            courierDatabase.put("rejected", rejected);
-            saveCourierData();
         }
     }
     
@@ -328,38 +234,31 @@ public class Login extends JFrame {
         topBar.setBackground(ADMIN_COLOR);
         topBar.setPreferredSize(new Dimension(getWidth(), 70));
         
-        // Logo Panel - Using image instead of text
         JPanel logoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 30, 10));
         logoPanel.setBackground(ADMIN_COLOR);
         
-        // Try to load logo from file
         try {
-            String logoPath = "logo.png"; // Change this to your logo file name
+            String logoPath = "logo.png";
             File logoFile = new File(logoPath);
             
             if (logoFile.exists()) {
                 ImageIcon logoIcon = new ImageIcon(logoPath);
-                // Scale logo to appropriate height while maintaining aspect ratio
                 int logoHeight = 50;
                 int logoWidth = (int)((double)logoIcon.getIconWidth() / logoIcon.getIconHeight() * logoHeight);
                 Image scaledImage = logoIcon.getImage().getScaledInstance(logoWidth, logoHeight, Image.SCALE_SMOOTH);
                 JLabel logoLabel = new JLabel(new ImageIcon(scaledImage));
                 logoPanel.add(logoLabel);
             } else {
-                // Fallback to text if logo not found
                 JLabel fallbackLabel = new JLabel("LogiXpress");
                 fallbackLabel.setFont(new Font("Arial", Font.BOLD, 24));
                 fallbackLabel.setForeground(Color.WHITE);
                 logoPanel.add(fallbackLabel);
-                System.out.println("Logo file not found at: " + new File(logoPath).getAbsolutePath());
             }
         } catch (Exception e) {
-            // Fallback to text on error
             JLabel fallbackLabel = new JLabel("LogiXpress");
             fallbackLabel.setFont(new Font("Arial", Font.BOLD, 24));
             fallbackLabel.setForeground(Color.WHITE);
             logoPanel.add(fallbackLabel);
-            e.printStackTrace();
         }
         
         topBar.add(logoPanel, BorderLayout.WEST);
@@ -401,12 +300,11 @@ public class Login extends JFrame {
         bottomBar.add(copyrightLabel);
         add(bottomBar, BorderLayout.SOUTH);
         
-        // Main Center Panel - Made narrower with reduced side margins
+        // Main Center Panel
         JPanel mainPanel = new JPanel(new BorderLayout(0, 15));
         mainPanel.setBackground(ORANGE_WHITE);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 150, 15, 150)); // Reduced from 250 to 150
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 150, 15, 150));
         
-        // Role Buttons - Made larger and closer
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 0));
         buttonPanel.setBackground(ORANGE_WHITE);
         
@@ -420,11 +318,10 @@ public class Login extends JFrame {
         
         mainPanel.add(buttonPanel, BorderLayout.NORTH);
         
-        // Card Panel - Made slightly larger
         cardLayout = new CardLayout();
         mainCardPanel = new JPanel(cardLayout);
         mainCardPanel.setBackground(ORANGE_WHITE);
-        mainCardPanel.setPreferredSize(new Dimension(650, 500)); // Increased from 550x450
+        mainCardPanel.setPreferredSize(new Dimension(650, 500));
         
         mainCardPanel.add(createAdminPanel(), "ADMIN");
         mainCardPanel.add(createSenderPanel(), "SENDER");
@@ -456,14 +353,13 @@ public class Login extends JFrame {
             updateButtonColors();
         });
         
-        // Set initial colors
         updateButtonColors();
     }
     
     private JButton createButton(String text, Color color) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Arial", Font.BOLD, 22)); // Increased font size
-        btn.setPreferredSize(new Dimension(160, 55)); // Increased size from 120x40 to 160x55
+        btn.setFont(new Font("Arial", Font.BOLD, 22));
+        btn.setPreferredSize(new Dimension(160, 55));
         btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.putClientProperty("color", color);
@@ -486,7 +382,7 @@ public class Login extends JFrame {
         } else {
             btn.setBackground(ORANGE_WHITE);
             btn.setForeground(Color.BLACK);
-            btn.setBorder(BorderFactory.createLineBorder(borderColor, 3)); // Thicker border
+            btn.setBorder(BorderFactory.createLineBorder(borderColor, 3));
             btn.setBorderPainted(true);
         }
         btn.repaint();
@@ -696,7 +592,6 @@ public class Login extends JFrame {
         senderRegPasswordField = new JPasswordField(15);
         senderRegConfirmPwdField = new JPasswordField(15);
         
-        // Password strength meter
         passwordStrengthBar = new JProgressBar(0, 100);
         passwordStrengthBar.setStringPainted(true);
         passwordStrengthBar.setString("Password Strength");
@@ -749,7 +644,6 @@ public class Login extends JFrame {
         gbc.gridy = 8; gbc.gridx = 0; gbc.gridwidth = 2;
         panel.add(passwordStrengthLabel, gbc);
         
-        // Add password strength listener
         senderRegPasswordField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void changedUpdate(javax.swing.event.DocumentEvent e) { checkPasswordStrength(); }
             public void removeUpdate(javax.swing.event.DocumentEvent e) { checkPasswordStrength(); }
@@ -1080,7 +974,7 @@ public class Login extends JFrame {
         
         gbc.gridx = 2;
         JButton searchBtn = new JButton("SEARCH");
-        searchBtn.setFont(BUTTON_FONT);
+        searchBtn.setFont(new Font("Arial", Font.BOLD, 14));
         searchBtn.setBackground(COURIER_COLOR);
         searchBtn.setForeground(Color.WHITE);
         searchBtn.setBorderPainted(false);
@@ -1132,17 +1026,16 @@ public class Login extends JFrame {
                 return;
             }
             
-            if (courierDatabase.containsKey(id)) {
-                CourierAccount acc = courierDatabase.get(id);
-                
-                switch (acc.status) {
+            Driver driver = driverStorage.findDriver(id);
+            
+            if (driver != null) {
+                switch (driver.approvalStatus) {
                     case "APPROVED":
                         iconLabel.setText("✓");
                         iconLabel.setForeground(GREEN_SUCCESS);
                         statusLabel.setText("STATUS: APPROVED");
                         statusLabel.setForeground(GREEN_SUCCESS);
-                        detailLabel.setText("Application approved!");
-                        detailLabel.setForeground(GREEN_SUCCESS);
+                        detailLabel.setText("Your application has been approved!");
                         remarkLabel.setText("");
                         break;
                     case "REJECTED":
@@ -1151,8 +1044,7 @@ public class Login extends JFrame {
                         statusLabel.setText("STATUS: REJECTED");
                         statusLabel.setForeground(RED_ERROR);
                         detailLabel.setText("Application rejected.");
-                        detailLabel.setForeground(RED_ERROR);
-                        remarkLabel.setText("Reason: " + acc.remarks);
+                        remarkLabel.setText("Reason: " + (driver.remarks != null ? driver.remarks : "No reason provided"));
                         break;
                     default:
                         iconLabel.setText("⏳");
@@ -1160,7 +1052,6 @@ public class Login extends JFrame {
                         statusLabel.setText("STATUS: PENDING");
                         statusLabel.setForeground(YELLOW_PENDING);
                         detailLabel.setText("Under review.");
-                        detailLabel.setForeground(YELLOW_PENDING);
                         remarkLabel.setText("");
                         break;
                 }
@@ -1172,7 +1063,7 @@ public class Login extends JFrame {
         return panel;
     }
     
-    // ========== SIMPLIFIED FORGOT PASSWORD - DIRECT CODE POPUP ==========
+    // ========== FORGOT PASSWORD METHODS ==========
     
     private void showForgotPasswordDialog(UserType type) {
         String title = (type == UserType.SENDER) ? "Reset Sender Password" : "Reset Courier Password";
@@ -1188,14 +1079,12 @@ public class Login extends JFrame {
         mainPanel.setBackground(Color.WHITE);
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 15, 20));
         
-        // Title
         JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 15));
         titleLabel.setForeground(themeColor);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         mainPanel.add(titleLabel, BorderLayout.NORTH);
         
-        // Form panel
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         
@@ -1203,7 +1092,6 @@ public class Login extends JFrame {
         gbc.insets = new Insets(8, 5, 8, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         
-        // Username/ID field
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1;
         JLabel idJLabel = new JLabel(idLabel);
         idJLabel.setFont(new Font("Arial", Font.PLAIN, 13));
@@ -1215,7 +1103,6 @@ public class Login extends JFrame {
         idField.setPreferredSize(new Dimension(180, 30));
         formPanel.add(idField, gbc);
         
-        // Email field
         gbc.gridx = 0; gbc.gridy = 1;
         JLabel emailLabel = new JLabel("Email:");
         emailLabel.setFont(new Font("Arial", Font.PLAIN, 13));
@@ -1227,7 +1114,6 @@ public class Login extends JFrame {
         emailField.setPreferredSize(new Dimension(180, 30));
         formPanel.add(emailField, gbc);
         
-        // Info text
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
         JLabel infoLabel = new JLabel("We'll verify your identity", SwingConstants.CENTER);
         infoLabel.setFont(new Font("Arial", Font.ITALIC, 11));
@@ -1236,7 +1122,6 @@ public class Login extends JFrame {
         
         mainPanel.add(formPanel, BorderLayout.CENTER);
         
-        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
         buttonPanel.setBackground(Color.WHITE);
         
@@ -1278,13 +1163,13 @@ public class Login extends JFrame {
             boolean verified = false;
             if (type == UserType.SENDER && senderDatabase.containsKey(id)) {
                 verified = senderDatabase.get(id).email.equals(email);
-            } else if (type == UserType.COURIER && courierDatabase.containsKey(id)) {
-                verified = courierDatabase.get(id).email.equals(email);
+            } else if (type == UserType.COURIER) {
+                Driver driver = driverStorage.findDriver(id);
+                verified = driver != null && email.equals(driver.email);
             }
             
             if (verified) {
                 dialog.dispose();
-                // Generate and show verification code directly
                 String verificationCode = String.format("%06d", new Random().nextInt(999999));
                 showVerificationCodePopup(verificationCode, id, type, themeColor);
             } else {
@@ -1297,13 +1182,11 @@ public class Login extends JFrame {
     }
     
     private void showVerificationCodePopup(String code, String userId, UserType type, Color themeColor) {
-        // Show code in a dialog first
         JOptionPane.showMessageDialog(this, 
             "Your verification code is: " + code, 
             "Verification Code", 
             JOptionPane.INFORMATION_MESSAGE);
         
-        // Then show code entry dialog
         JDialog codeDialog = new JDialog(this, "Enter Verification Code", true);
         codeDialog.setSize(340, 220);
         codeDialog.setLocationRelativeTo(this);
@@ -1313,19 +1196,16 @@ public class Login extends JFrame {
         mainPanel.setBackground(Color.WHITE);
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 15, 20));
         
-        // Title
         JLabel titleLabel = new JLabel("Enter Verification Code", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 14));
         titleLabel.setForeground(themeColor);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         mainPanel.add(titleLabel, BorderLayout.NORTH);
         
-        // Center panel
         JPanel centerPanel = new JPanel();
         centerPanel.setBackground(Color.WHITE);
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
         
-        // Code input field (single field for 6-digit code)
         JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         inputPanel.setBackground(Color.WHITE);
         
@@ -1347,7 +1227,6 @@ public class Login extends JFrame {
         
         mainPanel.add(centerPanel, BorderLayout.CENTER);
         
-        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
         buttonPanel.setBackground(Color.WHITE);
         
@@ -1412,14 +1291,12 @@ public class Login extends JFrame {
         mainPanel.setBackground(Color.WHITE);
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 15, 20));
         
-        // Title
         JLabel titleLabel = new JLabel("Create New Password", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 14));
         titleLabel.setForeground(themeColor);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         mainPanel.add(titleLabel, BorderLayout.NORTH);
         
-        // Form panel
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         
@@ -1462,7 +1339,6 @@ public class Login extends JFrame {
         
         mainPanel.add(formPanel, BorderLayout.CENTER);
         
-        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
         buttonPanel.setBackground(Color.WHITE);
         
@@ -1508,7 +1384,6 @@ public class Login extends JFrame {
                 return;
             }
             
-            // Stronger password requirements
             if (pwd.length() < 8) {
                 JOptionPane.showMessageDialog(dialog, "Password must be at least 8 characters!", 
                     "Error", JOptionPane.ERROR_MESSAGE);
@@ -1544,9 +1419,12 @@ public class Login extends JFrame {
                 saveSenderData();
                 senderUsernameField.setText(userId);
             } else {
-                courierDatabase.get(userId).passwordHash = hashPassword(pwd);
-                saveCourierData();
-                courierUserIdField.setText(userId);
+                Driver driver = driverStorage.findDriver(userId);
+                if (driver != null) {
+                    driver.passwordHash = hashPassword(pwd);
+                    driverStorage.saveDrivers();
+                    courierUserIdField.setText(userId);
+                }
             }
             
             JOptionPane.showMessageDialog(dialog, "Password reset successful!\nYou can now login.", 
@@ -1591,18 +1469,6 @@ public class Login extends JFrame {
             SenderAccount acc = senderDatabase.get(username);
             if (verifyPassword(password, acc.passwordHash)) {
                 JOptionPane.showMessageDialog(this, "Login successful! Welcome, " + acc.fullName + "!");
-                
-                // ========== DEMO DATA INJECTION ==========
-                // Check if this is the demo account and inject sample orders
-                if (acc.email != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(acc.email)) {
-                    System.out.println("Demo account detected. Injecting sample orders...");
-                    SenderDataManager dataManager = SenderDataManager.getInstance();
-                    DemoDataManager demoManager = DemoDataManager.getInstance();
-                    demoManager.addDemoOrdersToSystem(dataManager);
-                    System.out.println("Sample orders injected successfully");
-                }
-                // ===========================================
-                
                 new SenderDashboard(acc.fullName, acc.email, acc.phone, username).setVisible(true);
                 dispose();
             } else {
@@ -1624,18 +1490,40 @@ public class Login extends JFrame {
             return;
         }
         
-        if (courierDatabase.containsKey(userId)) {
-            CourierAccount acc = courierDatabase.get(userId);
-            if (verifyPassword(password, acc.passwordHash)) {
-               if ("APPROVED".equals(acc.status)) {
-                    JOptionPane.showMessageDialog(this, "Login successful! Welcome, " + acc.fullName + "!");
-                    CourierDashboard dashboard = new CourierDashboard(acc.fullName); // Pass the name
+        // 每次都重新创建 storage 以确保获取最新数据
+        DriverStorage freshStorage = new DriverStorage();
+        Driver driver = freshStorage.findDriver(userId);
+        
+        if (driver != null) {
+            // 检查密码
+            if (freshStorage.verifyPassword(userId, password)) {
+                // 检查 approval 状态
+                if ("APPROVED".equals(driver.approvalStatus)) {
+                    JOptionPane.showMessageDialog(this, "Login successful! Welcome, " + driver.name + "!");
+                    
+                    // 先隐藏登录窗口
+                    setVisible(false);
+                    
+                    // 创建新的 CourierDashboard
+                    CourierDashboard dashboard = new CourierDashboard(driver);
+                    
+                    // 确保窗口显示
                     dashboard.setVisible(true);
+                    
+                    // 关闭登录窗口
                     dispose();
-                } else if ("PENDING".equals(acc.status)) {
-                    JOptionPane.showMessageDialog(this, "Your account is pending approval.");
-                } else {
-                    JOptionPane.showMessageDialog(this, "Your application was rejected.\nReason: " + acc.remarks);
+                    
+                } else if ("PENDING".equals(driver.approvalStatus)) {
+                    JOptionPane.showMessageDialog(this, 
+                        "Your account is pending admin approval.\nPlease check back later.",
+                        "Pending Approval", 
+                        JOptionPane.INFORMATION_MESSAGE);
+                } else if ("REJECTED".equals(driver.approvalStatus)) {
+                    String reason = driver.remarks != null ? "\nReason: " + driver.remarks : "";
+                    JOptionPane.showMessageDialog(this, 
+                        "Your application was rejected." + reason,
+                        "Rejected", 
+                        JOptionPane.ERROR_MESSAGE);
                 }
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid password!");
@@ -1665,7 +1553,6 @@ public class Login extends JFrame {
             return;
         }
         
-        // Stronger password requirements for registration
         if (password.length() < 8) {
             JOptionPane.showMessageDialog(this, "Password must be at least 8 characters long!", 
                 "Error", JOptionPane.ERROR_MESSAGE);
@@ -1720,7 +1607,6 @@ public class Login extends JFrame {
         senderUsernameField.setText(username);
     }
     
-    // MODIFIED: processCourierApplication() with CourierStorage integration
     private void processCourierApplication() {
         try {
             System.out.println("=== Starting Courier Application Process ===");
@@ -1745,33 +1631,21 @@ public class Login extends JFrame {
                 return;
             }
             
-            String userId = email.split("@")[0].replaceAll("[^a-zA-Z0-9]", "") + 
-                           System.currentTimeMillis() % 10000;
+            String userId = driverStorage.generateDriverId();
             String password = "courier" + (int)(Math.random() * 9000 + 1000);
             
             System.out.println("Generated UserId: " + userId);
             
-            // Save to .dat file (existing)
-            CourierAccount courier = new CourierAccount(name, email, phone, userId, password);
-            courier.icNumber = ic;
-            courier.licenseType = license;
-            courier.licensePhotoPath = licensePhotoPath;
-            courier.icPhotoPath = icPhotoPath;
+            Driver driver = new Driver(userId, name, phone, email, license, "2025-12-31");
+            driver.icNumber = ic;
+            driver.licenseType = license;
+            driver.photoPath = licensePhotoPath;
+            driver.passwordHash = hashPassword(password);
+            driver.approvalStatus = "PENDING";
+            driver.workStatus = "Off Duty";
             
-            courierDatabase.put(userId, courier);
-            saveCourierData();
-            System.out.println("Saved to .dat file successfully");
-            
-            // Save to text file using CourierStorage
-            try {
-                CourierStorage storage = new CourierStorage();
-                storage.saveCourier(courier);
-                System.out.println("Saved to courier_data.txt successfully");
-            } catch (Exception e) {
-                System.err.println("Error saving to text file: " + e.getMessage());
-                e.printStackTrace();
-                JOptionPane.showMessageDialog(this, "Warning: Application saved but text file failed: " + e.getMessage());
-            }
+            driverStorage.addDriver(driver);
+            System.out.println("Saved to drivers.txt successfully");
             
             String msg = String.format(
                 "Application Submitted!\n\nUser ID: %s\nPassword: %s\n\nPlease save these credentials.\n\n" +
@@ -1781,7 +1655,6 @@ public class Login extends JFrame {
             JOptionPane.showMessageDialog(this, msg, "Application Submitted", JOptionPane.INFORMATION_MESSAGE);
             System.out.println("Dialog shown successfully");
             
-            // Clear fields
             courierRegNameField.setText("");
             courierRegEmailField.setText("");
             courierRegPhoneField.setText("");

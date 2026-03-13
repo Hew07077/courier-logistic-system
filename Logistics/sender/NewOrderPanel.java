@@ -9,6 +9,7 @@ import java.awt.event.*;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.List;
 
 public class NewOrderPanel extends JPanel {
     private SenderDashboard dashboard;
@@ -387,13 +388,9 @@ public class NewOrderPanel extends JPanel {
     private JPanel createSenderInfoBox() {
         JPanel box = new JPanel(new GridBagLayout());
         box.setBackground(new Color(248, 249, 250));
-        box.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(0, 123, 255), 1),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
+        
         TitledBorder titledBorder = BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(0, 123, 255)),
+            BorderFactory.createLineBorder(new Color(0, 123, 255), 1),
             "Sender Information",
             TitledBorder.LEFT,
             TitledBorder.TOP,
@@ -793,57 +790,145 @@ public class NewOrderPanel extends JPanel {
         return datePrefix + sequenceStr;
     }
 
+    /**
+     * FIXED: Enhanced saveOrderToFile method with better error handling and verification
+     */
     private void saveOrderToFile(SenderOrder order) {
+        PrintWriter writer = null;
+        BufferedReader reader = null;
+        
         try {
             File file = new File(ORDERS_FILE);
-            boolean isNewFile = !file.exists();
+            System.out.println("\n=== SAVING ORDER TO FILE ===");
+            System.out.println("File path: " + file.getAbsolutePath());
+            System.out.println("File exists before write: " + file.exists());
+            System.out.println("Order ID: " + order.getId());
             
-            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
-                // Write header if it's a new file
-                if (isNewFile) {
-                    bw.write("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|weight|dimensions|notes|paymentStatus|paymentMethod|transactionId|paymentDate");
-                    bw.newLine();
-                }
-                
-                // Clean the notes field - replace newlines with spaces
-                String cleanNotes = order.getNotes() != null ? 
-                    order.getNotes().replace("\n", " ").replace("\r", " ") : "";
-                
-                // Convert order to pipe-delimited format with clean notes
-                String orderLine = String.join("|",
-                    safeString(order.getId()),
-                    safeString(order.getCustomerName()),
-                    safeString(order.getCustomerPhone()),
-                    safeString(order.getCustomerEmail()),
-                    safeString(order.getCustomerAddress()),
-                    safeString(order.getRecipientName()),
-                    safeString(order.getRecipientPhone()),
-                    safeString(order.getRecipientAddress()),
-                    safeString(order.getStatus()),
-                    safeString(order.getOrderDate()),
-                    safeString(order.getEstimatedDelivery()),
-                    String.valueOf(order.getWeight()),
-                    safeString(order.getDimensions()),
-                    cleanNotes,  // Use cleaned notes without newlines
-                    safeString(order.getPaymentStatus()),
-                    safeString(order.getPaymentMethod()),
-                    safeString(order.getTransactionId()),
-                    safeString(order.getPaymentDate())
-                );
-                
-                bw.write(orderLine);
-                bw.newLine();
-                
-                System.out.println("Order saved to orders.txt: " + order.getId());
-                
+            // Create parent directories if needed
+            File parentDir = file.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
             }
+            
+            // Read existing orders to check if this order already exists
+            List<String> existingLines = new ArrayList<>();
+            boolean orderExists = false;
+            
+            if (file.exists()) {
+                reader = new BufferedReader(new FileReader(file));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    existingLines.add(line);
+                    if (!line.startsWith("#") && line.contains(order.getId())) {
+                        orderExists = true;
+                        System.out.println("Order already exists in file, will update instead of append");
+                    }
+                }
+                reader.close();
+                reader = null;
+            }
+            
+            // Clean the notes field - replace newlines with spaces
+            String cleanNotes = order.getNotes() != null ? 
+                order.getNotes().replace("\n", " ").replace("\r", " ") : "";
+            
+            // Convert order to pipe-delimited format with clean notes
+            String orderLine = String.join("|",
+                safeString(order.getId()),
+                safeString(order.getCustomerName()),
+                safeString(order.getCustomerPhone()),
+                safeString(order.getCustomerEmail()),
+                safeString(order.getCustomerAddress()),
+                safeString(order.getRecipientName()),
+                safeString(order.getRecipientPhone()),
+                safeString(order.getRecipientAddress()),
+                safeString(order.getStatus()),
+                safeString(order.getOrderDate()),
+                safeString(order.getEstimatedDelivery() != null ? order.getEstimatedDelivery() : ""),
+                String.valueOf(order.getWeight()),
+                safeString(order.getDimensions()),
+                cleanNotes,
+                safeString(order.getPaymentStatus() != null ? order.getPaymentStatus() : "Pending"),
+                safeString(order.getPaymentMethod()),
+                safeString(order.getTransactionId()),
+                safeString(order.getPaymentDate())
+            );
+            
+            // Write all lines back to file
+            writer = new PrintWriter(new FileWriter(file));
+            
+            // Write header if it's a new file
+            if (!file.exists() || file.length() == 0) {
+                writer.println("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|weight|dimensions|notes|paymentStatus|paymentMethod|transactionId|paymentDate");
+                System.out.println("Created new file with header");
+            } else {
+                // Write all existing lines except the one we're updating (if it exists)
+                for (String line : existingLines) {
+                    if (orderExists && !line.startsWith("#") && line.contains(order.getId())) {
+                        // Skip the old version of this order
+                        continue;
+                    }
+                    writer.println(line);
+                }
+            }
+            
+            // Write the new/updated order
+            writer.println(orderLine);
+            writer.flush();
+            
+            System.out.println("Order written to file: " + orderLine);
+            System.out.println("File size after write: " + file.length());
+            
+            // Force sync to disk
+            writer.close();
+            writer = null;
+            
+            // Verify the file was written
+            if (file.exists()) {
+                System.out.println("File exists after write, size: " + file.length());
+                
+                // Verify the order was written by reading it back
+                reader = new BufferedReader(new FileReader(file));
+                String line;
+                boolean found = false;
+                while ((line = reader.readLine()) != null) {
+                    if (line.contains(order.getId())) {
+                        found = true;
+                        System.out.println("✓ Verified order in file: " + order.getId());
+                        break;
+                    }
+                }
+                reader.close();
+                reader = null;
+                
+                if (!found) {
+                    System.err.println("❌ ERROR: Order was not found in file after writing!");
+                } else {
+                    System.out.println("✓ Order successfully saved to file");
+                }
+            }
+            
+            System.out.println("=== FINISHED SAVING ORDER ===\n");
+            
         } catch (IOException e) {
-            System.err.println("Error saving order to orders.txt: " + e.getMessage());
+            System.err.println("❌ Error saving order to orders.txt: " + e.getMessage());
             e.printStackTrace();
             JOptionPane.showMessageDialog(this,
-                "❌ Error saving order to file: " + e.getMessage(),
+                "❌ Error saving order to file: " + e.getMessage() + "\n\nPlease check file permissions.",
                 "File Error",
                 JOptionPane.ERROR_MESSAGE);
+        } finally {
+            // Close all resources
+            if (writer != null) {
+                writer.close();
+            }
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    // Ignore
+                }
+            }
         }
     }
     
@@ -886,6 +971,15 @@ public class NewOrderPanel extends JPanel {
             String recipientName = recipientNameField.getText().trim();
             String recipientPhone = recipientPhoneField.getText().trim();
             
+            // Get estimated cost
+            double estimatedCost = 0;
+            String costText = estimatedCostLabel.getText().replace("RM", "").trim();
+            try {
+                estimatedCost = Double.parseDouble(costText);
+            } catch (NumberFormatException e) {
+                estimatedCost = 0;
+            }
+            
             SenderOrder order = new SenderOrder(
                 orderId,
                 senderName,
@@ -902,26 +996,50 @@ public class NewOrderPanel extends JPanel {
             order.setStatus("Pending");
             order.setOrderDate(currentDateTime);
             order.setPaymentStatus("Pending");
+            order.setPaymentMethod("Not Selected");
+            order.setEstimatedDelivery(deliveryTimeLabel.getText());
             
+            // Store package type in a separate field or as structured data in notes
+            String packageType = (String) packageTypeCombo.getSelectedItem();
+            String description = descriptionArea.getText().trim();
+            
+            // Create structured notes with pipe separators for easy parsing
             StringBuilder notesBuilder = new StringBuilder();
-            notesBuilder.append("Package Type: ").append(packageTypeCombo.getSelectedItem());
-            notesBuilder.append(" Estimated Cost: ").append(estimatedCostLabel.getText());
-            notesBuilder.append(" Estimated Delivery: ").append(deliveryTimeLabel.getText());
-            notesBuilder.append(" Description: ").append(descriptionArea.getText().trim());
+            notesBuilder.append("Package Type:").append(packageType);
+            notesBuilder.append("|Estimated Cost:RM ").append(String.format("%.2f", estimatedCost));
+            notesBuilder.append("|Estimated Delivery:").append(deliveryTimeLabel.getText());
+            notesBuilder.append("|Description:").append(description);
             
             order.setNotes(notesBuilder.toString());
             
-            // Save to orders.txt
+            // Save to orders.txt first
             saveOrderToFile(order);
             
-            // Also save to SenderDataManager for in-memory access
+            // Then add to SenderDataManager for in-memory access
             SenderDataManager dataManager = SenderDataManager.getInstance();
             dataManager.addOrder(order);
             
+            // Also add to main OrderStorage system
+            try {
+                logistics.orders.OrderStorage mainOrderStorage = new logistics.orders.OrderStorage();
+                mainOrderStorage.addOrderFromSender(order);
+                System.out.println("Order also added to main OrderStorage system");
+            } catch (Exception e) {
+                System.err.println("Warning: Could not add to main OrderStorage: " + e.getMessage());
+                // Don't fail the order creation if this fails
+            }
+            
+            // Verify order was saved
             SenderOrder savedOrder = dataManager.getOrderById(orderId);
             
             if (savedOrder != null) {
                 System.out.println("Order successfully saved and verified!");
+                
+                // Force reload of data in all panels
+                SenderDataManager.getInstance().refreshData();
+                
+                // Update dashboard stats
+                dashboard.refreshStats();
                 
                 clearForm();
                 
@@ -930,7 +1048,11 @@ public class NewOrderPanel extends JPanel {
                     "Order ID: " + orderId + "\n" +
                     "Date: " + currentDateTime + "\n" +
                     "From: " + fromCity + ", " + fromState + "\n" +
-                    "To: " + toCity + ", " + toState + "\n\n" +
+                    "To: " + toCity + ", " + toState + "\n" +
+                    "Weight: " + weight + " kg\n" +
+                    "Dimensions: " + dimensions + " cm\n" +
+                    "Package Type: " + packageType + "\n" +
+                    "Estimated Cost: RM " + String.format("%.2f", estimatedCost) + "\n\n" +
                     "Order has been saved to orders.txt",
                     "Success",
                     JOptionPane.INFORMATION_MESSAGE);

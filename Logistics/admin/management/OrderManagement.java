@@ -3,6 +3,7 @@ package admin.management;
 import logistics.orders.Order;
 import logistics.orders.OrderStorage;
 import logistics.driver.Driver;
+import logistics.driver.DriverStorage;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -25,6 +26,7 @@ public class OrderManagement {
     private JPanel[] statCards;
     
     private OrderStorage storage;
+    private DriverStorage driverStorage;
     
     // References to other modules
     private DriverManagement driverManagement;
@@ -50,6 +52,8 @@ public class OrderManagement {
     private static final Color HOVER_COLOR = new Color(255, 245, 235);
     private static final Color SELECTION_COLOR = new Color(255, 245, 235);
     private static final Color ACTIVE_FILTER_BORDER = PRIMARY;
+    private static final Color PURPLE = new Color(111, 66, 193);
+    private static final Color ORANGE = new Color(255, 87, 34);
     
     // Fonts
     private static final Font TITLE_FONT = new Font("Segoe UI", Font.BOLD, 28);
@@ -64,6 +68,11 @@ public class OrderManagement {
     private String currentStatusFilter = null;
     private int currentFilterIndex = -1;
     
+    // Date formatters
+    private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("MMM dd, yyyy");
+    
     public OrderManagement() {
         this(null, null);
     }
@@ -75,7 +84,8 @@ public class OrderManagement {
     public OrderManagement(DriverManagement driverMgmt, VehicleManagement vehicleMgmt) {
         this.driverManagement = driverMgmt;
         this.vehicleManagement = vehicleMgmt;
-        storage = new OrderStorage();
+        this.storage = new OrderStorage();
+        this.driverStorage = new DriverStorage();
         createMainPanel();
         refreshTable();
     }
@@ -113,7 +123,7 @@ public class OrderManagement {
         title.setFont(TITLE_FONT);
         title.setForeground(TEXT_PRIMARY);
         
-        JLabel subtitle = new JLabel("Manage and track all customer orders");
+        JLabel subtitle = new JLabel("Manage and track all customer orders with detailed information");
         subtitle.setFont(SUBTITLE_FONT);
         subtitle.setForeground(TEXT_SECONDARY);
         
@@ -331,7 +341,7 @@ public class OrderManagement {
         JScrollPane scrollPane = new JScrollPane(createTable());
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getViewport().setBackground(CARD_BG);
-        scrollPane.setPreferredSize(new Dimension(1000, 450));
+        scrollPane.setPreferredSize(new Dimension(1200, 450));
         
         panel.add(scrollPane, BorderLayout.CENTER);
         
@@ -339,8 +349,11 @@ public class OrderManagement {
     }
     
     private JTable createTable() {
+        // Expanded columns with more details
         String[] columns = {"Order ID", "Recipient", "Status", "Order Date", "Est. Delivery", 
-                            "Sender", "Weight", "Driver", "Vehicle"};
+                            "Actual Delivery", "Sender", "Weight", "Driver", "Vehicle", 
+                            "Payment", "Distance", "Fuel", "On Time"};
+        
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int col) { 
@@ -401,25 +414,32 @@ public class OrderManagement {
         ordersTable.setRowSorter(rowSorter);
         
         // Set column widths
-        ordersTable.getColumnModel().getColumn(0).setPreferredWidth(120);
-        ordersTable.getColumnModel().getColumn(1).setPreferredWidth(150);
-        ordersTable.getColumnModel().getColumn(2).setPreferredWidth(100);
-        ordersTable.getColumnModel().getColumn(3).setPreferredWidth(100);
-        ordersTable.getColumnModel().getColumn(4).setPreferredWidth(100);
-        ordersTable.getColumnModel().getColumn(5).setPreferredWidth(150);
-        ordersTable.getColumnModel().getColumn(6).setPreferredWidth(80);
-        ordersTable.getColumnModel().getColumn(7).setPreferredWidth(80);
-        ordersTable.getColumnModel().getColumn(8).setPreferredWidth(80);
+        ordersTable.getColumnModel().getColumn(0).setPreferredWidth(100); // Order ID
+        ordersTable.getColumnModel().getColumn(1).setPreferredWidth(150); // Recipient
+        ordersTable.getColumnModel().getColumn(2).setPreferredWidth(100); // Status
+        ordersTable.getColumnModel().getColumn(3).setPreferredWidth(120); // Order Date
+        ordersTable.getColumnModel().getColumn(4).setPreferredWidth(100); // Est. Delivery
+        ordersTable.getColumnModel().getColumn(5).setPreferredWidth(100); // Actual Delivery
+        ordersTable.getColumnModel().getColumn(6).setPreferredWidth(150); // Sender
+        ordersTable.getColumnModel().getColumn(7).setPreferredWidth(70);  // Weight
+        ordersTable.getColumnModel().getColumn(8).setPreferredWidth(80);  // Driver
+        ordersTable.getColumnModel().getColumn(9).setPreferredWidth(80);  // Vehicle
+        ordersTable.getColumnModel().getColumn(10).setPreferredWidth(80); // Payment
+        ordersTable.getColumnModel().getColumn(11).setPreferredWidth(70); // Distance
+        ordersTable.getColumnModel().getColumn(12).setPreferredWidth(70); // Fuel
+        ordersTable.getColumnModel().getColumn(13).setPreferredWidth(60); // On Time
         
         // Set custom renderers
         ordersTable.getColumnModel().getColumn(2).setCellRenderer(new StatusCellRenderer());
+        ordersTable.getColumnModel().getColumn(10).setCellRenderer(new PaymentStatusCellRenderer());
+        ordersTable.getColumnModel().getColumn(13).setCellRenderer(new OnTimeCellRenderer());
         
         // Double-click listener
         ordersTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2 && ordersTable.getSelectedRow() != -1) {
-                    showOrderDetails();
+                    showEnhancedOrderDetails();
                 }
             }
         });
@@ -485,10 +505,71 @@ public class OrderManagement {
                             BorderFactory.createEmptyBorder(4, 12, 4, 12)
                         ));
                         break;
+                    case "Cancelled":
+                        label.setForeground(TEXT_SECONDARY);
+                        label.setBackground(new Color(245, 245, 245));
+                        label.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(TEXT_SECONDARY, 1, true),
+                            BorderFactory.createEmptyBorder(4, 12, 4, 12)
+                        ));
+                        break;
                 }
             }
             
             return panel;
+        }
+    }
+    
+    private class PaymentStatusCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            
+            JLabel label = (JLabel) super.getTableCellRendererComponent(
+                table, value, isSelected, hasFocus, row, column);
+            
+            label.setHorizontalAlignment(SwingConstants.CENTER);
+            
+            if (!isSelected && value != null) {
+                String status = value.toString();
+                if ("Paid".equals(status)) {
+                    label.setForeground(SUCCESS);
+                    label.setFont(label.getFont().deriveFont(Font.BOLD));
+                } else if ("Pending".equals(status)) {
+                    label.setForeground(WARNING);
+                } else if ("Failed".equals(status)) {
+                    label.setForeground(DANGER);
+                }
+            }
+            
+            return label;
+        }
+    }
+    
+    private class OnTimeCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            
+            JLabel label = (JLabel) super.getTableCellRendererComponent(
+                table, value, isSelected, hasFocus, row, column);
+            
+            label.setHorizontalAlignment(SwingConstants.CENTER);
+            
+            if (!isSelected && value != null) {
+                String val = value.toString();
+                if ("Yes".equals(val)) {
+                    label.setForeground(SUCCESS);
+                    label.setText("✅ Yes");
+                } else if ("No".equals(val)) {
+                    label.setForeground(DANGER);
+                    label.setText("❌ No");
+                } else {
+                    label.setText("-");
+                }
+            }
+            
+            return label;
         }
     }
     
@@ -497,12 +578,13 @@ public class OrderManagement {
         panel.setBackground(BG_COLOR);
         
         ButtonConfig[] buttons = {
-            new ButtonConfig("View Details", INFO, INFO_DARK, this::showOrderDetails),
+            new ButtonConfig("View Details", INFO, INFO_DARK, this::showEnhancedOrderDetails),
             new ButtonConfig("Add Order", SUCCESS, SUCCESS_DARK, this::addOrder),
             new ButtonConfig("Edit", WARNING, WARNING_DARK, this::editOrder),
             new ButtonConfig("Delete", DANGER, DANGER_DARK, this::deleteOrder),
             new ButtonConfig("Assign Driver", PRIMARY, PRIMARY_DARK, this::assignDriver),
-            new ButtonConfig("Mark Delivered", new Color(46, 204, 113), new Color(39, 174, 96), this::markAsDelivered)
+            new ButtonConfig("Mark Delivered", new Color(46, 204, 113), new Color(39, 174, 96), this::markAsDelivered),
+            new ButtonConfig("Payment", PURPLE, new Color(88, 53, 154), this::managePayment)
         };
         
         for (ButtonConfig config : buttons) {
@@ -550,10 +632,14 @@ public class OrderManagement {
         return btn;
     }
     
-    private void showOrderDetails() {
+    /**
+     * Enhanced order details view with comprehensive information
+     */
+    private void showEnhancedOrderDetails() {
         int row = ordersTable.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(mainPanel, "Please select an order to view", "No Selection", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(mainPanel, "Please select an order to view", 
+                "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
@@ -562,107 +648,96 @@ public class OrderManagement {
         Order order = storage.findOrder(id);
         if (order == null) return;
         
+        // Get driver details if available
+        Driver driver = order.driverId != null ? driverStorage.findDriver(order.driverId) : null;
+        
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
-                                      "Order Details - " + order.id, true);
-        dialog.setSize(600, 700);
+                                      "Complete Order Details - " + order.id, true);
+        dialog.setSize(800, 750);
         dialog.setLocationRelativeTo(mainPanel);
         
-        JPanel panel = new JPanel(new BorderLayout(20, 20));
-        panel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
-        panel.setBackground(CARD_BG);
+        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        mainPanel.setBackground(CARD_BG);
         
-        // Title
-        JLabel titleLabel = new JLabel("Order Details");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        titleLabel.setForeground(PRIMARY);
+        // Header with status
+        JPanel headerPanel = new JPanel(new BorderLayout(15, 0));
+        headerPanel.setBackground(CARD_BG);
         
-        JLabel idLabel = new JLabel(order.id);
-        idLabel.setFont(REGULAR_FONT);
-        idLabel.setForeground(TEXT_SECONDARY);
-        
-        JPanel titlePanel = new JPanel(new BorderLayout());
+        JPanel titlePanel = new JPanel(new GridLayout(2, 1));
         titlePanel.setBackground(CARD_BG);
-        titlePanel.add(titleLabel, BorderLayout.NORTH);
-        titlePanel.add(idLabel, BorderLayout.SOUTH);
         
-        // Details
-        JPanel detailsPanel = new JPanel();
-        detailsPanel.setLayout(new BoxLayout(detailsPanel, BoxLayout.Y_AXIS));
-        detailsPanel.setBackground(CARD_BG);
+        JLabel titleLabel = new JLabel("Order Details: " + order.id);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        titleLabel.setForeground(PRIMARY);
+        titlePanel.add(titleLabel);
         
-        // Status badge
-        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        statusPanel.setBackground(CARD_BG);
-        JLabel statusLabel = new JLabel(order.status);
-        statusLabel.setFont(REGULAR_FONT);
-        statusLabel.setOpaque(true);
-        statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 15, 5, 15));
+        JPanel statusBadgePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        statusBadgePanel.setBackground(CARD_BG);
+        
+        JLabel statusBadge = new JLabel("  " + order.status + "  ");
+        statusBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        statusBadge.setOpaque(true);
+        statusBadge.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
         
         Color statusColor = getColorForStatus(order.status);
-        statusLabel.setBackground(statusColor);
-        statusLabel.setForeground(Color.WHITE);
-        statusPanel.add(new JLabel("Status: "));
-        statusPanel.add(statusLabel);
-        detailsPanel.add(statusPanel);
-        detailsPanel.add(Box.createVerticalStrut(15));
+        statusBadge.setBackground(statusColor);
+        statusBadge.setForeground(Color.WHITE);
+        statusBadgePanel.add(statusBadge);
         
-        // Sender Information
-        detailsPanel.add(createDetailSection("Sender Information",
-            new String[]{
-                "Name: " + order.customerName,
-                "Phone: " + order.customerPhone,
-                "Email: " + order.customerEmail,
-                "Address: " + order.customerAddress
-            }));
-        
-        detailsPanel.add(Box.createVerticalStrut(10));
-        
-        // Recipient Information
-        detailsPanel.add(createDetailSection("Recipient Information",
-            new String[]{
-                "Name: " + order.recipientName,
-                "Phone: " + order.recipientPhone,
-                "Address: " + order.recipientAddress
-            }));
-        
-        detailsPanel.add(Box.createVerticalStrut(10));
-        
-        // Package Information
-        detailsPanel.add(createDetailSection("Package Information",
-            new String[]{
-                "Weight: " + String.format("%.2f kg", order.weight),
-                "Dimensions: " + order.dimensions + " cm"
-            }));
-        
-        detailsPanel.add(Box.createVerticalStrut(10));
-        
-        // Delivery Information
-        List<String> deliveryInfo = new ArrayList<>();
-        deliveryInfo.add("Order Date: " + order.orderDate);
-        if (order.estimatedDelivery != null) {
-            deliveryInfo.add("Estimated Delivery: " + order.estimatedDelivery);
-        }
-        if (order.driverId != null && !order.driverId.isEmpty()) {
-            deliveryInfo.add("Driver ID: " + order.driverId);
-        }
-        if (order.vehicleId != null && !order.vehicleId.isEmpty()) {
-            deliveryInfo.add("Vehicle ID: " + order.vehicleId);
-        }
-        if (order.reason != null && !order.reason.isEmpty()) {
-            deliveryInfo.add("Delay Reason: " + order.reason);
-        }
-        if (order.notes != null && !order.notes.isEmpty()) {
-            deliveryInfo.add("Notes: " + order.notes);
+        if ("Delivered".equals(order.status)) {
+            JLabel onTimeBadge = new JLabel(order.onTime ? "  ON TIME  " : "  LATE  ");
+            onTimeBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            onTimeBadge.setOpaque(true);
+            onTimeBadge.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+            onTimeBadge.setBackground(order.onTime ? SUCCESS : DANGER);
+            onTimeBadge.setForeground(Color.WHITE);
+            statusBadgePanel.add(Box.createHorizontalStrut(10));
+            statusBadgePanel.add(onTimeBadge);
         }
         
-        detailsPanel.add(createDetailSection("Delivery Information", 
-            deliveryInfo.toArray(new String[0])));
+        titlePanel.add(statusBadgePanel);
         
-        JScrollPane scrollPane = new JScrollPane(detailsPanel);
-        scrollPane.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        JLabel dateLabel = new JLabel("Order Date: " + order.orderDate);
+        dateLabel.setFont(REGULAR_FONT);
+        dateLabel.setForeground(TEXT_SECONDARY);
         
-        // Close button
+        headerPanel.add(titlePanel, BorderLayout.WEST);
+        headerPanel.add(dateLabel, BorderLayout.EAST);
+        
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        
+        // Create tabbed pane for organized information
+        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(HEADER_FONT);
+        tabbedPane.setBackground(CARD_BG);
+        
+        // Tab 1: Customer & Recipient Information
+        JPanel customerTab = createCustomerInfoTab(order);
+        tabbedPane.addTab("Customer & Recipient", customerTab);
+        
+        // Tab 2: Package & Delivery Details
+        JPanel packageTab = createPackageInfoTab(order, driver);
+        tabbedPane.addTab("Package & Delivery", packageTab);
+        
+        // Tab 3: Payment Information
+        JPanel paymentTab = createPaymentInfoTab(order);
+        tabbedPane.addTab("Payment", paymentTab);
+        
+        // Tab 4: Driver & Vehicle
+        JPanel driverTab = createDriverInfoTab(order, driver);
+        tabbedPane.addTab("Driver & Vehicle", driverTab);
+        
+        // Tab 5: Tracking Timeline
+        JPanel timelineTab = createTimelineTab(order);
+        tabbedPane.addTab("Timeline", timelineTab);
+        
+        mainPanel.add(tabbedPane, BorderLayout.CENTER);
+        
+        // Button panel
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        buttonPanel.setBackground(CARD_BG);
+        
         JButton closeBtn = new JButton("Close");
         closeBtn.setFont(BUTTON_FONT);
         closeBtn.setForeground(Color.WHITE);
@@ -671,42 +746,393 @@ public class OrderManagement {
         closeBtn.setPreferredSize(new Dimension(85, 32));
         closeBtn.addActionListener(e -> dialog.dispose());
         
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setBackground(CARD_BG);
+        if ("Pending".equals(order.status) || "Delayed".equals(order.status)) {
+            JButton assignBtn = new JButton("Assign Driver");
+            assignBtn.setFont(BUTTON_FONT);
+            assignBtn.setForeground(Color.WHITE);
+            assignBtn.setBackground(SUCCESS);
+            assignBtn.setBorderPainted(false);
+            assignBtn.setPreferredSize(new Dimension(120, 32));
+            assignBtn.addActionListener(e -> {
+                dialog.dispose();
+                assignDriver();
+            });
+            buttonPanel.add(assignBtn);
+        }
+        
+        if ("In Transit".equals(order.status)) {
+            JButton deliverBtn = new JButton("Mark Delivered");
+            deliverBtn.setFont(BUTTON_FONT);
+            deliverBtn.setForeground(Color.WHITE);
+            deliverBtn.setBackground(SUCCESS);
+            deliverBtn.setBorderPainted(false);
+            deliverBtn.setPreferredSize(new Dimension(120, 32));
+            deliverBtn.addActionListener(e -> {
+                dialog.dispose();
+                markAsDelivered();
+            });
+            buttonPanel.add(deliverBtn);
+        }
+        
         buttonPanel.add(closeBtn);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
         
-        panel.add(titlePanel, BorderLayout.NORTH);
-        panel.add(scrollPane, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.add(panel);
+        dialog.add(mainPanel);
         dialog.setVisible(true);
     }
     
-    private JPanel createDetailSection(String title, String[] lines) {
-        JPanel panel = new JPanel(new BorderLayout());
+    private JPanel createCustomerInfoTab(Order order) {
+        JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(HEADER_FONT);
-        titleLabel.setForeground(PRIMARY);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.weightx = 1.0;
         
-        JPanel linesPanel = new JPanel(new GridLayout(lines.length, 1, 0, 3));
-        linesPanel.setBackground(CARD_BG);
-        linesPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        int row = 0;
         
-        for (String line : lines) {
-            JLabel lineLabel = new JLabel(line);
-            lineLabel.setFont(REGULAR_FONT);
-            lineLabel.setForeground(TEXT_PRIMARY);
-            linesPanel.add(lineLabel);
-        }
+        // Sender Section
+        JLabel senderTitle = new JLabel("📤 SENDER INFORMATION");
+        senderTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        senderTitle.setForeground(PRIMARY);
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(senderTitle, gbc);
         
-        panel.add(titleLabel, BorderLayout.NORTH);
-        panel.add(linesPanel, BorderLayout.CENTER);
+        gbc.gridwidth = 1;
+        addDetailRow(panel, "Name:", order.customerName, gbc, row++);
+        addDetailRow(panel, "Phone:", order.customerPhone, gbc, row++);
+        addDetailRow(panel, "Email:", order.customerEmail, gbc, row++);
+        addDetailRow(panel, "Address:", order.customerAddress, gbc, row++);
+        
+        // Separator
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(new JSeparator(), gbc);
+        
+        // Recipient Section
+        JLabel recipientTitle = new JLabel("📥 RECIPIENT INFORMATION");
+        recipientTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        recipientTitle.setForeground(SUCCESS);
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(recipientTitle, gbc);
+        
+        gbc.gridwidth = 1;
+        addDetailRow(panel, "Name:", order.recipientName, gbc, row++);
+        addDetailRow(panel, "Phone:", order.recipientPhone, gbc, row++);
+        addDetailRow(panel, "Address:", order.recipientAddress, gbc, row++);
         
         return panel;
+    }
+    
+    private JPanel createPackageInfoTab(Order order, Driver driver) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.weightx = 1.0;
+        
+        int row = 0;
+        
+        JLabel packageTitle = new JLabel("📦 PACKAGE DETAILS");
+        packageTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        packageTitle.setForeground(PRIMARY);
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(packageTitle, gbc);
+        
+        gbc.gridwidth = 1;
+        addDetailRow(panel, "Weight:", String.format("%.2f kg", order.weight), gbc, row++);
+        addDetailRow(panel, "Dimensions:", order.dimensions + " cm", gbc, row++);
+        
+        // Extract package type from notes
+        String packageType = extractFromNotes(order.notes, "Package Type:");
+        if (packageType != null) {
+            addDetailRow(panel, "Package Type:", packageType, gbc, row++);
+        }
+        
+        String description = extractFromNotes(order.notes, "Description:");
+        if (description != null) {
+            addDetailRow(panel, "Description:", description, gbc, row++);
+        }
+        
+        if (order.notes != null && !order.notes.isEmpty() && !order.notes.equals(extractFromNotes(order.notes, ""))) {
+            addDetailRow(panel, "Full Notes:", order.notes, gbc, row++);
+        }
+        
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(new JSeparator(), gbc);
+        
+        // Delivery Information
+        JLabel deliveryTitle = new JLabel("🚚 DELIVERY INFORMATION");
+        deliveryTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        deliveryTitle.setForeground(INFO);
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(deliveryTitle, gbc);
+        
+        gbc.gridwidth = 1;
+        addDetailRow(panel, "Order Date:", order.orderDate, gbc, row++);
+        addDetailRow(panel, "Estimated Delivery:", order.estimatedDelivery != null ? order.estimatedDelivery : "-", gbc, row++);
+        addDetailRow(panel, "Actual Delivery:", order.actualDelivery != null ? order.actualDelivery : "-", gbc, row++);
+        addDetailRow(panel, "Pickup Time:", order.pickupTime != null ? order.pickupTime : "-", gbc, row++);
+        addDetailRow(panel, "Delivery Time:", order.deliveryTime != null ? order.deliveryTime : "-", gbc, row++);
+        
+        if ("Delivered".equals(order.status)) {
+            addDetailRow(panel, "On Time:", order.onTime ? "Yes" : "No", gbc, row++);
+            addDetailRow(panel, "Distance:", String.format("%.1f km", order.distance), gbc, row++);
+            addDetailRow(panel, "Fuel Used:", String.format("%.1f L", order.fuelUsed), gbc, row++);
+            addDetailRow(panel, "Fuel Efficiency:", order.fuelUsed > 0 ? 
+                        String.format("%.2f km/L", order.distance / order.fuelUsed) : "-", gbc, row++);
+        }
+        
+        if (order.reason != null && !order.reason.isEmpty()) {
+            addDetailRow(panel, "Delay/Cancel Reason:", order.reason, gbc, row++);
+        }
+        
+        return panel;
+    }
+    
+    private JPanel createPaymentInfoTab(Order order) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.weightx = 1.0;
+        
+        int row = 0;
+        
+        JLabel paymentTitle = new JLabel("💰 PAYMENT INFORMATION");
+        paymentTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        paymentTitle.setForeground(PURPLE);
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(paymentTitle, gbc);
+        
+        gbc.gridwidth = 1;
+        addDetailRow(panel, "Payment Status:", order.paymentStatus != null ? order.paymentStatus : "Pending", gbc, row++);
+        addDetailRow(panel, "Payment Method:", order.paymentMethod != null ? order.paymentMethod : "-", gbc, row++);
+        addDetailRow(panel, "Transaction ID:", order.transactionId != null ? order.transactionId : "-", gbc, row++);
+        addDetailRow(panel, "Payment Date:", order.paymentDate != null ? order.paymentDate : "-", gbc, row++);
+        
+        // Extract cost from notes
+        String cost = extractCost(order.notes);
+        addDetailRow(panel, "Order Cost:", cost, gbc, row++);
+        
+        return panel;
+    }
+    
+    private JPanel createDriverInfoTab(Order order, Driver driver) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.weightx = 1.0;
+        
+        int row = 0;
+        
+        JLabel driverTitle = new JLabel("👤 DRIVER INFORMATION");
+        driverTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        driverTitle.setForeground(ORANGE);
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(driverTitle, gbc);
+        
+        gbc.gridwidth = 1;
+        
+        if (driver != null) {
+            addDetailRow(panel, "Driver ID:", driver.id, gbc, row++);
+            addDetailRow(panel, "Driver Name:", driver.name, gbc, row++);
+            addDetailRow(panel, "Driver Phone:", driver.phone, gbc, row++);
+            addDetailRow(panel, "Driver Email:", driver.email != null ? driver.email : "-", gbc, row++);
+            addDetailRow(panel, "Driver Status:", driver.workStatus, gbc, row++);
+            addDetailRow(panel, "Driver Rating:", driver.getFormattedRating(), gbc, row++);
+        } else if (order.driverId != null) {
+            addDetailRow(panel, "Driver ID:", order.driverId, gbc, row++);
+            addDetailRow(panel, "Driver Status:", "Driver not found in database", gbc, row++);
+        } else {
+            addDetailRow(panel, "Driver:", "Not assigned", gbc, row++);
+        }
+        
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(new JSeparator(), gbc);
+        
+        JLabel vehicleTitle = new JLabel("🚗 VEHICLE INFORMATION");
+        vehicleTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        vehicleTitle.setForeground(SUCCESS);
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        panel.add(vehicleTitle, gbc);
+        
+        gbc.gridwidth = 1;
+        
+        if (order.vehicleId != null && !order.vehicleId.isEmpty()) {
+            addDetailRow(panel, "Vehicle ID:", order.vehicleId, gbc, row++);
+            
+            // Try to get vehicle details from VehicleManagement if available
+            if (vehicleManagement != null) {
+                VehicleManagement.Vehicle vehicle = vehicleManagement.getVehicleById(order.vehicleId);
+                if (vehicle != null) {
+                    addDetailRow(panel, "Vehicle Model:", vehicle.model, gbc, row++);
+                    addDetailRow(panel, "Vehicle Type:", vehicle.type, gbc, row++);
+                    addDetailRow(panel, "Plate Number:", vehicle.numberPlate, gbc, row++);
+                    addDetailRow(panel, "Fuel Type:", vehicle.fuelType, gbc, row++);
+                    addDetailRow(panel, "Vehicle Status:", vehicle.status, gbc, row++);
+                }
+            }
+        } else {
+            addDetailRow(panel, "Vehicle:", "Not assigned", gbc, row++);
+        }
+        
+        return panel;
+    }
+    
+    private JPanel createTimelineTab(Order order) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JLabel timelineTitle = new JLabel("📅 ORDER TIMELINE");
+        timelineTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        timelineTitle.setForeground(INFO);
+        timelineTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(timelineTitle);
+        panel.add(Box.createVerticalStrut(15));
+        
+        // Order Created
+        panel.add(createTimelineEvent(
+            "Order Created", 
+            order.customerName,
+            order.orderDate,
+            true
+        ));
+        panel.add(Box.createVerticalStrut(5));
+        
+        // Payment
+        boolean paymentCompleted = "Paid".equals(order.paymentStatus);
+        panel.add(createTimelineEvent(
+            "Payment", 
+            paymentCompleted ? "Payment completed" : "Payment " + (order.paymentStatus != null ? order.paymentStatus.toLowerCase() : "pending"),
+            order.paymentDate != null ? order.paymentDate : (paymentCompleted ? "Date unknown" : "Not paid yet"),
+            paymentCompleted
+        ));
+        panel.add(Box.createVerticalStrut(5));
+        
+        // Pickup
+        boolean pickedUp = order.pickupTime != null;
+        panel.add(createTimelineEvent(
+            "Pickup", 
+            pickedUp ? "Picked up by driver" : "Awaiting pickup",
+            pickedUp ? order.pickupTime : "Not picked up",
+            pickedUp
+        ));
+        panel.add(Box.createVerticalStrut(5));
+        
+        // In Transit
+        boolean inTransit = "In Transit".equals(order.status) || "Delayed".equals(order.status) || "Delivered".equals(order.status);
+        panel.add(createTimelineEvent(
+            "In Transit", 
+            inTransit ? "Package is on the way" : "Not in transit",
+            order.estimatedDelivery != null ? "Est: " + order.estimatedDelivery : "-",
+            inTransit
+        ));
+        panel.add(Box.createVerticalStrut(5));
+        
+        // Delivered
+        boolean delivered = "Delivered".equals(order.status);
+        String deliveryInfo = delivered ? 
+            (order.onTime ? "Delivered on time" : "Delivered late") : 
+            "Not delivered";
+        panel.add(createTimelineEvent(
+            "Delivered", 
+            deliveryInfo,
+            order.actualDelivery != null ? order.actualDelivery : "-",
+            delivered
+        ));
+        
+        return panel;
+    }
+    
+    private JPanel createTimelineEvent(String event, String description, String time, boolean completed) {
+        JPanel eventPanel = new JPanel(new BorderLayout(10, 0));
+        eventPanel.setBackground(CARD_BG);
+        eventPanel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+        
+        JPanel leftPanel = new JPanel(new GridLayout(2, 1, 2, 2));
+        leftPanel.setBackground(CARD_BG);
+        
+        String icon = completed ? "✅ " : "⏳ ";
+        JLabel eventLabel = new JLabel(icon + event);
+        eventLabel.setFont(new Font("Segoe UI", completed ? Font.BOLD : Font.PLAIN, 13));
+        eventLabel.setForeground(completed ? SUCCESS : TEXT_SECONDARY);
+        leftPanel.add(eventLabel);
+        
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        descLabel.setForeground(TEXT_SECONDARY);
+        leftPanel.add(descLabel);
+        
+        eventPanel.add(leftPanel, BorderLayout.WEST);
+        
+        JLabel timeLabel = new JLabel(time);
+        timeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        timeLabel.setForeground(TEXT_SECONDARY);
+        eventPanel.add(timeLabel, BorderLayout.EAST);
+        
+        return eventPanel;
+    }
+    
+    private void addDetailRow(JPanel panel, String label, String value, GridBagConstraints gbc, int y) {
+        gbc.gridy = y;
+        gbc.gridx = 0;
+        gbc.gridwidth = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        
+        JLabel labelComp = new JLabel(label);
+        labelComp.setFont(HEADER_FONT);
+        labelComp.setForeground(TEXT_SECONDARY);
+        panel.add(labelComp, gbc);
+        
+        gbc.gridx = 1;
+        JLabel valueComp = new JLabel(value != null ? value : "-");
+        valueComp.setFont(REGULAR_FONT);
+        valueComp.setForeground(TEXT_PRIMARY);
+        panel.add(valueComp, gbc);
+    }
+    
+    private String extractFromNotes(String notes, String prefix) {
+        if (notes == null || !notes.contains(prefix)) return null;
+        try {
+            String[] parts = notes.split(prefix);
+            if (parts.length > 1) {
+                String result = parts[1];
+                if (result.contains(" ")) {
+                    result = result.substring(0, result.indexOf(" ")).trim();
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return null;
+    }
+    
+    private String extractCost(String notes) {
+        if (notes == null) return "RM --.--";
+        
+        if (notes.contains("Estimated Cost:")) {
+            String[] parts = notes.split("Estimated Cost: ");
+            if (parts.length > 1) {
+                String[] costParts = parts[1].split(" ");
+                return costParts[0].trim();
+            }
+        }
+        return "RM --.--";
     }
     
     private Color getColorForStatus(String status) {
@@ -715,6 +1141,7 @@ public class OrderManagement {
             case "In Transit": return INFO;
             case "Delayed": return DANGER;
             case "Delivered": return SUCCESS;
+            case "Cancelled": return TEXT_SECONDARY;
             default: return PRIMARY;
         }
     }
@@ -747,21 +1174,21 @@ public class OrderManagement {
         
         // Sender Information Panel
         JPanel senderPanel = createInfoPanel("Sender Information", new String[]{
-            "Full Name:", "Phone:", "Email:", "Address:"
+            "Full Name:*", "Phone:*", "Email:*", "Address:*"
         }, componentMap, "sender");
         formContainer.add(senderPanel);
         formContainer.add(Box.createVerticalStrut(15));
         
         // Recipient Information Panel
         JPanel recipientPanel = createInfoPanel("Recipient Information", new String[]{
-            "Full Name:", "Phone:", "Address:"
+            "Full Name:*", "Phone:*", "Address:*"
         }, componentMap, "recipient");
         formContainer.add(recipientPanel);
         formContainer.add(Box.createVerticalStrut(15));
         
         // Package Information Panel
         JPanel packagePanel = createInfoPanel("Package Information", new String[]{
-            "Weight (kg):", "Dimensions (LxWxH cm):"
+            "Weight (kg):*", "Dimensions (LxWxH cm):*", "Package Type:", "Description:"
         }, componentMap, "package");
         formContainer.add(packagePanel);
         
@@ -838,7 +1265,7 @@ public class OrderManagement {
             label.setFont(HEADER_FONT);
             label.setForeground(TEXT_PRIMARY);
             
-            if (labelText.contains("Address")) {
+            if (labelText.contains("Address") || labelText.contains("Description")) {
                 JTextArea textArea = new JTextArea(3, 20);
                 textArea.setFont(REGULAR_FONT);
                 textArea.setLineWrap(true);
@@ -853,8 +1280,20 @@ public class OrderManagement {
                 gridPanel.add(scroll);
                 
                 // Store in component map
-                String key = prefix + "_address";
+                String key = prefix + "_" + labelText.toLowerCase().replace("*", "").replace(" ", "_").replace(":", "");
                 componentMap.put(key, scroll);
+            } else if (labelText.contains("Package Type")) {
+                JComboBox<String> typeCombo = new JComboBox<>(new String[]{
+                    "Documents", "Electronics", "Clothing", "Fragile Items", 
+                    "Books", "Food", "Other"
+                });
+                typeCombo.setFont(REGULAR_FONT);
+                typeCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+                gridPanel.add(label);
+                gridPanel.add(typeCombo);
+                
+                String key = prefix + "_type";
+                componentMap.put(key, typeCombo);
             } else {
                 JTextField textField = new JTextField(20);
                 textField.setFont(REGULAR_FONT);
@@ -866,10 +1305,7 @@ public class OrderManagement {
                 gridPanel.add(textField);
                 
                 // Store in component map
-                String fieldName = labelText.replace("*", "").replace(" ", "_").toLowerCase();
-                if (fieldName.contains(":")) {
-                    fieldName = fieldName.substring(0, fieldName.indexOf(":"));
-                }
+                String fieldName = labelText.toLowerCase().replace("*", "").replace(" ", "_").replace(":", "");
                 String key = prefix + "_" + fieldName;
                 componentMap.put(key, textField);
             }
@@ -895,8 +1331,11 @@ public class OrderManagement {
             
             JTextField weightField = (JTextField) componentMap.get("package_weight_(kg)");
             JTextField dimensionsField = (JTextField) componentMap.get("package_dimensions_(lxwxh_cm)");
+            JComboBox<String> packageTypeCombo = (JComboBox<String>) componentMap.get("package_type");
+            JScrollPane descScroll = (JScrollPane) componentMap.get("package_description");
+            JTextArea descArea = (JTextArea) (descScroll != null ? descScroll.getViewport().getView() : null);
             
-            // Check if any required fields are null
+            // Check if required fields exist
             if (senderNameField == null || senderPhoneField == null || senderEmailField == null || 
                 senderAddressArea == null || recipientNameField == null || recipientPhoneField == null || 
                 recipientAddressArea == null || weightField == null || dimensionsField == null) {
@@ -919,6 +1358,9 @@ public class OrderManagement {
             
             String weightText = weightField.getText().trim();
             String dimensions = dimensionsField.getText().trim();
+            
+            String packageType = packageTypeCombo != null ? (String) packageTypeCombo.getSelectedItem() : "Standard";
+            String description = descArea != null ? descArea.getText().trim() : "";
             
             // Validate required fields
             StringBuilder missingFields = new StringBuilder();
@@ -947,7 +1389,7 @@ public class OrderManagement {
                 return false;
             }
             
-            // Validate phone number (basic - just check if it contains only digits and allowed characters)
+            // Validate phone number (basic)
             String phonePattern = "^[0-9\\-\\+\\s\\(\\)]+$";
             if (!senderPhone.matches(phonePattern)) {
                 JOptionPane.showMessageDialog(dialog, 
@@ -1003,11 +1445,27 @@ public class OrderManagement {
                 dimensions
             );
             
+            // Add additional notes
+            StringBuilder notes = new StringBuilder();
+            notes.append("Package Type: ").append(packageType);
+            if (!description.isEmpty()) {
+                notes.append(" Description: ").append(description);
+            }
+            
+            // Calculate estimated cost (simple calculation)
+            double baseRate = 8.0;
+            double weightRate = weight * 3.5;
+            double total = baseRate + weightRate;
+            notes.append(" Estimated Cost: RM ").append(String.format("%.2f", total));
+            
+            order.notes = notes.toString();
+            order.paymentStatus = "Pending";
+            
             storage.addOrder(order);
             refreshTable();
             
             JOptionPane.showMessageDialog(dialog, 
-                "Order created successfully!\nOrder ID: " + orderId, 
+                "Order created successfully!\nOrder ID: " + orderId + "\nEstimated Cost: RM " + String.format("%.2f", total), 
                 "Success", JOptionPane.INFORMATION_MESSAGE);
             return true;
             
@@ -1023,7 +1481,8 @@ public class OrderManagement {
     private void editOrder() {
         int row = ordersTable.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(mainPanel, "Please select an order to edit", "No Selection", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(mainPanel, "Please select an order to edit", 
+                "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
@@ -1052,11 +1511,12 @@ public class OrderManagement {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(8, 8, 8, 8);
         
-        String[] fields = {"Status:", "Driver ID:", "Vehicle ID:", "Notes:", "Delay Reason:"};
+        String[] fields = {"Status:", "Driver ID:", "Vehicle ID:", "Payment Status:", "Notes:", "Delay/Cancel Reason:"};
         JComponent[] components = {
             createStatusCombo(order.status),
             new JTextField(order.driverId != null ? order.driverId : ""),
             new JTextField(order.vehicleId != null ? order.vehicleId : ""),
+            createPaymentStatusCombo(order.paymentStatus),
             createTextArea(order.notes),
             new JTextField(order.reason != null ? order.reason : "")
         };
@@ -1121,15 +1581,18 @@ public class OrderManagement {
             order.vehicleId = ((JTextField) components[2]).getText().trim();
             if (order.vehicleId.isEmpty()) order.vehicleId = null;
             
-            order.notes = ((JTextArea) ((JScrollPane) components[3]).getViewport().getView()).getText().trim();
+            order.paymentStatus = (String) ((JComboBox<?>) components[3]).getSelectedItem();
+            
+            order.notes = ((JTextArea) ((JScrollPane) components[4]).getViewport().getView()).getText().trim();
             if (order.notes.isEmpty()) order.notes = null;
             
-            order.reason = ((JTextField) components[4]).getText().trim();
+            order.reason = ((JTextField) components[5]).getText().trim();
             if (order.reason.isEmpty()) order.reason = null;
             
             storage.updateOrder(order);
             refreshTable();
-            JOptionPane.showMessageDialog(dialog, "Order updated successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(dialog, "Order updated successfully", 
+                "Success", JOptionPane.INFORMATION_MESSAGE);
             dialog.dispose();
         });
         
@@ -1145,8 +1608,20 @@ public class OrderManagement {
     }
     
     private JComboBox<String> createStatusCombo(String currentStatus) {
-        JComboBox<String> combo = new JComboBox<>(new String[]{"Pending", "In Transit", "Delayed", "Delivered"});
+        JComboBox<String> combo = new JComboBox<>(new String[]{
+            "Pending", "In Transit", "Delayed", "Delivered", "Cancelled"
+        });
         combo.setSelectedItem(currentStatus);
+        combo.setFont(REGULAR_FONT);
+        combo.setPreferredSize(new Dimension(200, 30));
+        return combo;
+    }
+    
+    private JComboBox<String> createPaymentStatusCombo(String currentStatus) {
+        JComboBox<String> combo = new JComboBox<>(new String[]{
+            "Pending", "Paid", "Failed"
+        });
+        combo.setSelectedItem(currentStatus != null ? currentStatus : "Pending");
         combo.setFont(REGULAR_FONT);
         combo.setPreferredSize(new Dimension(200, 30));
         return combo;
@@ -1169,7 +1644,8 @@ public class OrderManagement {
     private void deleteOrder() {
         int row = ordersTable.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(mainPanel, "Please select an order to delete", "No Selection", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(mainPanel, "Please select an order to delete", 
+                "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
@@ -1185,17 +1661,16 @@ public class OrderManagement {
         if (confirm == JOptionPane.YES_OPTION) {
             storage.removeOrder(id);
             refreshTable();
-            JOptionPane.showMessageDialog(mainPanel, "Order deleted successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(mainPanel, "Order deleted successfully", 
+                "Success", JOptionPane.INFORMATION_MESSAGE);
         }
     }
     
-    /**
-     * Assign driver and vehicle to order with dropdown lists
-     */
     private void assignDriver() {
         int row = ordersTable.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(mainPanel, "Please select an order", "No Selection", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(mainPanel, "Please select an order", 
+                "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
@@ -1205,7 +1680,9 @@ public class OrderManagement {
         if (order == null) return;
         
         if (!"Pending".equals(order.status) && !"Delayed".equals(order.status)) {
-            JOptionPane.showMessageDialog(mainPanel, "Only pending or delayed orders can be assigned", "Invalid Status", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Only pending or delayed orders can be assigned", 
+                "Invalid Status", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
@@ -1229,13 +1706,9 @@ public class OrderManagement {
             return;
         }
         
-        // Show driver and vehicle selection dialog
         showDriverAndVehicleSelection(order, availableDrivers);
     }
 
-    /**
-     * Shows a dialog with driver and vehicle selection dropdowns
-     */
     private void showDriverAndVehicleSelection(Order order, List<Driver> availableDrivers) {
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
                                       "Assign Driver and Vehicle", true);
@@ -1308,10 +1781,9 @@ public class OrderManagement {
         gbc.gridx = 1;
         gbc.weightx = 0.7;
         
-        // Get vehicles from VehicleManagement if available, otherwise use default list
+        // Get vehicles from VehicleManagement if available
         String[] vehicleOptions;
         
-        // Try to get vehicles from VehicleManagement
         if (vehicleManagement != null && vehicleManagement.getAllVehicles() != null) {
             List<VehicleManagement.Vehicle> vehicles = vehicleManagement.getAllVehicles();
             vehicleOptions = new String[vehicles.size()];
@@ -1323,7 +1795,7 @@ public class OrderManagement {
                     v.id, v.model, v.type, v.fuelType, driverInfo);
             }
         } else {
-            // Default vehicle options if VehicleManagement is not available
+            // Default vehicle options
             vehicleOptions = new String[]{
                 "TRK001 - Freightliner Cascadia (Diesel) | No Driver",
                 "TRK002 - Peterbilt 579 (Diesel) | No Driver", 
@@ -1354,9 +1826,8 @@ public class OrderManagement {
         gbc.gridx = 1;
         gbc.weightx = 0.7;
         
-        // Date spinner for estimated delivery
         Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.DAY_OF_MONTH, 3); // Default to 3 days from now
+        cal.add(Calendar.DAY_OF_MONTH, 3);
         SpinnerDateModel dateModel = new SpinnerDateModel(cal.getTime(), null, null, Calendar.DAY_OF_MONTH);
         JSpinner dateSpinner = new JSpinner(dateModel);
         JSpinner.DateEditor dateEditor = new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd");
@@ -1391,7 +1862,7 @@ public class OrderManagement {
             if (selectedDriverIndex >= 0) {
                 Driver selectedDriver = availableDrivers.get(selectedDriverIndex);
                 String selectedVehicle = (String) vehicleCombo.getSelectedItem();
-                String vehicleId = selectedVehicle.split(" - ")[0]; // Extract vehicle ID
+                String vehicleId = selectedVehicle.split(" - ")[0];
                 Date estimatedDate = (Date) dateSpinner.getValue();
                 
                 assignDriverAndVehicleToOrder(order, selectedDriver.id, vehicleId, estimatedDate);
@@ -1412,17 +1883,13 @@ public class OrderManagement {
         dialog.setVisible(true);
     }
 
-    /**
-     * Assign driver and vehicle to order
-     */
     private void assignDriverAndVehicleToOrder(Order order, String driverId, String vehicleId, Date estimatedDate) {
         order.driverId = driverId;
         order.vehicleId = vehicleId;
         order.status = "In Transit";
         
         // Update estimated delivery
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-        order.estimatedDelivery = sdf.format(estimatedDate);
+        order.estimatedDelivery = dateFormat.format(estimatedDate);
         
         storage.updateOrder(order);
         refreshTable();
@@ -1434,7 +1901,7 @@ public class OrderManagement {
         
         JOptionPane.showMessageDialog(mainPanel, 
             "Driver " + driverId + " and vehicle " + vehicleId + " assigned to " + order.id + "\n" +
-            "Estimated Delivery: " + sdf.format(estimatedDate), 
+            "Estimated Delivery: " + dateFormat.format(estimatedDate), 
             "Success", 
             JOptionPane.INFORMATION_MESSAGE);
     }
@@ -1442,7 +1909,8 @@ public class OrderManagement {
     private void markAsDelivered() {
         int row = ordersTable.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(mainPanel, "Please select an order", "No Selection", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(mainPanel, "Please select an order", 
+                "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
@@ -1452,43 +1920,235 @@ public class OrderManagement {
         if (order == null) return;
         
         if ("Delivered".equals(order.status)) {
-            JOptionPane.showMessageDialog(mainPanel, "Order is already delivered", "Invalid Action", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(mainPanel, "Order is already delivered", 
+                "Invalid Action", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
-        int confirm = JOptionPane.showConfirmDialog(mainPanel,
-            "Mark order " + order.id + " as delivered?",
-            "Confirm Delivery",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
+        // Create dialog to enter delivery details
+        JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
+                                      "Complete Delivery", true);
+        dialog.setSize(450, 400);
+        dialog.setLocationRelativeTo(mainPanel);
         
-        if (confirm == JOptionPane.YES_OPTION) {
-            order.status = "Delivered";
-            
-            // Update driver status if DriverManagement is available
-            if (driverManagement != null && order.driverId != null) {
-                driverManagement.updateDriverStatus(order.driverId, "Available");
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setBackground(CARD_BG);
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.weightx = 1.0;
+        
+        int gridy = 0;
+        
+        JLabel titleLabel = new JLabel("Mark Order as Delivered");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLabel.setForeground(PRIMARY);
+        gbc.gridx = 0; gbc.gridy = gridy++; gbc.gridwidth = 2;
+        panel.add(titleLabel, gbc);
+        
+        gbc.gridwidth = 1;
+        
+        JLabel orderLabel = new JLabel("Order ID:");
+        orderLabel.setFont(HEADER_FONT);
+        gbc.gridx = 0; gbc.gridy = gridy;
+        panel.add(orderLabel, gbc);
+        
+        JLabel orderValue = new JLabel(order.id);
+        orderValue.setFont(REGULAR_FONT);
+        orderValue.setForeground(PRIMARY);
+        gbc.gridx = 1; gbc.gridy = gridy++;
+        panel.add(orderValue, gbc);
+        
+        JLabel distanceLabel = new JLabel("Distance (km):*");
+        distanceLabel.setFont(HEADER_FONT);
+        gbc.gridx = 0; gbc.gridy = gridy;
+        panel.add(distanceLabel, gbc);
+        
+        JTextField distanceField = new JTextField();
+        distanceField.setFont(REGULAR_FONT);
+        gbc.gridx = 1; gbc.gridy = gridy++;
+        panel.add(distanceField, gbc);
+        
+        JLabel fuelLabel = new JLabel("Fuel Used (L):*");
+        fuelLabel.setFont(HEADER_FONT);
+        gbc.gridx = 0; gbc.gridy = gridy;
+        panel.add(fuelLabel, gbc);
+        
+        JTextField fuelField = new JTextField();
+        fuelField.setFont(REGULAR_FONT);
+        gbc.gridx = 1; gbc.gridy = gridy++;
+        panel.add(fuelField, gbc);
+        
+        JLabel onTimeLabel = new JLabel("Delivered On Time:");
+        onTimeLabel.setFont(HEADER_FONT);
+        gbc.gridx = 0; gbc.gridy = gridy;
+        panel.add(onTimeLabel, gbc);
+        
+        JCheckBox onTimeCheck = new JCheckBox("Yes");
+        onTimeCheck.setSelected(true);
+        onTimeCheck.setFont(REGULAR_FONT);
+        onTimeCheck.setBackground(CARD_BG);
+        gbc.gridx = 1; gbc.gridy = gridy++;
+        panel.add(onTimeCheck, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = gridy; gbc.gridwidth = 2;
+        gbc.insets = new Insets(15, 5, 5, 5);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        buttonPanel.setBackground(CARD_BG);
+        
+        JButton confirmBtn = new JButton("Confirm Delivery");
+        confirmBtn.setFont(BUTTON_FONT);
+        confirmBtn.setForeground(Color.WHITE);
+        confirmBtn.setBackground(SUCCESS);
+        confirmBtn.setBorderPainted(false);
+        confirmBtn.setPreferredSize(new Dimension(140, 35));
+        confirmBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        JButton cancelBtn = new JButton("Cancel");
+        cancelBtn.setFont(BUTTON_FONT);
+        cancelBtn.setForeground(TEXT_SECONDARY);
+        cancelBtn.setBackground(CARD_BG);
+        cancelBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
+        cancelBtn.setPreferredSize(new Dimension(100, 35));
+        cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cancelBtn.addActionListener(e -> dialog.dispose());
+        
+        buttonPanel.add(cancelBtn);
+        buttonPanel.add(confirmBtn);
+        
+        panel.add(buttonPanel, gbc);
+        
+        confirmBtn.addActionListener(e -> {
+            try {
+                String distText = distanceField.getText().trim();
+                String fuelText = fuelField.getText().trim();
+                
+                if (distText.isEmpty() || fuelText.isEmpty()) {
+                    JOptionPane.showMessageDialog(dialog, 
+                        "Please enter distance and fuel used", 
+                        "Validation Error", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                
+                double distance = Double.parseDouble(distText);
+                double fuel = Double.parseDouble(fuelText);
+                boolean onTime = onTimeCheck.isSelected();
+                
+                // Update order
+                order.status = "Delivered";
+                order.actualDelivery = dateFormat.format(new Date());
+                order.deliveryTime = dateTimeFormat.format(new Date());
+                order.distance = distance;
+                order.fuelUsed = fuel;
+                order.onTime = onTime;
+                
+                // Update driver statistics if driver assigned
+                if (order.driverId != null && driverManagement != null) {
+                    Driver driver = driverManagement.getDriverById(order.driverId);
+                    if (driver != null) {
+                        driver.completeOrder(order.id, onTime, distance, fuel);
+                        driverManagement.refreshData();
+                    }
+                }
+                
+                storage.updateOrder(order);
+                refreshTable();
+                
+                JOptionPane.showMessageDialog(dialog, 
+                    "Order marked as delivered successfully!", 
+                    "Success", JOptionPane.INFORMATION_MESSAGE);
+                dialog.dispose();
+                
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, 
+                    "Please enter valid numbers for distance and fuel", 
+                    "Validation Error", JOptionPane.WARNING_MESSAGE);
             }
+        });
+        
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+    
+    private void managePayment() {
+        int row = ordersTable.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(mainPanel, "Please select an order", 
+                "No Selection", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int modelRow = ordersTable.convertRowIndexToModel(row);
+        String id = (String) tableModel.getValueAt(modelRow, 0);
+        Order order = storage.findOrder(id);
+        if (order == null) return;
+        
+        String[] options = {"Mark as Paid", "Mark as Failed", "Cancel"};
+        int choice = JOptionPane.showOptionDialog(mainPanel,
+            "Order: " + order.id + "\n" +
+            "Current Payment Status: " + (order.paymentStatus != null ? order.paymentStatus : "Pending") + "\n\n" +
+            "Select new payment status:",
+            "Manage Payment",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[0]);
+        
+        if (choice == 0) { // Paid
+            String method = JOptionPane.showInputDialog(mainPanel, 
+                "Enter payment method (Credit Card, PayPal, Bank Transfer, etc.):",
+                "Credit Card");
             
+            if (method != null && !method.trim().isEmpty()) {
+                String transactionId = "TXN" + System.currentTimeMillis();
+                String paymentDate = dateTimeFormat.format(new Date());
+                
+                order.paymentStatus = "Paid";
+                order.paymentMethod = method;
+                order.transactionId = transactionId;
+                order.paymentDate = paymentDate;
+                
+                storage.updateOrder(order);
+                refreshTable();
+                
+                JOptionPane.showMessageDialog(mainPanel, 
+                    "Payment marked as Paid\nTransaction ID: " + transactionId, 
+                    "Success", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } else if (choice == 1) { // Failed
+            order.paymentStatus = "Failed";
+            order.paymentMethod = null;
             storage.updateOrder(order);
             refreshTable();
-            JOptionPane.showMessageDialog(mainPanel, "Order marked as delivered", "Success", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(mainPanel, "Payment marked as Failed", 
+                "Success", JOptionPane.INFORMATION_MESSAGE);
         }
     }
     
     private void refreshTable() {
         tableModel.setRowCount(0);
         for (Order o : storage.getAllOrders()) {
+            String paymentStatus = o.paymentStatus != null ? o.paymentStatus : "Pending";
+            
             tableModel.addRow(new Object[]{
                 o.id,
                 o.recipientName,
                 o.status,
                 o.orderDate,
                 o.estimatedDelivery != null ? o.estimatedDelivery : "-",
+                o.actualDelivery != null ? o.actualDelivery : "-",
                 o.customerName,
                 String.format("%.2f kg", o.weight),
                 o.driverId != null ? o.driverId : "-",
-                o.vehicleId != null ? o.vehicleId : "-"
+                o.vehicleId != null ? o.vehicleId : "-",
+                paymentStatus,
+                o.distance > 0 ? String.format("%.1f km", o.distance) : "-",
+                o.fuelUsed > 0 ? String.format("%.1f L", o.fuelUsed) : "-",
+                o.status.equals("Delivered") ? (o.onTime ? "Yes" : "No") : "-"
             });
         }
         
@@ -1517,7 +2177,7 @@ public class OrderManagement {
     
     // Public methods for AdminDashboard
     public JPanel getMainPanel() { 
-        refreshTable(); // Ensure data is loaded when panel is requested
+        refreshTable();
         return mainPanel; 
     }
     
@@ -1564,7 +2224,8 @@ public class OrderManagement {
             // Update estimated delivery
             Calendar cal = Calendar.getInstance();
             cal.add(Calendar.DAY_OF_MONTH, 3);
-            order.estimatedDelivery = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+            order.estimatedDelivery = dateFormat.format(cal.getTime());
+            order.pickupTime = dateTimeFormat.format(new Date());
             
             storage.updateOrder(order);
             refreshTable();

@@ -104,6 +104,155 @@ public class SenderOrder {
     public String getPaymentDate() { return paymentDate; }
     public void setPaymentDate(String paymentDate) { this.paymentDate = paymentDate; }
     
+    /**
+     * Extract package type from notes
+     */
+    public String getPackageType() {
+        if (notes != null) {
+            // Try to find Package Type with pipe separator first
+            if (notes.contains("|Package Type:")) {
+                String[] parts = notes.split("\\|");
+                for (String part : parts) {
+                    if (part.startsWith("Package Type:")) {
+                        return part.substring("Package Type:".length()).trim();
+                    }
+                }
+            }
+            // Try with colon separator
+            else if (notes.contains("Package Type:")) {
+                int startIdx = notes.indexOf("Package Type:") + "Package Type:".length();
+                int endIdx = notes.indexOf("|", startIdx);
+                if (endIdx == -1) {
+                    endIdx = notes.indexOf(" ", startIdx + 1);
+                    if (endIdx == -1) {
+                        endIdx = notes.length();
+                    }
+                }
+                return notes.substring(startIdx, endIdx).trim();
+            }
+        }
+        return "Standard";
+    }
+    
+    /**
+     * Extract estimated cost from notes
+     */
+    public double getEstimatedCost() {
+        if (notes != null) {
+            // Try to find Estimated Cost with pipe separator first
+            if (notes.contains("|Estimated Cost:")) {
+                String[] parts = notes.split("\\|");
+                for (String part : parts) {
+                    if (part.startsWith("Estimated Cost:")) {
+                        String costStr = part.substring("Estimated Cost:".length()).trim();
+                        costStr = costStr.replace("RM", "").replace("$", "").replace(",", "").trim();
+                        try {
+                            return Double.parseDouble(costStr);
+                        } catch (NumberFormatException e) {
+                            // Continue to fallback
+                        }
+                    }
+                }
+            }
+            // Try with colon separator
+            else if (notes.contains("Estimated Cost:")) {
+                int startIdx = notes.indexOf("Estimated Cost:") + "Estimated Cost:".length();
+                int endIdx = notes.indexOf("|", startIdx);
+                if (endIdx == -1) {
+                    endIdx = notes.indexOf(" ", startIdx + 1);
+                    if (endIdx == -1) {
+                        endIdx = notes.length();
+                    }
+                }
+                String costStr = notes.substring(startIdx, endIdx).trim();
+                costStr = costStr.replace("RM", "").replace("$", "").replace(",", "").trim();
+                try {
+                    return Double.parseDouble(costStr);
+                } catch (NumberFormatException e) {
+                    // Return 0
+                }
+            }
+        }
+        return 0.0;
+    }
+    
+    /**
+     * Get formatted estimated cost
+     */
+    public String getFormattedEstimatedCost() {
+        double cost = getEstimatedCost();
+        if (cost > 0) {
+            return String.format("RM %.2f", cost);
+        }
+        return "RM --.--";
+    }
+    
+    /**
+     * Get description from notes
+     */
+    public String getDescription() {
+        if (notes != null) {
+            if (notes.contains("|Description:")) {
+                String[] parts = notes.split("\\|");
+                for (String part : parts) {
+                    if (part.startsWith("Description:")) {
+                        return part.substring("Description:".length()).trim();
+                    }
+                }
+            } else if (notes.contains("Description:")) {
+                int startIdx = notes.indexOf("Description:") + "Description:".length();
+                return notes.substring(startIdx).trim();
+            }
+        }
+        return "";
+    }
+    
+    /**
+     * Convert this SenderOrder to a format compatible with the main Order system
+     * @return A string representation for the main orders.txt file
+     */
+    public String toMainSystemFormat() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(safeString(id)).append("|");
+        sb.append(safeString(customerName)).append("|");
+        sb.append(safeString(customerPhone)).append("|");
+        sb.append(safeString(customerEmail)).append("|");
+        sb.append(safeString(customerAddress)).append("|");
+        sb.append(safeString(recipientName)).append("|");
+        sb.append(safeString(recipientPhone)).append("|");
+        sb.append(safeString(recipientAddress)).append("|");
+        sb.append(safeString(status)).append("|");
+        sb.append(safeString(orderDate)).append("|");
+        sb.append(safeString(estimatedDelivery)).append("|");
+        sb.append("|"); // actualDelivery (empty)
+        sb.append("|"); // driverId (empty)
+        sb.append("|"); // vehicleId (empty)
+        sb.append(weight).append("|");
+        sb.append(safeString(dimensions)).append("|");
+        
+        // Clean notes - remove newlines
+        String cleanNotes = notes != null ? notes.replace("\n", " ").replace("\r", " ") : "";
+        sb.append(cleanNotes).append("|");
+        sb.append("|"); // reason (empty)
+        sb.append("|"); // pickupTime (empty)
+        sb.append("|"); // deliveryTime (empty)
+        sb.append("0|"); // distance
+        sb.append("0|"); // fuelUsed
+        sb.append("|"); // deliveryPhoto (empty)
+        sb.append("|"); // recipientSignature (empty)
+        sb.append("true|"); // onTime
+        sb.append(safeString(paymentStatus)).append("|");
+        sb.append(safeString(paymentMethod)).append("|");
+        sb.append(safeString(transactionId)).append("|");
+        sb.append(safeString(paymentDate));
+        
+        return sb.toString();
+    }
+    
+    private String safeString(String s) {
+        return s != null && !s.isEmpty() ? s : "";
+    }
+    
     // Helper methods
     public String getFormattedWeight() {
         return String.format("%.2f kg", weight);
@@ -115,5 +264,24 @@ public class SenderOrder {
     
     public String getRecipientInfo() {
         return String.format("%s | %s", recipientName, recipientPhone);
+    }
+    
+    /**
+     * Check if this order can be cancelled
+     */
+    public boolean isCancellable() {
+        return "Pending".equals(status);
+    }
+    
+    /**
+     * Check if this order can be modified
+     */
+    public boolean isModifiable() {
+        return "Pending".equals(status);
+    }
+    
+    @Override
+    public String toString() {
+        return id + " - " + recipientName + " (" + status + ")";
     }
 }

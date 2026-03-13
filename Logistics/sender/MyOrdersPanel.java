@@ -255,8 +255,11 @@ public class MyOrdersPanel extends JPanel {
     }
 
     public void refreshData() {
+        // First, refresh data from main file
+        SenderDataManager.getInstance().refreshData();
+    
         tableModel.setRowCount(0);
-        
+    
         String filter = (String) statusFilter.getSelectedItem();
         String userEmail = dashboard.getSenderEmail();
         
@@ -265,23 +268,23 @@ public class MyOrdersPanel extends JPanel {
         if (!"All Orders".equals(filter)) {
             userOrders.removeIf(order -> !filter.equals(order.getStatus()));
         }
-        
+    
         orderCountLabel.setText("(" + userOrders.size() + " orders)");
-        
+    
         for (SenderOrder order : userOrders) {
             Object[] row = {
                 order.getId(),
                 extractCity(order.getCustomerAddress()),
                 extractCity(order.getRecipientAddress()),
                 String.format("%.1f kg", order.getWeight()),
-                extractPackageType(order.getNotes()),
+                extractPackageType(order),
                 order.getOrderDate(),
                 order.getStatus(),
-                extractCost(order.getNotes())
+                extractCost(order)
             };
             tableModel.addRow(row);
         }
-        
+    
         if (userOrders.isEmpty()) {
             Object[] emptyRow = {
                 "No orders yet",
@@ -304,26 +307,12 @@ public class MyOrdersPanel extends JPanel {
         return address != null ? address : "N/A";
     }
 
-    private String extractPackageType(String notes) {
-        if (notes != null && notes.contains("Package Type:")) {
-            String[] parts = notes.split("Package Type: ");
-            if (parts.length > 1) {
-                String[] typeParts = parts[1].split("\n");
-                return typeParts[0].trim();
-            }
-        }
-        return "Standard";
+    private String extractPackageType(SenderOrder order) {
+        return order.getPackageType();
     }
 
-    private String extractCost(String notes) {
-        if (notes != null && notes.contains("Estimated Cost:")) {
-            String[] parts = notes.split("Estimated Cost: ");
-            if (parts.length > 1) {
-                String[] costParts = parts[1].split("\n");
-                return costParts[0].trim();
-            }
-        }
-        return "RM --.--";
+    private String extractCost(SenderOrder order) {
+        return order.getFormattedEstimatedCost();
     }
 
     private void filterOrders() {
@@ -468,17 +457,27 @@ public class MyOrdersPanel extends JPanel {
         
         addDetailRow(panel, "Weight:", String.format("%.2f kg", order.getWeight()), gbc, y++);
         addDetailRow(panel, "Dimensions:", order.getDimensions() + " cm", gbc, y++);
+        addDetailRow(panel, "Package Type:", order.getPackageType(), gbc, y++);
         
         if (order.getNotes() != null && !order.getNotes().isEmpty()) {
-            String[] noteLines = order.getNotes().split("\n");
-            for (String line : noteLines) {
-                if (line.contains(":")) {
-                    String[] parts = line.split(":", 2);
-                    if (parts.length == 2) {
-                        addDetailRow(panel, parts[0] + ":", parts[1].trim(), gbc, y++);
-                    }
-                }
+            String description = order.getDescription();
+            if (!description.isEmpty()) {
+                addDetailRow(panel, "Description:", description, gbc, y++);
             }
+        }
+        
+        gbc.gridy = y++;
+        panel.add(new JSeparator(), gbc);
+        
+        addDetailRow(panel, "Payment Status:", order.getPaymentStatus(), gbc, y++);
+        addDetailRow(panel, "Payment Method:", order.getPaymentMethod() != null ? order.getPaymentMethod() : "Not Selected", gbc, y++);
+        
+        if (order.getTransactionId() != null) {
+            addDetailRow(panel, "Transaction ID:", order.getTransactionId(), gbc, y++);
+        }
+        
+        if (order.getPaymentDate() != null) {
+            addDetailRow(panel, "Payment Date:", order.getPaymentDate(), gbc, y++);
         }
         
         gbc.gridy = y++;
