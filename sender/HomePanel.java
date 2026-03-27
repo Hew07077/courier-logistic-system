@@ -1,6 +1,5 @@
+// HomePanel.java
 package sender;
-
-import logistics.orders.Order;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -10,20 +9,15 @@ import java.awt.event.MouseEvent;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.ArrayList;
 
 public class HomePanel extends JPanel {
     private SenderDashboard dashboard;
-    private JPanel statsPanel;
-    private JPanel recentOrdersPanel;
     private Timer clockTimer;
     private JLabel timeLabel;
     private JLabel dateLabel;
     
     // Modern color scheme
     private final Color BLUE_PRIMARY = new Color(0, 123, 255);
-    private final Color BLUE_DARK = new Color(0, 86, 179);
-    private final Color BLUE_LIGHT = new Color(200, 225, 255);
     private final Color BG_LIGHT = new Color(250, 250, 250);
     private final Color CARD_BG = Color.WHITE;
     private final Color TEXT_DARK = new Color(33, 37, 41);
@@ -45,13 +39,9 @@ public class HomePanel extends JPanel {
     }
 
     private void initialize() {
-        // Main container with BorderLayout
         setLayout(new BorderLayout(20, 20));
-
-        // Add welcome header at top
         add(createWelcomeHeader(), BorderLayout.NORTH);
 
-        // Center panel with GridBagLayout for stats and content
         JPanel centerPanel = new JPanel(new GridBagLayout());
         centerPanel.setOpaque(false);
         
@@ -60,19 +50,17 @@ public class HomePanel extends JPanel {
         gbc.weightx = 1.0;
         gbc.insets = new Insets(0, 0, 20, 0);
 
-        // Stats Panel
         gbc.gridy = 0;
         gbc.gridwidth = 2;
         centerPanel.add(createStatsPanel(), gbc);
 
-        // Main Content Area (Two columns)
         gbc.gridy = 1;
         gbc.gridwidth = 1;
         gbc.weightx = 0.5;
         gbc.insets = new Insets(0, 0, 0, 10);
         
         JPanel leftColumn = createQuickActionsPanel();
-        leftColumn.setPreferredSize(new Dimension(400, 350)); // Increased height
+        leftColumn.setPreferredSize(new Dimension(400, 350));
         centerPanel.add(leftColumn, gbc);
 
         gbc.gridx = 1;
@@ -92,7 +80,6 @@ public class HomePanel extends JPanel {
                 Graphics2D g2d = (Graphics2D) g;
                 g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 
-                // Create gradient from white to light blue
                 GradientPaint gradient = new GradientPaint(
                     0, 0, Color.WHITE,
                     getWidth(), 0, new Color(230, 242, 255)
@@ -107,11 +94,9 @@ public class HomePanel extends JPanel {
             BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
 
-        // Left side with logo and title
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
         leftPanel.setOpaque(false);
 
-        // Logo placeholder (text only)
         JLabel logoLabel = new JLabel("LX");
         logoLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
         logoLabel.setForeground(Color.WHITE);
@@ -122,7 +107,6 @@ public class HomePanel extends JPanel {
         logoLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         leftPanel.add(logoLabel);
 
-        // Title and badge
         JPanel titleWrapper = new JPanel(new GridLayout(2, 1, 2, 2));
         titleWrapper.setOpaque(false);
 
@@ -134,7 +118,7 @@ public class HomePanel extends JPanel {
         JLabel badgeLabel = new JLabel("SENDER PORTAL v1.0.0");
         badgeLabel.setFont(new Font("Segoe UI", Font.BOLD, 11));
         badgeLabel.setForeground(BLUE_PRIMARY);
-        badgeLabel.setBackground(BLUE_LIGHT);
+        badgeLabel.setBackground(new Color(200, 225, 255));
         badgeLabel.setOpaque(true);
         badgeLabel.setBorder(BorderFactory.createEmptyBorder(3, 10, 3, 10));
         titleWrapper.add(badgeLabel);
@@ -142,7 +126,6 @@ public class HomePanel extends JPanel {
         leftPanel.add(titleWrapper);
         headerPanel.add(leftPanel, BorderLayout.WEST);
 
-        // Right side with date/time and status
         JPanel rightPanel = new JPanel();
         rightPanel.setOpaque(false);
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
@@ -159,11 +142,10 @@ public class HomePanel extends JPanel {
         dateLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
         rightPanel.add(dateLabel);
 
-        // Connection status
         JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         statusPanel.setOpaque(false);
         
-        JLabel statusDot = new JLabel("●");
+        JLabel statusDot = new JLabel("");
         statusDot.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         statusDot.setForeground(SUCCESS_GREEN);
         statusPanel.add(statusDot);
@@ -204,7 +186,7 @@ public class HomePanel extends JPanel {
         panel.add(createModernStatCard("Delivered", 
             String.valueOf(dashboard.getDeliveredOrders()), SUCCESS_GREEN, 
             "Successfully delivered"));
-        panel.add(createModernStatCard("Pending Payments", 
+        panel.add(createModernStatCard("Pending", 
             String.valueOf(dashboard.getPendingPayments()), WARNING_YELLOW, 
             "Awaiting payment"));
         panel.add(createModernStatCard("Total Spent", 
@@ -222,13 +204,11 @@ public class HomePanel extends JPanel {
             BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
 
-        // Top panel with value
         JLabel valueLabel = new JLabel(value);
         valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
         valueLabel.setForeground(color);
         card.add(valueLabel, BorderLayout.NORTH);
 
-        // Bottom panel with title
         JPanel bottomPanel = new JPanel(new BorderLayout(5, 0));
         bottomPanel.setOpaque(false);
 
@@ -237,8 +217,8 @@ public class HomePanel extends JPanel {
         titleLabel.setForeground(TEXT_DARK);
         bottomPanel.add(titleLabel, BorderLayout.WEST);
 
-        JLabel infoLabel = new JLabel("ⓘ");
-        infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        JLabel infoLabel = new JLabel("i");
+        infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         infoLabel.setForeground(TEXT_GRAY);
         infoLabel.setToolTipText(subtitle);
         bottomPanel.add(infoLabel, BorderLayout.EAST);
@@ -256,23 +236,19 @@ public class HomePanel extends JPanel {
             BorderFactory.createEmptyBorder(20, 20, 20, 20)
         ));
 
-        // Title
         JLabel title = new JLabel("Quick Actions");
         title.setFont(new Font("Segoe UI", Font.BOLD, 16));
         title.setForeground(TEXT_DARK);
         title.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         panel.add(title, BorderLayout.NORTH);
 
-        // Action buttons
-        JPanel actionsGrid = new JPanel(new GridLayout(4, 1, 0, 12));
+        JPanel actionsGrid = new JPanel(new GridLayout(3, 1, 0, 12));
         actionsGrid.setOpaque(false);
 
         actionsGrid.add(createModernActionButton("Create New Order", 
             "Start shipping now", BLUE_PRIMARY, "NEW_ORDER"));
         actionsGrid.add(createModernActionButton("Track Order", 
-            "Enter tracking number", new Color(23, 162, 184), "TRACK"));
-        actionsGrid.add(createModernActionButton("Make Payment", 
-            dashboard.getPendingPayments() + " pending payments", SUCCESS_GREEN, "PAYMENT"));
+            "Enter tracking number", SUCCESS_GREEN, "TRACK"));
         actionsGrid.add(createModernActionButton("Need Help?", 
             "Contact support 24/7", TEXT_GRAY, "SUPPORT"));
 
@@ -280,7 +256,7 @@ public class HomePanel extends JPanel {
 
         return panel;
     }
-
+    
     private JPanel createModernActionButton(String text, String subtitle, Color color, String targetCard) {
         JPanel panel = new JPanel(new BorderLayout(10, 5));
         panel.setBackground(CARD_BG);
@@ -290,7 +266,6 @@ public class HomePanel extends JPanel {
         ));
         panel.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Left side with text
         JPanel leftPanel = new JPanel();
         leftPanel.setOpaque(false);
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
@@ -311,14 +286,12 @@ public class HomePanel extends JPanel {
 
         panel.add(leftPanel, BorderLayout.CENTER);
 
-        // Right arrow (text only)
         JLabel arrowLabel = new JLabel("→");
         arrowLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
         arrowLabel.setForeground(color);
         arrowLabel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 5));
         panel.add(arrowLabel, BorderLayout.EAST);
 
-        // Hover effect
         panel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -355,7 +328,6 @@ public class HomePanel extends JPanel {
             BorderFactory.createEmptyBorder(20, 20, 20, 20)
         ));
 
-        // Title
         JLabel title = new JLabel("Recent Orders");
         title.setFont(new Font("Segoe UI", Font.BOLD, 16));
         title.setForeground(TEXT_DARK);
@@ -367,47 +339,27 @@ public class HomePanel extends JPanel {
         return panel;
     }
 
-    // MODIFIED: refreshRecentOrders method
     private void refreshRecentOrders(JPanel parentPanel) {
         JPanel ordersList = new JPanel();
         ordersList.setLayout(new BoxLayout(ordersList, BoxLayout.Y_AXIS));
         ordersList.setOpaque(false);
 
-        // Get actual orders for this user
+        // Refresh data from main system
+        SenderDataManager.getInstance().refreshData();
+        
         String userEmail = dashboard.getSenderEmail();
-        List<Order> userOrders = new ArrayList<>();
+        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(userEmail);
         
-        // Use if-else to check if the sender is a demo user
-        if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
-            // If it's the demo sender, get demo orders
-            userOrders = DemoDataManager.getInstance().getDemoOrders();
-            System.out.println("HomePanel: Loading " + userOrders.size() + " demo orders");
-        } else {
-            // Otherwise, get regular orders from the system
-            List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
-            
-            // Filter orders for this user
-            for (Order order : allOrders) {
-                if (order.customerEmail != null && userEmail != null) {
-                    if (order.customerEmail.trim().equals(userEmail.trim())) {
-                        userOrders.add(order);
-                    }
-                }
-            }
-        }
-        
-        // Show actual orders if any
         if (!userOrders.isEmpty()) {
             int startIndex = Math.max(0, userOrders.size() - 3);
             for (int i = startIndex; i < userOrders.size(); i++) {
-                Order order = userOrders.get(i);
+                SenderOrder order = userOrders.get(i);
                 ordersList.add(createModernOrderRow(order));
                 if (i < userOrders.size() - 1) {
                     ordersList.add(Box.createVerticalStrut(8));
                 }
             }
         } else {
-            // Empty state - text only
             JLabel emptyLabel = new JLabel("No orders yet");
             emptyLabel.setFont(new Font("Segoe UI", Font.ITALIC, 14));
             emptyLabel.setForeground(TEXT_GRAY);
@@ -430,7 +382,6 @@ public class HomePanel extends JPanel {
         scrollPane.setPreferredSize(new Dimension(350, 200));
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         
-        // Remove existing scroll pane if any
         Component[] components = parentPanel.getComponents();
         for (Component comp : components) {
             if (comp instanceof JScrollPane) {
@@ -440,7 +391,6 @@ public class HomePanel extends JPanel {
         
         parentPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // View all button (only show if there are orders)
         if (!userOrders.isEmpty()) {
             JButton viewAllBtn = new JButton("View All Orders →");
             viewAllBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -450,9 +400,8 @@ public class HomePanel extends JPanel {
             viewAllBtn.setFocusPainted(false);
             viewAllBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
             viewAllBtn.setHorizontalAlignment(SwingConstants.RIGHT);
-            viewAllBtn.addActionListener(e -> dashboard.showPanel("MY_ORDERS"));
+            viewAllBtn.addActionListener(e -> dashboard.showPanel("TRACK"));
             
-            // Remove existing button panel if any
             for (Component comp : components) {
                 if (comp instanceof JButton) {
                     parentPanel.remove(comp);
@@ -466,24 +415,21 @@ public class HomePanel extends JPanel {
         parentPanel.repaint();
     }
 
-    private JPanel createModernOrderRow(Order order) {
+    private JPanel createModernOrderRow(SenderOrder order) {
         JPanel row = new JPanel(new BorderLayout(10, 5));
         row.setOpaque(false);
         row.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
 
-        // Left side with order info
-        JLabel idLabel = new JLabel(order.id);
+        JLabel idLabel = new JLabel(order.getId());
         idLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         idLabel.setForeground(TEXT_DARK);
         row.add(idLabel, BorderLayout.WEST);
 
-        // Right side with status
-        JLabel statusLabel = new JLabel(order.status);
+        JLabel statusLabel = new JLabel(order.getStatus());
         statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        statusLabel.setForeground(getStatusColor(order.status));
+        statusLabel.setForeground(getStatusColor(order.getStatus()));
         row.add(statusLabel, BorderLayout.EAST);
 
-        // Hover effect
         row.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -500,11 +446,25 @@ public class HomePanel extends JPanel {
             
             @Override
             public void mouseClicked(MouseEvent e) {
-                dashboard.showPanel("MY_ORDERS");
+                dashboard.showPanel("TRACK");
+                SwingUtilities.invokeLater(() -> {
+                    findAndSetTrackingNumber(dashboard, order.getId());
+                });
             }
         });
 
         return row;
+    }
+    
+    private void findAndSetTrackingNumber(Container container, String orderId) {
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof TrackOrderPanel) {
+                ((TrackOrderPanel) comp).setTrackingNumber(orderId);
+                return;
+            } else if (comp instanceof Container) {
+                findAndSetTrackingNumber((Container) comp, orderId);
+            }
+        }
     }
 
     private Color getStatusColor(String status) {
@@ -519,13 +479,23 @@ public class HomePanel extends JPanel {
     }
 
     public void refreshData() {
+        // Refresh data from main system
+        SenderDataManager.getInstance().refreshData();
+        
+        // Update dashboard stats
+        String userEmail = dashboard.getSenderEmail();
+        dashboard.setActiveOrders(SenderDataManager.getInstance().getActiveOrders(userEmail));
+        dashboard.setDeliveredOrders(SenderDataManager.getInstance().getDeliveredOrders(userEmail));
+        dashboard.setPendingPayments(SenderDataManager.getInstance().getPendingPayments(userEmail));
+        dashboard.setTotalSpent(SenderDataManager.getInstance().getTotalSpent(userEmail));
+        
+        // Refresh UI
         removeAll();
         initialize();
         revalidate();
         repaint();
     }
     
-    // Clean up timer when panel is removed
     @Override
     public void removeNotify() {
         super.removeNotify();

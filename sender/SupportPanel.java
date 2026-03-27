@@ -1,11 +1,17 @@
+// SupportPanel.java
 package sender;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import java.awt.*;
+import java.util.regex.Pattern;
 
 public class SupportPanel extends JPanel {
     private SenderDashboard dashboard;
+    private JTextField nameField;
+    private JTextField emailField;
+    private JTextField subjectField;
+    private JTextArea messageArea;
 
     public SupportPanel(SenderDashboard dashboard) {
         this.dashboard = dashboard;
@@ -123,47 +129,47 @@ public class SupportPanel extends JPanel {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.gridwidth = 2;
 
-        // Name
-        JLabel nameLabel = new JLabel("Your Name:");
+        // Name field
+        JLabel nameLabel = new JLabel("Your Name:*");
         nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         gbc.gridx = 0;
         gbc.gridy = 0;
         formPanel.add(nameLabel, gbc);
 
-        JTextField nameField = new JTextField(dashboard.getSenderName());
+        nameField = new JTextField(dashboard.getSenderName());
         nameField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         gbc.gridy = 1;
         formPanel.add(nameField, gbc);
 
-        // Email
-        JLabel emailLabel = new JLabel("Email:");
+        // Email field
+        JLabel emailLabel = new JLabel("Email:*");
         emailLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         gbc.gridy = 2;
         formPanel.add(emailLabel, gbc);
 
-        JTextField emailField = new JTextField(dashboard.getSenderEmail());
+        emailField = new JTextField(dashboard.getSenderEmail());
         emailField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         gbc.gridy = 3;
         formPanel.add(emailField, gbc);
 
-        // Subject
-        JLabel subjectLabel = new JLabel("Subject:");
+        // Subject field
+        JLabel subjectLabel = new JLabel("Subject:*");
         subjectLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         gbc.gridy = 4;
         formPanel.add(subjectLabel, gbc);
 
-        JTextField subjectField = new JTextField();
+        subjectField = new JTextField();
         subjectField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         gbc.gridy = 5;
         formPanel.add(subjectField, gbc);
 
-        // Message
-        JLabel messageLabel = new JLabel("Message:");
+        // Message field
+        JLabel messageLabel = new JLabel("Message:*");
         messageLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         gbc.gridy = 6;
         formPanel.add(messageLabel, gbc);
 
-        JTextArea messageArea = new JTextArea(5, 20);
+        messageArea = new JTextArea(5, 20);
         messageArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         messageArea.setLineWrap(true);
         messageArea.setWrapStyleWord(true);
@@ -180,20 +186,182 @@ public class SupportPanel extends JPanel {
         sendBtn.setBorderPainted(false);
         sendBtn.setFocusPainted(false);
         sendBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        sendBtn.addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, 
-                "Your message has been sent. We'll respond within 24 hours.",
-                "Message Sent", JOptionPane.INFORMATION_MESSAGE);
-            subjectField.setText("");
-            messageArea.setText("");
-        });
+        sendBtn.addActionListener(e -> validateAndSend());
 
         gbc.gridy = 8;
         gbc.anchor = GridBagConstraints.CENTER;
         formPanel.add(sendBtn, gbc);
 
+        // Add note about required fields
+        JLabel noteLabel = new JLabel("* Required fields");
+        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 10));
+        noteLabel.setForeground(new Color(108, 117, 125));
+        gbc.gridy = 9;
+        gbc.insets = new Insets(10, 5, 5, 5);
+        formPanel.add(noteLabel, gbc);
+
         panel.add(formPanel, BorderLayout.CENTER);
 
         return panel;
+    }
+
+    private void validateAndSend() {
+        String name = nameField.getText().trim();
+        String email = emailField.getText().trim();
+        String subject = subjectField.getText().trim();
+        String message = messageArea.getText().trim();
+
+        // Validate Name
+        if (name.isEmpty()) {
+            showErrorDialog("Name cannot be empty. Please enter your name.");
+            nameField.requestFocus();
+            return;
+        }
+
+        if (name.length() < 2) {
+            showErrorDialog("Name must be at least 2 characters long.");
+            nameField.requestFocus();
+            return;
+        }
+
+        if (name.length() > 100) {
+            showErrorDialog("Name cannot exceed 100 characters.");
+            nameField.requestFocus();
+            return;
+        }
+
+        // Validate Email
+        if (email.isEmpty()) {
+            showErrorDialog("Email cannot be empty. Please enter your email address.");
+            emailField.requestFocus();
+            return;
+        }
+
+        if (!isValidEmail(email)) {
+            showErrorDialog("Please enter a valid email address (e.g., name@example.com).");
+            emailField.requestFocus();
+            return;
+        }
+
+        // Validate Subject
+        if (subject.isEmpty()) {
+            showErrorDialog("Subject cannot be empty. Please enter a subject.");
+            subjectField.requestFocus();
+            return;
+        }
+
+        if (subject.length() < 3) {
+            showErrorDialog("Subject must be at least 3 characters long.");
+            subjectField.requestFocus();
+            return;
+        }
+
+        if (subject.length() > 200) {
+            showErrorDialog("Subject cannot exceed 200 characters.");
+            subjectField.requestFocus();
+            return;
+        }
+
+        // Validate Message
+        if (message.isEmpty()) {
+            showErrorDialog("Message cannot be empty. Please enter your message.");
+            messageArea.requestFocus();
+            return;
+        }
+
+        if (message.length() < 10) {
+            showErrorDialog("Message must be at least 10 characters long.");
+            messageArea.requestFocus();
+            return;
+        }
+
+        if (message.length() > 5000) {
+            showErrorDialog("Message cannot exceed 5000 characters.");
+            messageArea.requestFocus();
+            return;
+        }
+
+        // Check for potentially harmful content (basic)
+        if (containsHarmfulContent(message) || containsHarmfulContent(subject)) {
+            showErrorDialog("Your message contains inappropriate content. Please review and try again.");
+            return;
+        }
+
+        // All validations passed
+        JOptionPane.showMessageDialog(this, 
+            "Your message has been sent successfully!\n\n" +
+            "We'll respond within 24 hours to: " + email + "\n\n" +
+            "Reference: Support request from " + name,
+            "Message Sent", JOptionPane.INFORMATION_MESSAGE);
+        
+        // Clear form
+        subjectField.setText("");
+        messageArea.setText("");
+        
+        // Optional: Keep name and email fields populated
+        // nameField.setText(name);  // Uncomment if you want to keep
+        // emailField.setText(email); // Uncomment if you want to keep
+    }
+
+    private boolean isValidEmail(String email) {
+        // RFC 5322 compliant email regex pattern
+        String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@" +
+                           "(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
+        Pattern pattern = Pattern.compile(emailRegex);
+        
+        if (email == null || email.isEmpty()) {
+            return false;
+        }
+        
+        // Additional checks
+        if (email.length() > 254) {
+            return false;
+        }
+        
+        String[] parts = email.split("@");
+        if (parts.length != 2) {
+            return false;
+        }
+        
+        if (parts[0].length() > 64) {
+            return false;
+        }
+        
+        if (parts[1].length() > 255) {
+            return false;
+        }
+        
+        return pattern.matcher(email).matches();
+    }
+
+    private boolean containsHarmfulContent(String text) {
+        String lowerText = text.toLowerCase();
+        
+        // List of harmful/inappropriate keywords (customize as needed)
+        String[] harmfulKeywords = {
+            "spam", "hack", "virus", "malware", "phishing",
+            "scam", "fraud", "abuse", "threat", "harass"
+        };
+        
+        for (String keyword : harmfulKeywords) {
+            if (lowerText.contains(keyword)) {
+                return true;
+            }
+        }
+        
+        // Check for excessive URLs (potential spam)
+        int urlCount = lowerText.split("http").length - 1;
+        if (urlCount > 3) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    private void showErrorDialog(String message) {
+        JOptionPane.showMessageDialog(this, 
+            message,
+            "Validation Error", 
+            JOptionPane.ERROR_MESSAGE);
     }
 }

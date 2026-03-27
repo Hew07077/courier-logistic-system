@@ -1,6 +1,5 @@
+// MyOrdersPanel.java
 package sender;
-
-import logistics.orders.Order;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
@@ -10,7 +9,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
-import java.util.ArrayList;
 
 public class MyOrdersPanel extends JPanel {
     private SenderDashboard dashboard;
@@ -91,7 +89,6 @@ public class MyOrdersPanel extends JPanel {
             BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        // Create table model
         String[] columns = {"Order ID", "From", "To", "Weight", "Type", "Date", "Status", "Cost"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -115,7 +112,6 @@ public class MyOrdersPanel extends JPanel {
         ordersTable.getTableHeader().setForeground(new Color(33, 37, 41));
         ordersTable.setSelectionBackground(new Color(240, 248, 255));
 
-        // Set column widths
         ordersTable.getColumnModel().getColumn(0).setPreferredWidth(120);
         ordersTable.getColumnModel().getColumn(1).setPreferredWidth(150);
         ordersTable.getColumnModel().getColumn(2).setPreferredWidth(150);
@@ -125,7 +121,6 @@ public class MyOrdersPanel extends JPanel {
         ordersTable.getColumnModel().getColumn(6).setPreferredWidth(100);
         ordersTable.getColumnModel().getColumn(7).setPreferredWidth(80);
 
-        // Custom renderer for status column
         ordersTable.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -159,7 +154,6 @@ public class MyOrdersPanel extends JPanel {
             }
         });
 
-        // Add right-click menu
         JPopupMenu popupMenu = new JPopupMenu();
         
         JMenuItem trackItem = new JMenuItem("Track Order");
@@ -196,7 +190,6 @@ public class MyOrdersPanel extends JPanel {
                     ordersTable.setRowSelectionInterval(row, row);
                     String orderId = tableModel.getValueAt(row, 0).toString();
                     
-                    // Check if it's the "No orders yet" message
                     if (!"No orders yet".equals(orderId)) {
                         popupMenu.show(ordersTable, e.getX(), e.getY());
                     }
@@ -210,7 +203,6 @@ public class MyOrdersPanel extends JPanel {
                     if (row >= 0) {
                         String orderId = tableModel.getValueAt(row, 0).toString();
                         
-                        // Check if it's the "No orders yet" message
                         if (!"No orders yet".equals(orderId)) {
                             viewOrderDetails();
                         }
@@ -262,69 +254,37 @@ public class MyOrdersPanel extends JPanel {
         return bottomPanel;
     }
 
-    // MODIFIED: refreshData method
     public void refreshData() {
+        // First, refresh data from main file
+        SenderDataManager.getInstance().refreshData();
+    
         tableModel.setRowCount(0);
-        
+    
         String filter = (String) statusFilter.getSelectedItem();
         String userEmail = dashboard.getSenderEmail();
         
-        List<Order> userOrders = new ArrayList<>();
+        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(userEmail);
 
-        // Use if-else to check if the sender is a demo user
-        if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
-            // If it's the demo sender, get demo orders
-            userOrders = DemoDataManager.getInstance().getDemoOrders();
-            System.out.println("MyOrdersPanel: Loading " + userOrders.size() + " demo orders");
-        } else {
-            // Otherwise, get regular orders from the system
-            List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
-            
-            // Filter orders for this user
-            for (Order order : allOrders) {
-                if (order.customerEmail != null && userEmail != null) {
-                    String orderEmail = order.customerEmail.trim();
-                    String currentEmail = userEmail.trim();
-                    
-                    if (orderEmail.equals(currentEmail)) {
-                        userOrders.add(order);
-                    }
-                }
-            }
-            System.out.println("MyOrdersPanel: Loading " + userOrders.size() + " regular orders");
-        }
-        
-        // Apply status filter
         if (!"All Orders".equals(filter)) {
-            List<Order> filteredOrders = new ArrayList<>();
-            for (Order order : userOrders) {
-                String statusToCompare = order.status;
-                if (filter.equals(statusToCompare)) {
-                    filteredOrders.add(order);
-                }
-            }
-            userOrders = filteredOrders;
+            userOrders.removeIf(order -> !filter.equals(order.getStatus()));
         }
-        
-        // Update count label
+    
         orderCountLabel.setText("(" + userOrders.size() + " orders)");
-        
-        // Add rows to table
-        for (Order order : userOrders) {
+    
+        for (SenderOrder order : userOrders) {
             Object[] row = {
-                order.id,
-                extractCity(order.customerAddress),
-                extractCity(order.recipientAddress),
-                String.format("%.1f kg", order.weight),
-                extractPackageType(order.notes),
-                order.orderDate,
-                order.status,
-                extractCost(order.notes)
+                order.getId(),
+                extractCity(order.getCustomerAddress()),
+                extractCity(order.getRecipientAddress()),
+                String.format("%.1f kg", order.getWeight()),
+                extractPackageType(order),
+                order.getOrderDate(),
+                order.getStatus(),
+                extractCost(order)
             };
             tableModel.addRow(row);
         }
-        
-        // If no orders at all, show empty state message
+    
         if (userOrders.isEmpty()) {
             Object[] emptyRow = {
                 "No orders yet",
@@ -347,26 +307,12 @@ public class MyOrdersPanel extends JPanel {
         return address != null ? address : "N/A";
     }
 
-    private String extractPackageType(String notes) {
-        if (notes != null && notes.contains("Package Type:")) {
-            String[] parts = notes.split("Package Type: ");
-            if (parts.length > 1) {
-                String[] typeParts = parts[1].split("\n");
-                return typeParts[0].trim();
-            }
-        }
-        return "Standard";
+    private String extractPackageType(SenderOrder order) {
+        return order.getPackageType();
     }
 
-    private String extractCost(String notes) {
-        if (notes != null && notes.contains("Estimated Cost:")) {
-            String[] parts = notes.split("Estimated Cost: ");
-            if (parts.length > 1) {
-                String[] costParts = parts[1].split("\n");
-                return costParts[0].trim();
-            }
-        }
-        return "RM --.--";
+    private String extractCost(SenderOrder order) {
+        return order.getFormattedEstimatedCost();
     }
 
     private void filterOrders() {
@@ -378,7 +324,6 @@ public class MyOrdersPanel extends JPanel {
         if (selectedRow >= 0) {
             String orderId = tableModel.getValueAt(selectedRow, 0).toString();
             
-            // Check if it's the "No orders yet" message
             if ("No orders yet".equals(orderId)) {
                 return;
             }
@@ -406,19 +351,16 @@ public class MyOrdersPanel extends JPanel {
         }
     }
 
-    // MODIFIED: cancelSelectedOrder method
     private void cancelSelectedOrder() {
         int selectedRow = ordersTable.getSelectedRow();
         if (selectedRow >= 0) {
             String orderId = tableModel.getValueAt(selectedRow, 0).toString();
             String status = tableModel.getValueAt(selectedRow, 6).toString();
             
-            // Check if it's the "No orders yet" message
             if ("No orders yet".equals(orderId)) {
                 return;
             }
             
-            // Check if user is demo user - demo users cannot cancel orders
             String userEmail = dashboard.getSenderEmail();
             if (DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
                 JOptionPane.showMessageDialog(this, 
@@ -439,7 +381,7 @@ public class MyOrdersPanel extends JPanel {
                 "Confirm Cancellation", JOptionPane.YES_NO_OPTION);
                 
             if (confirm == JOptionPane.YES_OPTION) {
-                boolean cancelled = FileDataManager.getInstance().cancelOrder(orderId);
+                boolean cancelled = SenderDataManager.getInstance().cancelOrder(orderId);
                 if (cancelled) {
                     refreshData();
                     JOptionPane.showMessageDialog(this, 
@@ -454,34 +396,16 @@ public class MyOrdersPanel extends JPanel {
         }
     }
 
-    // MODIFIED: viewOrderDetails method
     private void viewOrderDetails() {
         int selectedRow = ordersTable.getSelectedRow();
         if (selectedRow >= 0) {
             String orderId = tableModel.getValueAt(selectedRow, 0).toString();
             
-            // Check if it's the "No orders yet" message
             if ("No orders yet".equals(orderId)) {
                 return;
             }
             
-            Order order = null;
-            String userEmail = dashboard.getSenderEmail();
-            
-            // Get order based on user type
-            if (DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
-                // For demo user, get from demo orders
-                List<Order> demoOrders = DemoDataManager.getInstance().getDemoOrders();
-                for (Order demoOrder : demoOrders) {
-                    if (demoOrder.id.equals(orderId)) {
-                        order = demoOrder;
-                        break;
-                    }
-                }
-            } else {
-                // For regular user, get from FileDataManager
-                order = FileDataManager.getInstance().getOrderById(orderId);
-            }
+            SenderOrder order = SenderDataManager.getInstance().getOrderById(orderId);
             
             if (order != null) {
                 showOrderDetailsDialog(order);
@@ -489,7 +413,7 @@ public class MyOrdersPanel extends JPanel {
         }
     }
 
-    private void showOrderDetailsDialog(Order order) {
+    private void showOrderDetailsDialog(SenderOrder order) {
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Order Details", Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setLayout(new BorderLayout());
         dialog.setSize(500, 600);
@@ -505,55 +429,62 @@ public class MyOrdersPanel extends JPanel {
         gbc.gridwidth = 2;
 
         int y = 0;
-        addDetailRow(panel, "Order ID:", order.id, gbc, y++);
-        addDetailRow(panel, "Date:", order.orderDate, gbc, y++);
-        addDetailRow(panel, "Status:", order.status, gbc, y++);
+        addDetailRow(panel, "Order ID:", order.getId(), gbc, y++);
+        addDetailRow(panel, "Date:", order.getOrderDate(), gbc, y++);
+        addDetailRow(panel, "Status:", order.getStatus(), gbc, y++);
         
         gbc.gridy = y++;
         panel.add(new JSeparator(), gbc);
         
-        addDetailRow(panel, "From:", order.customerAddress, gbc, y++);
-        addDetailRow(panel, "To:", order.recipientAddress, gbc, y++);
+        addDetailRow(panel, "From:", order.getCustomerAddress(), gbc, y++);
+        addDetailRow(panel, "To:", order.getRecipientAddress(), gbc, y++);
         
         gbc.gridy = y++;
         panel.add(new JSeparator(), gbc);
         
-        addDetailRow(panel, "Sender Name:", order.customerName, gbc, y++);
-        addDetailRow(panel, "Sender Phone:", order.customerPhone, gbc, y++);
-        addDetailRow(panel, "Sender Email:", order.customerEmail, gbc, y++);
+        addDetailRow(panel, "Sender Name:", order.getCustomerName(), gbc, y++);
+        addDetailRow(panel, "Sender Phone:", order.getCustomerPhone(), gbc, y++);
+        addDetailRow(panel, "Sender Email:", order.getCustomerEmail(), gbc, y++);
         
         gbc.gridy = y++;
         panel.add(new JSeparator(), gbc);
         
-        addDetailRow(panel, "Recipient Name:", order.recipientName, gbc, y++);
-        addDetailRow(panel, "Recipient Phone:", order.recipientPhone, gbc, y++);
+        addDetailRow(panel, "Recipient Name:", order.getRecipientName(), gbc, y++);
+        addDetailRow(panel, "Recipient Phone:", order.getRecipientPhone(), gbc, y++);
         
         gbc.gridy = y++;
         panel.add(new JSeparator(), gbc);
         
-        addDetailRow(panel, "Weight:", String.format("%.2f kg", order.weight), gbc, y++);
-        addDetailRow(panel, "Dimensions:", order.dimensions + " cm", gbc, y++);
+        addDetailRow(panel, "Weight:", String.format("%.2f kg", order.getWeight()), gbc, y++);
+        addDetailRow(panel, "Dimensions:", order.getDimensions() + " cm", gbc, y++);
+        addDetailRow(panel, "Package Type:", order.getPackageType(), gbc, y++);
         
-        if (order.notes != null && !order.notes.isEmpty()) {
-            String[] noteLines = order.notes.split("\n");
-            for (String line : noteLines) {
-                if (line.contains(":")) {
-                    String[] parts = line.split(":", 2);
-                    if (parts.length == 2) {
-                        addDetailRow(panel, parts[0] + ":", parts[1].trim(), gbc, y++);
-                    }
-                }
+        if (order.getNotes() != null && !order.getNotes().isEmpty()) {
+            String description = order.getDescription();
+            if (!description.isEmpty()) {
+                addDetailRow(panel, "Description:", description, gbc, y++);
             }
         }
         
         gbc.gridy = y++;
         panel.add(new JSeparator(), gbc);
         
-        if (order.estimatedDelivery != null) {
-            addDetailRow(panel, "Est. Delivery:", order.estimatedDelivery, gbc, y++);
+        addDetailRow(panel, "Payment Status:", order.getPaymentStatus(), gbc, y++);
+        addDetailRow(panel, "Payment Method:", order.getPaymentMethod() != null ? order.getPaymentMethod() : "Not Selected", gbc, y++);
+        
+        if (order.getTransactionId() != null) {
+            addDetailRow(panel, "Transaction ID:", order.getTransactionId(), gbc, y++);
         }
-        if (order.driverId != null && !order.driverId.isEmpty()) {
-            addDetailRow(panel, "Driver ID:", order.driverId, gbc, y++);
+        
+        if (order.getPaymentDate() != null) {
+            addDetailRow(panel, "Payment Date:", order.getPaymentDate(), gbc, y++);
+        }
+        
+        gbc.gridy = y++;
+        panel.add(new JSeparator(), gbc);
+        
+        if (order.getEstimatedDelivery() != null) {
+            addDetailRow(panel, "Est. Delivery:", order.getEstimatedDelivery(), gbc, y++);
         }
 
         JButton closeBtn = new JButton("Close");

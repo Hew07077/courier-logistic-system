@@ -1,17 +1,18 @@
+// DemoDataManager.java
 package sender;
 
-import logistics.orders.Order;
 import java.util.ArrayList;
 import java.util.List;
 
 public class DemoDataManager {
     public static final String DEMO_EMAIL = "demo@sender.com";
     private static DemoDataManager instance;
-    private List<Order> demoOrders;
+    private List<SenderOrder> demoOrders;
     private boolean demoDataInitialized = false;
     
     private DemoDataManager() {
         demoOrders = new ArrayList<>();
+        createDemoOrders(); // Create orders immediately when instance is created
     }
     
     public static DemoDataManager getInstance() {
@@ -22,31 +23,54 @@ public class DemoDataManager {
     }
     
     public boolean isDemoAccount(String email) {
-        if (email != null && DEMO_EMAIL.equalsIgnoreCase(email)) {
-            return true;
-        } else {
-            return false;
-        }
+        return email != null && DEMO_EMAIL.equalsIgnoreCase(email);
     }
     
-    public void addDemoOrdersToSystem(FileDataManager fileDataManager) {
+    public void addDemoOrdersToSystem(SenderDataManager dataManager) {
+        System.out.println("DemoDataManager.addDemoOrdersToSystem called - initialized: " + demoDataInitialized);
+        
         if (!demoDataInitialized) {
-            createDemoOrders();
-            for (Order order : demoOrders) {
-                fileDataManager.addOrder(order);
+            if (demoOrders.isEmpty()) {
+                createDemoOrders();
             }
+            
+            int addedCount = 0;
+            for (SenderOrder order : demoOrders) {
+                // Check if order already exists to avoid duplicates
+                SenderOrder existingOrder = dataManager.getOrderById(order.getId());
+                if (existingOrder == null) {
+                    dataManager.addOrder(order);
+                    addedCount++;
+                    System.out.println("Added demo order: " + order.getId() + " for " + order.getCustomerEmail());
+                } else {
+                    System.out.println("Order already exists: " + order.getId() + " - skipping");
+                }
+            }
+            
             demoDataInitialized = true;
-            System.out.println("Demo orders added to system: " + demoOrders.size() + " orders");
+            System.out.println("Demo orders added to system: " + addedCount + " new orders added (total in system now: " + 
+                dataManager.getOrdersByEmail(DEMO_EMAIL).size() + ")");
         } else {
-            System.out.println("Demo data already initialized, skipping...");
+            System.out.println("Demo data already initialized. Current demo orders in memory: " + demoOrders.size() + 
+                ", in system: " + dataManager.getOrdersByEmail(DEMO_EMAIL).size());
+            
+            // Even if initialized, ensure demo orders exist in the system
+            List<SenderOrder> existingOrders = dataManager.getOrdersByEmail(DEMO_EMAIL);
+            if (existingOrders.isEmpty()) {
+                System.out.println("No demo orders found in system despite initialization flag. Re-adding...");
+                demoDataInitialized = false;
+                addDemoOrdersToSystem(dataManager);
+            }
         }
     }
     
     private void createDemoOrders() {
         demoOrders.clear();
+        System.out.println("Creating demo orders...");
         
-        Order order1 = new Order(
-            "20240315001",
+        // Order 1 - Delivered
+        SenderOrder order1 = new SenderOrder(
+            "ORD20240315001",
             "Demo Sender",
             "0123456789",
             DEMO_EMAIL,
@@ -57,18 +81,19 @@ public class DemoDataManager {
             2.5,
             "30x20x15"
         );
-        order1.status = "Delivered";
-        order1.orderDate = "2024-03-15 10:30";
-        order1.paymentStatus = "Paid";
-        order1.paymentMethod = "Credit Card";
-        order1.transactionId = "TXN1503202401";
-        order1.paymentDate = "2024-03-15 10:35";
-        order1.estimatedDelivery = "2024-03-18";
-        order1.notes = "Package Type: Electronics\nEstimated Cost: RM 85.50\nEstimated Delivery: 3 business days\nDescription: Smartphone and accessories";
+        order1.setStatus("Delivered");
+        order1.setOrderDate("2024-03-15 10:30");
+        order1.setPaymentStatus("Paid");
+        order1.setPaymentMethod("Credit Card");
+        order1.setTransactionId("TXN1503202401");
+        order1.setPaymentDate("2024-03-15 10:35");
+        order1.setEstimatedDelivery("2024-03-18");
+        order1.setNotes("Package Type: Electronics Estimated Cost: RM 85.50 Estimated Delivery: 3 business days Description: Smartphone and accessories");
         demoOrders.add(order1);
         
-        Order order2 = new Order(
-            "20240316002",
+        // Order 2 - In Transit
+        SenderOrder order2 = new SenderOrder(
+            "ORD20240316002",
             "Demo Sender",
             "0123456789",
             DEMO_EMAIL,
@@ -79,19 +104,19 @@ public class DemoDataManager {
             1.2,
             "25x18x10"
         );
-        order2.status = "In Transit";
-        order2.orderDate = "2024-03-16 14:45";
-        order2.paymentStatus = "Paid";
-        order2.paymentMethod = "PayPal";
-        order2.transactionId = "TXN1603202401";
-        order2.paymentDate = "2024-03-16 14:50";
-        order2.estimatedDelivery = "2024-03-20";
-        order2.driverId = "DRV-789";
-        order2.notes = "Package Type: Documents\nEstimated Cost: RM 45.00\nEstimated Delivery: 3-5 business days\nDescription: Important business documents";
+        order2.setStatus("In Transit");
+        order2.setOrderDate("2024-03-16 14:45");
+        order2.setPaymentStatus("Paid");
+        order2.setPaymentMethod("PayPal");
+        order2.setTransactionId("TXN1603202401");
+        order2.setPaymentDate("2024-03-16 14:50");
+        order2.setEstimatedDelivery("2024-03-20");
+        order2.setNotes("Package Type: Documents Estimated Cost: RM 45.00 Estimated Delivery: 3-5 business days Description: Important business documents");
         demoOrders.add(order2);
         
-        Order order3 = new Order(
-            "20240317003",
+        // Order 3 - Pending
+        SenderOrder order3 = new SenderOrder(
+            "ORD20240317003",
             "Demo Sender",
             "0123456789",
             DEMO_EMAIL,
@@ -102,16 +127,17 @@ public class DemoDataManager {
             3.8,
             "40x30x20"
         );
-        order3.status = "Pending";
-        order3.orderDate = "2024-03-17 09:15";
-        order3.paymentStatus = "Pending";
-        order3.paymentMethod = "Not Selected";
-        order3.estimatedDelivery = "2024-03-22";
-        order3.notes = "Package Type: Fragile Items\nEstimated Cost: RM 120.75\nEstimated Delivery: 4-5 business days\nDescription: Glassware and ceramics";
+        order3.setStatus("Pending");
+        order3.setOrderDate("2024-03-17 09:15");
+        order3.setPaymentStatus("Pending");
+        order3.setPaymentMethod("Not Selected");
+        order3.setEstimatedDelivery("2024-03-22");
+        order3.setNotes("Package Type: Fragile Items Estimated Cost: RM 120.75 Estimated Delivery: 4-5 business days Description: Glassware and ceramics");
         demoOrders.add(order3);
         
-        Order order4 = new Order(
-            "20240318004",
+        // Order 4 - In Transit
+        SenderOrder order4 = new SenderOrder(
+            "ORD20240318004",
             "Demo Sender",
             "0123456789",
             DEMO_EMAIL,
@@ -122,19 +148,19 @@ public class DemoDataManager {
             0.8,
             "20x15x8"
         );
-        order4.status = "In Transit";
-        order4.orderDate = "2024-03-18 11:20";
-        order4.paymentStatus = "Paid";
-        order4.paymentMethod = "Debit Card";
-        order4.transactionId = "TXN1803202401";
-        order4.paymentDate = "2024-03-18 11:25";
-        order4.estimatedDelivery = "2024-03-21";
-        order4.driverId = "DRV-456";
-        order4.notes = "Package Type: Clothing\nEstimated Cost: RM 35.00\nEstimated Delivery: 2-3 business days\nDescription: Summer clothes";
+        order4.setStatus("In Transit");
+        order4.setOrderDate("2024-03-18 11:20");
+        order4.setPaymentStatus("Paid");
+        order4.setPaymentMethod("Debit Card");
+        order4.setTransactionId("TXN1803202401");
+        order4.setPaymentDate("2024-03-18 11:25");
+        order4.setEstimatedDelivery("2024-03-21");
+        order4.setNotes("Package Type: Clothing Estimated Cost: RM 35.00 Estimated Delivery: 2-3 business days Description: Summer clothes");
         demoOrders.add(order4);
         
-        Order order5 = new Order(
-            "20240319005",
+        // Order 5 - Delayed
+        SenderOrder order5 = new SenderOrder(
+            "ORD20240319005",
             "Demo Sender",
             "0123456789",
             DEMO_EMAIL,
@@ -145,22 +171,21 @@ public class DemoDataManager {
             5.2,
             "50x40x30"
         );
-        order5.status = "Delayed";
-        order5.orderDate = "2024-03-19 16:30";
-        order5.paymentStatus = "Pending";
-        order5.paymentMethod = "Bank Transfer";
-        order5.estimatedDelivery = "2024-03-25";
-        order5.reason = "Weather conditions";
-        order5.notes = "Package Type: Other\nEstimated Cost: RM 210.00\nEstimated Delivery: 5-7 business days\nDescription: Household items";
+        order5.setStatus("Delayed");
+        order5.setOrderDate("2024-03-19 16:30");
+        order5.setPaymentStatus("Pending");
+        order5.setPaymentMethod("Bank Transfer");
+        order5.setEstimatedDelivery("2024-03-25");
+        order5.setNotes("Package Type: Other Estimated Cost: RM 210.00 Estimated Delivery: 5-7 business days Description: Household items Reason: Weather conditions");
         demoOrders.add(order5);
+        
+        System.out.println("Created " + demoOrders.size() + " demo orders");
     }
     
-    public List<Order> getDemoOrders() {
+    public List<SenderOrder> getDemoOrders() {
         if (demoOrders.isEmpty()) {
             createDemoOrders();
-            return demoOrders;
-        } else {
-            return demoOrders;
         }
+        return new ArrayList<>(demoOrders);
     }
 }

@@ -1,6 +1,5 @@
+// PaymentPanel.java
 package sender;
-
-import logistics.orders.Order;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
@@ -21,13 +20,11 @@ public class PaymentPanel extends JPanel {
     private JLabel balanceLabel;
     private JComboBox<String> methodCombo;
     private JLabel selectedMethodLabel;
-    private JPanel paymentMethodsPanel;
     private JButton payBtn;
     private List<PaymentRecord> paymentRecords;
     
     // Modern color scheme
     private final Color BLUE_PRIMARY = new Color(0, 123, 255);
-    private final Color BLUE_LIGHT = new Color(200, 225, 255);
     private final Color BG_LIGHT = new Color(250, 250, 250);
     private final Color CARD_BG = Color.WHITE;
     private final Color TEXT_DARK = new Color(33, 37, 41);
@@ -51,7 +48,6 @@ public class PaymentPanel extends JPanel {
         add(createHeaderPanel(), BorderLayout.NORTH);
         add(createMainPanel(), BorderLayout.CENTER);
         
-        // Load initial data
         refreshData();
     }
 
@@ -84,17 +80,14 @@ public class PaymentPanel extends JPanel {
             BorderFactory.createEmptyBorder(15, 15, 15, 15)
         ));
 
-        // Create split pane
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPane.setBorder(null);
         splitPane.setBackground(CARD_BG);
-        splitPane.setResizeWeight(0.6); // 60% for table, 40% for payment methods
+        splitPane.setResizeWeight(0.6);
 
-        // Table panel
         JPanel tablePanel = createTablePanel();
         splitPane.setTopComponent(tablePanel);
 
-        // Payment method panel
         JPanel bottomPanel = createPaymentMethodPanel();
         splitPane.setBottomComponent(bottomPanel);
         
@@ -116,7 +109,6 @@ public class PaymentPanel extends JPanel {
         tableTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         tablePanel.add(tableTitle, BorderLayout.NORTH);
 
-        // Create table
         String[] columns = {"Payment ID", "Order ID", "Amount", "Date", "Status", "Method", "Transaction ID"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -135,23 +127,21 @@ public class PaymentPanel extends JPanel {
         paymentsTable.setRowHeight(35);
         paymentsTable.setShowGrid(true);
         paymentsTable.setGridColor(BORDER_COLOR);
-        paymentsTable.setSelectionBackground(BLUE_LIGHT);
+        paymentsTable.setSelectionBackground(new Color(200, 225, 255));
         paymentsTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
         paymentsTable.getTableHeader().setBackground(new Color(248, 249, 250));
         paymentsTable.getTableHeader().setForeground(TEXT_DARK);
         paymentsTable.setRowSelectionAllowed(true);
         paymentsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // Set column widths
-        paymentsTable.getColumnModel().getColumn(0).setPreferredWidth(100); // Payment ID
-        paymentsTable.getColumnModel().getColumn(1).setPreferredWidth(100); // Order ID
-        paymentsTable.getColumnModel().getColumn(2).setPreferredWidth(80);  // Amount
-        paymentsTable.getColumnModel().getColumn(3).setPreferredWidth(120); // Date
-        paymentsTable.getColumnModel().getColumn(4).setPreferredWidth(80);  // Status
-        paymentsTable.getColumnModel().getColumn(5).setPreferredWidth(100); // Method
-        paymentsTable.getColumnModel().getColumn(6).setPreferredWidth(150); // Transaction ID
+        paymentsTable.getColumnModel().getColumn(0).setPreferredWidth(100);
+        paymentsTable.getColumnModel().getColumn(1).setPreferredWidth(100);
+        paymentsTable.getColumnModel().getColumn(2).setPreferredWidth(80);
+        paymentsTable.getColumnModel().getColumn(3).setPreferredWidth(120);
+        paymentsTable.getColumnModel().getColumn(4).setPreferredWidth(80);
+        paymentsTable.getColumnModel().getColumn(5).setPreferredWidth(100);
+        paymentsTable.getColumnModel().getColumn(6).setPreferredWidth(150);
 
-        // Custom renderer for status
         paymentsTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -178,7 +168,6 @@ public class PaymentPanel extends JPanel {
             }
         });
 
-        // Amount column right alignment
         paymentsTable.getColumnModel().getColumn(2).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -202,14 +191,12 @@ public class PaymentPanel extends JPanel {
         methodPanel.setBackground(CARD_BG);
         methodPanel.setBorder(BorderFactory.createEmptyBorder(15, 10, 10, 10));
 
-        // Title
         JLabel methodTitle = new JLabel("Payment Method & Actions");
         methodTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         methodTitle.setForeground(TEXT_DARK);
         methodTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         methodPanel.add(methodTitle, BorderLayout.NORTH);
 
-        // Center panel with payment methods and actions
         JPanel centerPanel = new JPanel(new GridBagLayout());
         centerPanel.setBackground(CARD_BG);
         
@@ -218,7 +205,6 @@ public class PaymentPanel extends JPanel {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.weightx = 1.0;
 
-        // Payment methods section
         JLabel selectMethodLabel = new JLabel("Select Payment Method:");
         selectMethodLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         selectMethodLabel.setForeground(TEXT_DARK);
@@ -227,7 +213,6 @@ public class PaymentPanel extends JPanel {
         gbc.gridwidth = 1;
         centerPanel.add(selectMethodLabel, gbc);
 
-        // Payment methods combo
         String[] methods = {"Credit Card (Visa/Mastercard)", "Debit Card", "PayPal", "Bank Transfer", "Cash on Delivery"};
         methodCombo = new JComboBox<>(methods);
         methodCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -239,7 +224,6 @@ public class PaymentPanel extends JPanel {
         gbc.gridwidth = 2;
         centerPanel.add(methodCombo, gbc);
 
-        // Selected method display
         selectedMethodLabel = new JLabel("Selected: Credit Card");
         selectedMethodLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         selectedMethodLabel.setForeground(BLUE_PRIMARY);
@@ -249,7 +233,6 @@ public class PaymentPanel extends JPanel {
         gbc.insets = new Insets(0, 5, 10, 5);
         centerPanel.add(selectedMethodLabel, gbc);
 
-        // Quick actions panel
         JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         actionsPanel.setBackground(CARD_BG);
 
@@ -291,55 +274,33 @@ public class PaymentPanel extends JPanel {
         selectedMethodLabel.setText("Selected: " + selected);
     }
 
-    // MODIFIED: refreshData method
     public void refreshData() {
         tableModel.setRowCount(0);
         paymentRecords.clear();
         
-        // Get actual orders with payment information
+        // Refresh data from main system
+        SenderDataManager.getInstance().refreshData();
+        
         String userEmail = dashboard.getSenderEmail();
-        List<Order> userOrders = new ArrayList<>();
+        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(userEmail);
         
-        // Use if-else to check if the sender is a demo user
-        if (userEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
-            // If it's the demo sender, get demo orders
-            userOrders = DemoDataManager.getInstance().getDemoOrders();
-            System.out.println("PaymentPanel: Loading " + userOrders.size() + " demo orders");
-        } else {
-            // Otherwise, get regular orders from the system
-            List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
-            
-            // Filter orders for this user
-            for (Order order : allOrders) {
-                if (order.customerEmail != null && userEmail != null) {
-                    if (order.customerEmail.trim().equalsIgnoreCase(userEmail.trim())) {
-                        userOrders.add(order);
-                    }
-                }
-            }
-        }
-        
-        // Create payment records from real orders
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
         
         if (!userOrders.isEmpty()) {
             int paymentCounter = 1;
-            for (Order order : userOrders) {
-                // Extract cost from order notes
+            for (SenderOrder order : userOrders) {
                 double amount = extractCostFromOrder(order);
-                
-                // Determine payment status from order's paymentStatus field
-                String paymentStatus = determinePaymentStatus(order);
-                String transactionId = order.transactionId != null && !order.transactionId.isEmpty() ? 
-                                       order.transactionId : generateTransactionId(order, paymentStatus);
-                String paymentMethod = order.paymentMethod != null && !"Not Selected".equals(order.paymentMethod) ?
-                                       order.paymentMethod : (String) methodCombo.getSelectedItem();
-                String paymentDate = order.paymentDate != null && !order.paymentDate.isEmpty() ?
-                                     order.paymentDate : order.orderDate;
+                String paymentStatus = order.getPaymentStatus() != null ? order.getPaymentStatus() : "Pending";
+                String transactionId = order.getTransactionId() != null ? order.getTransactionId() : 
+                                      ("Paid".equals(paymentStatus) ? generateTransactionId(order) : 
+                                      ("Pending".equals(paymentStatus) ? "Pending" : "-"));
+                String paymentMethod = order.getPaymentMethod() != null && !"Not Selected".equals(order.getPaymentMethod()) ?
+                                       order.getPaymentMethod() : (String) methodCombo.getSelectedItem();
+                String paymentDate = order.getPaymentDate() != null ? order.getPaymentDate() : order.getOrderDate();
                 
                 PaymentRecord record = new PaymentRecord(
                     "PAY-" + String.format("%03d", paymentCounter),
-                    order.id,
+                    order.getId(),
                     amount,
                     paymentDate,
                     paymentStatus,
@@ -364,7 +325,6 @@ public class PaymentPanel extends JPanel {
             }
         }
         
-        // Show empty state for users with no orders
         if (userOrders.isEmpty()) {
             String[] emptyMessage = {
                 "No payments yet",
@@ -382,66 +342,13 @@ public class PaymentPanel extends JPanel {
         updatePayButtonState();
     }
 
-    private double extractCostFromOrder(Order order) {
-        if (order.notes != null && order.notes.contains("Estimated Cost:")) {
-            try {
-                String[] parts = order.notes.split("Estimated Cost: ");
-                if (parts.length > 1) {
-                    String[] costParts = parts[1].split("\n");
-                    String costStr = costParts[0].replace("RM", "").replace("$", "").trim();
-                    return Double.parseDouble(costStr);
-                }
-            } catch (NumberFormatException e) {
-                // Return default if parsing fails
-            }
-        }
-        // Default cost based on order type or random for demo
-        return 50.0 + (Math.random() * 200);
+    private double extractCostFromOrder(SenderOrder order) {
+        // Use the helper method from SenderOrder
+        return order.getEstimatedCost();
     }
 
-    /**
-     * FIXED: Determine payment status from actual order data
-     */
-    private String determinePaymentStatus(Order order) {
-        // First check if order has paymentStatus field
-        if (order.paymentStatus != null && !order.paymentStatus.isEmpty()) {
-            return order.paymentStatus;
-        }
-        
-        // Fallback to checking notes for backward compatibility
-        if (order.notes != null && order.notes.contains("Payment Status:")) {
-            try {
-                String[] parts = order.notes.split("Payment Status: ");
-                if (parts.length > 1) {
-                    String[] statusParts = parts[1].split("\n");
-                    return statusParts[0].trim();
-                }
-            } catch (Exception e) {
-                // Ignore parsing errors
-            }
-        }
-        
-        if (order.status == null) return "Pending";
-        
-        switch(order.status) {
-            case "Delivered":
-                return "Paid";
-            case "Cancelled":
-                return "Cancelled";
-            case "Pending":
-            default:
-                return "Pending";
-        }
-    }
-
-    private String generateTransactionId(Order order, String status) {
-        if ("Paid".equals(status)) {
-            return "TXN" + System.currentTimeMillis() + order.id.substring(0, 3);
-        } else if ("Pending".equals(status)) {
-            return "Pending";
-        } else {
-            return "-";
-        }
+    private String generateTransactionId(SenderOrder order) {
+        return "TXN" + System.currentTimeMillis() + order.getId().substring(0, 3);
     }
 
     private void updateBalance() {
@@ -453,7 +360,6 @@ public class PaymentPanel extends JPanel {
         }
         balanceLabel.setText("Pending Balance: RM " + String.format("%.2f", balance));
         
-        // Change color based on balance
         if (balance > 0) {
             balanceLabel.setForeground(DANGER_RED);
         } else {
@@ -481,7 +387,6 @@ public class PaymentPanel extends JPanel {
     }
 
     private void payOutstanding() {
-        // Calculate total pending amount
         double totalPending = 0;
         List<PaymentRecord> pendingRecords = new ArrayList<>();
         
@@ -499,7 +404,6 @@ public class PaymentPanel extends JPanel {
             return;
         }
 
-        // Show payment summary dialog
         String selectedMethod = (String) methodCombo.getSelectedItem();
         String message = String.format(
             "Payment Summary:\n" +
@@ -519,46 +423,39 @@ public class PaymentPanel extends JPanel {
         }
     }
 
-    /**
-     * FIXED: Process payment with proper persistence to order storage
-     */
     private void processPayment(List<PaymentRecord> pendingRecords, String paymentMethod, double amount) {
-        // Create processing dialog
         JDialog processingDialog = createProcessingDialog();
         
-        // Use SwingWorker for background processing
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                // Simulate payment processing delay
                 Thread.sleep(2000);
                 return null;
             }
 
             @Override
             protected void done() {
-                // Close the dialog
                 processingDialog.dispose();
                 
-                // Update payment records and persist status
                 String transactionId = "TXN" + System.currentTimeMillis();
                 String paymentDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
                 
                 for (PaymentRecord record : pendingRecords) {
-                    // Update the record
                     record.status = "Paid";
                     record.method = paymentMethod;
                     record.transactionId = transactionId;
                     record.date = paymentDate;
                     
-                    // FIXED: Update order payment status in FileDataManager
-                    updateOrderPaymentStatus(record.orderId, "Paid", paymentMethod, transactionId, paymentDate);
+                    // This now syncs with main system automatically
+                    SenderDataManager.getInstance().updateOrderPaymentStatus(
+                        record.orderId, "Paid", paymentMethod, transactionId, paymentDate
+                    );
                 }
                 
-                // Refresh the table to show updated status
+                // Refresh data from main system
+                SenderDataManager.getInstance().refreshData();
                 refreshData();
                 
-                // Show success message
                 JOptionPane.showMessageDialog(PaymentPanel.this,
                     String.format("Payment of RM %.2f processed successfully!\nTransaction ID: %s", 
                         amount, transactionId),
@@ -570,77 +467,9 @@ public class PaymentPanel extends JPanel {
         processingDialog.setVisible(true);
     }
 
-    /**
-     * FIXED: Update order payment status with proper persistence to order object
-     */
-    private void updateOrderPaymentStatus(String orderId, String status, String paymentMethod, 
-                                          String transactionId, String paymentDate) {
-        List<Order> allOrders = FileDataManager.getInstance().getAllOrders();
-        boolean orderFound = false;
-        
-        for (Order order : allOrders) {
-            if (order.id.equals(orderId)) {
-                // Update payment fields in the order object
-                order.paymentStatus = status;
-                order.paymentMethod = paymentMethod;
-                order.transactionId = transactionId;
-                order.paymentDate = paymentDate;
-                
-                // Add payment info to order notes for backward compatibility
-                if (order.notes == null) {
-                    order.notes = "";
-                }
-                
-                // Clear old payment info and add new
-                String[] noteLines = order.notes.split("\n");
-                StringBuilder newNotes = new StringBuilder();
-                
-                for (String line : noteLines) {
-                    if (!line.startsWith("Payment Status:") && 
-                        !line.startsWith("Transaction ID:") && 
-                        !line.startsWith("Payment Date:") &&
-                        !line.startsWith("Payment Method:")) {
-                        if (newNotes.length() > 0) {
-                            newNotes.append("\n");
-                        }
-                        newNotes.append(line);
-                    }
-                }
-                
-                // Add new payment info
-                if (newNotes.length() > 0 && !newNotes.toString().endsWith("\n")) {
-                    newNotes.append("\n");
-                }
-                newNotes.append("Payment Status: ").append(status);
-                newNotes.append("\nPayment Method: ").append(paymentMethod);
-                newNotes.append("\nTransaction ID: ").append(transactionId);
-                newNotes.append("\nPayment Date: ").append(paymentDate);
-                
-                order.notes = newNotes.toString();
-                orderFound = true;
-                break;
-            }
-        }
-        
-        if (orderFound) {
-            FileDataManager.getInstance().saveOrders(allOrders);
-        }
-    }
-
-    /**
-     * FIXED: Create a properly configured processing dialog
-     */
     private JDialog createProcessingDialog() {
         Window ancestor = SwingUtilities.getWindowAncestor(this);
-        JDialog dialog;
-        
-        if (ancestor instanceof Frame) {
-            dialog = new JDialog((Frame) ancestor, "Processing Payment", true);
-        } else if (ancestor instanceof Dialog) {
-            dialog = new JDialog((Dialog) ancestor, "Processing Payment", true);
-        } else {
-            dialog = new JDialog((Frame) null, "Processing Payment", true);
-        }
+        JDialog dialog = new JDialog((Frame) ancestor, "Processing Payment", true);
         
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         dialog.setSize(300, 150);
@@ -680,7 +509,6 @@ public class PaymentPanel extends JPanel {
         return dialog;
     }
 
-    // Inner class to represent payment records
     private class PaymentRecord {
         String paymentId;
         String orderId;
