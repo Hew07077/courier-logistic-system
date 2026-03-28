@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 
 public class DriverManagement {
@@ -48,7 +47,6 @@ public class DriverManagement {
     private static final Color WARNING = new Color(255, 193, 7);
     private static final Color INFO = new Color(23, 162, 184);
     private static final Color DANGER = new Color(220, 53, 69);
-    private static final Color PURPLE = new Color(111, 66, 193);
     private static final Color BG_COLOR = new Color(248, 249, 250);
     private static final Color CARD_BG = Color.WHITE;
     private static final Color BORDER_COLOR = new Color(222, 226, 230);

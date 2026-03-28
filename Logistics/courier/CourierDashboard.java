@@ -8,7 +8,6 @@ import logistics.orders.OrderStorage;
 import javax.swing.Timer;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -25,7 +24,6 @@ public class CourierDashboard extends JFrame {
     // --- Refined Color Palette ---
     private final Color PRIMARY_GREEN = new Color(46, 125, 50);
     private final Color GREEN_DARK = new Color(27, 94, 32);
-    private final Color GREEN_LIGHT = new Color(220, 245, 220);
     private final Color BG_LIGHT = new Color(245, 247, 250);
     private final Color BORDER_COLOR = new Color(224, 224, 224);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
@@ -84,12 +82,6 @@ public class CourierDashboard extends JFrame {
     
     // Vehicle Report
     private VehicleReport vehicleReport;
-    
-    // Date formatters
-    private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-    private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("MMM dd, yyyy");
-    private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm");
 
     public CourierDashboard(Driver driver) {
         // Reload latest driver data from file

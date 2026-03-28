@@ -14,7 +14,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.swing.Timer;
 
 public class OrderManagement {
     private JPanel mainPanel;
@@ -71,7 +70,6 @@ public class OrderManagement {
     // Date formatters
     private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-    private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("MMM dd, yyyy");
     
     public OrderManagement() {
         this(null, null);

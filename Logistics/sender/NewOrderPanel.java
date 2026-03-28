@@ -35,6 +35,11 @@ public class NewOrderPanel extends JPanel {
     private JTextArea descriptionArea;
     private JLabel estimatedCostLabel;
     private JLabel deliveryTimeLabel;
+    
+    // Payment components
+    private JComboBox<String> paymentMethodCombo;
+    private JPanel paymentDetailsPanel;
+    private CardLayout paymentDetailsLayout;
 
     private String senderName;
     private String senderEmail;
@@ -188,6 +193,10 @@ public class NewOrderPanel extends JPanel {
     }
 
     private JPanel createFormPanel() {
+        // Initialize labels
+        estimatedCostLabel = new JLabel("RM 0.00");
+        deliveryTimeLabel = new JLabel("3-5 business days");
+        
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         formPanel.setBorder(BorderFactory.createCompoundBorder(
@@ -309,6 +318,55 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 1;
         formPanel.add(descScroll, gbc);
 
+        // Payment Section
+        JLabel paymentLabel = new JLabel("Payment Details:");
+        paymentLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        paymentLabel.setForeground(new Color(40, 167, 69));
+        gbc.gridx = 0;
+        gbc.gridy = gridy++;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(15, 5, 10, 5);
+        formPanel.add(paymentLabel, gbc);
+        gbc.insets = new Insets(5, 5, 5, 5);
+
+        JLabel paymentMethodLabel = new JLabel("Payment Method:*");
+        paymentMethodLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        gbc.gridx = 0;
+        gbc.gridy = gridy++;
+        gbc.gridwidth = 1;
+        formPanel.add(paymentMethodLabel, gbc);
+
+        String[] paymentMethods = {"Select Payment Method", "Credit Card (Visa/Mastercard)", "Debit Card", "PayPal", "Bank Transfer", "Touch 'n Go", "GrabPay"};
+        paymentMethodCombo = new JComboBox<>(paymentMethods);
+        paymentMethodCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        paymentMethodCombo.addActionListener(e -> updatePaymentDetails());
+        gbc.gridx = 1;
+        formPanel.add(paymentMethodCombo, gbc);
+
+        // Payment details panel with card layout
+        paymentDetailsLayout = new CardLayout();
+        paymentDetailsPanel = new JPanel(paymentDetailsLayout);
+        paymentDetailsPanel.setBackground(new Color(248, 249, 250));
+        paymentDetailsPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(230, 230, 230)),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        
+        paymentDetailsPanel.add(createEmptyPaymentPanel(), "EMPTY");
+        paymentDetailsPanel.add(createCreditCardPanel(), "CREDIT_CARD");
+        paymentDetailsPanel.add(createDebitCardPanel(), "DEBIT_CARD");
+        paymentDetailsPanel.add(createPayPalPanel(), "PAYPAL");
+        paymentDetailsPanel.add(createBankTransferPanel(), "BANK_TRANSFER");
+        paymentDetailsPanel.add(createEWalletPanel("Touch 'n Go"), "TOUCH_N_GO");
+        paymentDetailsPanel.add(createEWalletPanel("GrabPay"), "GRABPAY");
+        
+        gbc.gridx = 0;
+        gbc.gridy = gridy++;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        formPanel.add(paymentDetailsPanel, gbc);
+
+        // Estimate Panel
         JPanel estimatePanel = new JPanel(new GridLayout(2, 2, 10, 5));
         estimatePanel.setBackground(new Color(248, 249, 250));
         estimatePanel.setBorder(BorderFactory.createCompoundBorder(
@@ -316,23 +374,14 @@ public class NewOrderPanel extends JPanel {
             BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        JLabel estCostTitle = new JLabel("Estimated Cost (RM):");
+        JLabel estCostTitle = new JLabel("Total Amount (RM):");
         estCostTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
         estimatePanel.add(estCostTitle);
-
-        estimatedCostLabel = new JLabel("RM 0.00");
-        estimatedCostLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        estimatedCostLabel.setForeground(new Color(0, 123, 255));
-        estimatedCostLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         estimatePanel.add(estimatedCostLabel);
 
         JLabel deliveryTitle = new JLabel("Estimated Delivery:");
         deliveryTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
         estimatePanel.add(deliveryTitle);
-
-        deliveryTimeLabel = new JLabel("3-5 business days");
-        deliveryTimeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        deliveryTimeLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         estimatePanel.add(deliveryTimeLabel);
 
         gbc.gridx = 0;
@@ -353,10 +402,10 @@ public class NewOrderPanel extends JPanel {
         cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         cancelBtn.addActionListener(e -> clearForm());
 
-        JButton submitBtn = new JButton("Create Order");
+        JButton submitBtn = new JButton("Place Order & Pay");
         submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
         submitBtn.setForeground(Color.WHITE);
-        submitBtn.setBackground(new Color(0, 123, 255));
+        submitBtn.setBackground(new Color(40, 167, 69));
         submitBtn.setBorderPainted(false);
         submitBtn.setFocusPainted(false);
         submitBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -383,6 +432,191 @@ public class NewOrderPanel extends JPanel {
         mainPanel.add(scrollPane, BorderLayout.CENTER);
         
         return mainPanel;
+    }
+
+    private JPanel createEmptyPaymentPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(248, 249, 250));
+        JLabel label = new JLabel("Please select a payment method", SwingConstants.CENTER);
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        label.setForeground(new Color(108, 117, 125));
+        panel.add(label, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createCreditCardPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(248, 249, 250));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.weightx = 1.0;
+        
+        int y = 0;
+        addPaymentField(panel, "Card Number:", "4111 1111 1111 1111", gbc, y++);
+        addPaymentField(panel, "Cardholder Name:", "John Doe", gbc, y++);
+        
+        JPanel expiryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        expiryPanel.setOpaque(false);
+        JTextField monthField = new JTextField(3);
+        monthField.setText("MM");
+        JTextField yearField = new JTextField(3);
+        yearField.setText("YY");
+        expiryPanel.add(monthField);
+        expiryPanel.add(new JLabel("/"));
+        expiryPanel.add(yearField);
+        
+        gbc.gridy = y++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 1;
+        JLabel expiryLabel = new JLabel("Expiry Date:");
+        expiryLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        panel.add(expiryLabel, gbc);
+        gbc.gridx = 1;
+        panel.add(expiryPanel, gbc);
+        
+        addPaymentField(panel, "CVV:", "123", gbc, y++);
+        
+        return panel;
+    }
+
+    private JPanel createDebitCardPanel() {
+        return createCreditCardPanel();
+    }
+
+    private JPanel createPayPalPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(248, 249, 250));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.weightx = 1.0;
+        
+        int y = 0;
+        addPaymentField(panel, "PayPal Email:", "user@example.com", gbc, y++);
+        
+        JLabel noteLabel = new JLabel("You will be redirected to PayPal to complete payment");
+        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        noteLabel.setForeground(new Color(108, 117, 125));
+        gbc.gridy = y++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        panel.add(noteLabel, gbc);
+        
+        return panel;
+    }
+
+    private JPanel createBankTransferPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(248, 249, 250));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.weightx = 1.0;
+        
+        int y = 0;
+        JLabel bankLabel = new JLabel("Bank Account Details:");
+        bankLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        gbc.gridy = y++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        panel.add(bankLabel, gbc);
+        
+        JLabel accountLabel = new JLabel("Account: LogiXpress Sdn Bhd");
+        accountLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        gbc.gridy = y++;
+        panel.add(accountLabel, gbc);
+        
+        JLabel numberLabel = new JLabel("Account No: 1234-5678-9012-3456");
+        numberLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        gbc.gridy = y++;
+        panel.add(numberLabel, gbc);
+        
+        JLabel bankNameLabel = new JLabel("Bank: Maybank");
+        bankNameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        gbc.gridy = y++;
+        panel.add(bankNameLabel, gbc);
+        
+        addPaymentField(panel, "Reference No:", "e.g., ORD-XXXX", gbc, y++);
+        
+        return panel;
+    }
+
+    private JPanel createEWalletPanel(String walletName) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(248, 249, 250));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.weightx = 1.0;
+        
+        int y = 0;
+        JLabel titleLabel = new JLabel(walletName + " Payment");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        gbc.gridy = y++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        panel.add(titleLabel, gbc);
+        
+        addPaymentField(panel, walletName + " Number:", "012-3456789", gbc, y++);
+        
+        JLabel noteLabel = new JLabel("You will be redirected to " + walletName + " to complete payment");
+        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        noteLabel.setForeground(new Color(108, 117, 125));
+        gbc.gridy = y++;
+        panel.add(noteLabel, gbc);
+        
+        return panel;
+    }
+
+    private void addPaymentField(JPanel panel, String label, String placeholder, GridBagConstraints gbc, int y) {
+        gbc.gridy = y;
+        gbc.gridx = 0;
+        gbc.gridwidth = 1;
+        JLabel labelComp = new JLabel(label);
+        labelComp.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        panel.add(labelComp, gbc);
+        
+        gbc.gridx = 1;
+        JTextField field = new JTextField(placeholder, 20);
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        field.setForeground(new Color(108, 117, 125));
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (field.getText().equals(placeholder)) {
+                    field.setText("");
+                    field.setForeground(Color.BLACK);
+                }
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (field.getText().isEmpty()) {
+                    field.setText(placeholder);
+                    field.setForeground(new Color(108, 117, 125));
+                }
+            }
+        });
+        panel.add(field, gbc);
+    }
+
+    private void updatePaymentDetails() {
+        String selected = (String) paymentMethodCombo.getSelectedItem();
+        if (selected == null || selected.equals("Select Payment Method")) {
+            paymentDetailsLayout.show(paymentDetailsPanel, "EMPTY");
+        } else if (selected.contains("Credit Card")) {
+            paymentDetailsLayout.show(paymentDetailsPanel, "CREDIT_CARD");
+        } else if (selected.contains("Debit Card")) {
+            paymentDetailsLayout.show(paymentDetailsPanel, "DEBIT_CARD");
+        } else if (selected.contains("PayPal")) {
+            paymentDetailsLayout.show(paymentDetailsPanel, "PAYPAL");
+        } else if (selected.contains("Bank Transfer")) {
+            paymentDetailsLayout.show(paymentDetailsPanel, "BANK_TRANSFER");
+        } else if (selected.contains("Touch 'n Go")) {
+            paymentDetailsLayout.show(paymentDetailsPanel, "TOUCH_N_GO");
+        } else if (selected.contains("GrabPay")) {
+            paymentDetailsLayout.show(paymentDetailsPanel, "GRABPAY");
+        }
     }
 
     private JPanel createSenderInfoBox() {
@@ -645,21 +879,33 @@ public class NewOrderPanel extends JPanel {
 
     private void calculateEstimate() {
         try {
-            double weight = weightField.getText().isEmpty() ? 0 : Double.parseDouble(weightField.getText());
+            String weightText = weightField.getText().trim();
+            if (weightText.isEmpty()) {
+                estimatedCostLabel.setText("RM 0.00");
+                deliveryTimeLabel.setText("3-5 business days");
+                return;
+            }
+            
+            double weight = Double.parseDouble(weightText);
             String packageType = (String) packageTypeCombo.getSelectedItem();
             String fromState = (String) fromStateCombo.getSelectedItem();
             String toState = (String) toStateCombo.getSelectedItem();
             
+            if (fromState == null || toState == null || packageType == null) {
+                estimatedCostLabel.setText("RM 0.00");
+                return;
+            }
+            
             double baseRate = 8.0;
             double weightRate = weight * 3.5;
-            double distanceRate = calculateDistance(fromState, toState) * 0.15;
+            double distance = calculateDistance(fromState, toState);
+            double distanceRate = distance * 0.15;
             double typeMultiplier = getTypeMultiplier(packageType);
             
             double total = (baseRate + weightRate + distanceRate) * typeMultiplier;
             
             estimatedCostLabel.setText(String.format("RM %.2f", total));
             
-            double distance = calculateDistance(fromState, toState);
             int days;
             if (distance < 200) {
                 days = 1;
@@ -668,71 +914,61 @@ public class NewOrderPanel extends JPanel {
             } else if (distance < 1000) {
                 days = 3;
             } else {
-                days = 4 + (int)(distance / 1000);
+                days = 5;
             }
             deliveryTimeLabel.setText(days + " business days");
             
         } catch (NumberFormatException e) {
             estimatedCostLabel.setText("RM 0.00");
+            deliveryTimeLabel.setText("3-5 business days");
+        } catch (Exception e) {
+            estimatedCostLabel.setText("RM 0.00");
+            deliveryTimeLabel.setText("3-5 business days");
         }
     }
 
     private double calculateDistance(String fromState, String toState) {
-        if (fromState == null || toState == null) return 100;
-        if (fromState.equals(toState)) return 50;
+        if (fromState == null || toState == null) return 300.0;
+        if (fromState.equals(toState)) return 50.0;
         
-        Map<String, Map<String, Double>> distances = new HashMap<>();
+        List<String> eastMalaysia = Arrays.asList("Sabah", "Sarawak", "Labuan");
+        List<String> westMalaysia = Arrays.asList("Selangor", "Kuala Lumpur", "Penang", "Johor", "Perak", 
+                                                   "Negeri Sembilan", "Melaka", "Pahang", "Kedah", 
+                                                   "Kelantan", "Terengganu", "Perlis");
         
-        Map<String, Double> fromSelangor = new HashMap<>();
-        fromSelangor.put("Penang", 350.0);
-        fromSelangor.put("Johor", 320.0);
-        fromSelangor.put("Perak", 200.0);
-        fromSelangor.put("Negeri Sembilan", 70.0);
-        fromSelangor.put("Melaka", 150.0);
-        fromSelangor.put("Pahang", 250.0);
-        fromSelangor.put("Kedah", 400.0);
-        fromSelangor.put("Kelantan", 450.0);
-        fromSelangor.put("Terengganu", 400.0);
-        fromSelangor.put("Perlis", 450.0);
-        fromSelangor.put("Sarawak", 1200.0);
-        fromSelangor.put("Sabah", 1600.0);
-        fromSelangor.put("Labuan", 1500.0);
-        distances.put("Selangor", fromSelangor);
-        distances.put("Kuala Lumpur", fromSelangor);
+        boolean fromEast = eastMalaysia.contains(fromState);
+        boolean toEast = eastMalaysia.contains(toState);
         
-        Map<String, Double> fromPenang = new HashMap<>();
-        fromPenang.put("Selangor", 350.0);
-        fromPenang.put("Kuala Lumpur", 350.0);
-        fromPenang.put("Johor", 650.0);
-        fromPenang.put("Perak", 150.0);
-        fromPenang.put("Kedah", 100.0);
-        fromPenang.put("Perlis", 150.0);
-        fromPenang.put("Kelantan", 300.0);
-        fromPenang.put("Terengganu", 350.0);
-        fromPenang.put("Pahang", 400.0);
-        fromPenang.put("Sarawak", 1400.0);
-        fromPenang.put("Sabah", 1800.0);
-        distances.put("Penang", fromPenang);
+        if (fromEast != toEast) {
+            return 1500.0;
+        }
         
-        Map<String, Double> fromJohor = new HashMap<>();
-        fromJohor.put("Selangor", 320.0);
-        fromJohor.put("Kuala Lumpur", 320.0);
-        fromJohor.put("Penang", 650.0);
-        fromJohor.put("Melaka", 200.0);
-        fromJohor.put("Negeri Sembilan", 250.0);
-        fromJohor.put("Pahang", 300.0);
-        fromJohor.put("Sarawak", 900.0);
-        fromJohor.put("Sabah", 1300.0);
-        distances.put("Johor", fromJohor);
-        
-        if (distances.containsKey(fromState) && distances.get(fromState).containsKey(toState)) {
-            return distances.get(fromState).get(toState);
+        if (westMalaysia.contains(fromState) && westMalaysia.contains(toState)) {
+            Map<String, Double> distancesFromKL = new HashMap<>();
+            distancesFromKL.put("Penang", 350.0);
+            distancesFromKL.put("Johor", 320.0);
+            distancesFromKL.put("Perak", 200.0);
+            distancesFromKL.put("Negeri Sembilan", 70.0);
+            distancesFromKL.put("Melaka", 150.0);
+            distancesFromKL.put("Pahang", 250.0);
+            distancesFromKL.put("Kedah", 400.0);
+            distancesFromKL.put("Kelantan", 450.0);
+            distancesFromKL.put("Terengganu", 400.0);
+            distancesFromKL.put("Perlis", 450.0);
+            
+            if (distancesFromKL.containsKey(fromState)) {
+                return distancesFromKL.get(fromState);
+            }
+            if (distancesFromKL.containsKey(toState)) {
+                return distancesFromKL.get(toState);
+            }
         }
         
         return 300.0;
     }
 
     private double getTypeMultiplier(String type) {
+        if (type == null) return 1.0;
         switch(type) {
             case "Fragile Items": return 1.5;
             case "Electronics": return 1.3;
@@ -746,7 +982,6 @@ public class NewOrderPanel extends JPanel {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
         String datePrefix = dateFormat.format(new Date());
         
-        // Read existing orders from orders.txt to find the max sequence number
         int maxSequence = 0;
         File file = new File(ORDERS_FILE);
         
@@ -766,7 +1001,6 @@ public class NewOrderPanel extends JPanel {
                             try {
                                 String seqStr = orderId.substring(datePrefix.length());
                                 seqStr = seqStr.replaceAll("[^0-9]", "");
-                                
                                 if (!seqStr.isEmpty()) {
                                     int seq = Integer.parseInt(seqStr);
                                     if (seq > maxSequence) {
@@ -774,7 +1008,7 @@ public class NewOrderPanel extends JPanel {
                                     }
                                 }
                             } catch (Exception e) {
-                                // Skip invalid order IDs
+                                // Skip
                             }
                         }
                     }
@@ -790,9 +1024,6 @@ public class NewOrderPanel extends JPanel {
         return datePrefix + sequenceStr;
     }
 
-    /**
-     * FIXED: Enhanced saveOrderToFile method with better error handling and verification
-     */
     private void saveOrderToFile(SenderOrder order) {
         PrintWriter writer = null;
         BufferedReader reader = null;
@@ -801,16 +1032,13 @@ public class NewOrderPanel extends JPanel {
             File file = new File(ORDERS_FILE);
             System.out.println("\n=== SAVING ORDER TO FILE ===");
             System.out.println("File path: " + file.getAbsolutePath());
-            System.out.println("File exists before write: " + file.exists());
             System.out.println("Order ID: " + order.getId());
             
-            // Create parent directories if needed
             File parentDir = file.getParentFile();
             if (parentDir != null && !parentDir.exists()) {
                 parentDir.mkdirs();
             }
             
-            // Read existing orders to check if this order already exists
             List<String> existingLines = new ArrayList<>();
             boolean orderExists = false;
             
@@ -821,104 +1049,48 @@ public class NewOrderPanel extends JPanel {
                     existingLines.add(line);
                     if (!line.startsWith("#") && line.contains(order.getId())) {
                         orderExists = true;
-                        System.out.println("Order already exists in file, will update instead of append");
+                        System.out.println("Order already exists in file, will update");
                     }
                 }
                 reader.close();
                 reader = null;
             }
             
-            // Clean the notes field - replace newlines with spaces
-            String cleanNotes = order.getNotes() != null ? 
-                order.getNotes().replace("\n", " ").replace("\r", " ") : "";
+            // Build the order line with ALL 29 fields matching the header
+            String orderLine = buildOrderLine(order);
             
-            // Convert order to pipe-delimited format with clean notes
-            String orderLine = String.join("|",
-                safeString(order.getId()),
-                safeString(order.getCustomerName()),
-                safeString(order.getCustomerPhone()),
-                safeString(order.getCustomerEmail()),
-                safeString(order.getCustomerAddress()),
-                safeString(order.getRecipientName()),
-                safeString(order.getRecipientPhone()),
-                safeString(order.getRecipientAddress()),
-                safeString(order.getStatus()),
-                safeString(order.getOrderDate()),
-                safeString(order.getEstimatedDelivery() != null ? order.getEstimatedDelivery() : ""),
-                String.valueOf(order.getWeight()),
-                safeString(order.getDimensions()),
-                cleanNotes,
-                safeString(order.getPaymentStatus() != null ? order.getPaymentStatus() : "Pending"),
-                safeString(order.getPaymentMethod()),
-                safeString(order.getTransactionId()),
-                safeString(order.getPaymentDate())
-            );
-            
-            // Write all lines back to file
             writer = new PrintWriter(new FileWriter(file));
             
-            // Write header if it's a new file
+            // Write header if file is empty
             if (!file.exists() || file.length() == 0) {
-                writer.println("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|weight|dimensions|notes|paymentStatus|paymentMethod|transactionId|paymentDate");
+                writer.println("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|actualDelivery|driverId|vehicleId|weight|dimensions|notes|reason|pickupTime|deliveryTime|distance|fuelUsed|deliveryPhoto|recipientSignature|onTime|paymentStatus|paymentMethod|transactionId|paymentDate");
                 System.out.println("Created new file with header");
             } else {
-                // Write all existing lines except the one we're updating (if it exists)
+                // Write all existing lines except the one being updated
                 for (String line : existingLines) {
                     if (orderExists && !line.startsWith("#") && line.contains(order.getId())) {
-                        // Skip the old version of this order
                         continue;
                     }
                     writer.println(line);
                 }
             }
             
-            // Write the new/updated order
             writer.println(orderLine);
             writer.flush();
-            
-            System.out.println("Order written to file: " + orderLine);
-            System.out.println("File size after write: " + file.length());
-            
-            // Force sync to disk
             writer.close();
             writer = null;
             
-            // Verify the file was written
-            if (file.exists()) {
-                System.out.println("File exists after write, size: " + file.length());
-                
-                // Verify the order was written by reading it back
-                reader = new BufferedReader(new FileReader(file));
-                String line;
-                boolean found = false;
-                while ((line = reader.readLine()) != null) {
-                    if (line.contains(order.getId())) {
-                        found = true;
-                        System.out.println("✓ Verified order in file: " + order.getId());
-                        break;
-                    }
-                }
-                reader.close();
-                reader = null;
-                
-                if (!found) {
-                    System.err.println("❌ ERROR: Order was not found in file after writing!");
-                } else {
-                    System.out.println("✓ Order successfully saved to file");
-                }
-            }
-            
-            System.out.println("=== FINISHED SAVING ORDER ===\n");
+            System.out.println("✓ Order successfully saved to file");
+            System.out.println("Order line length: " + orderLine.split("\\|").length + " fields");
             
         } catch (IOException e) {
-            System.err.println("❌ Error saving order to orders.txt: " + e.getMessage());
+            System.err.println("❌ Error saving order: " + e.getMessage());
             e.printStackTrace();
             JOptionPane.showMessageDialog(this,
-                "❌ Error saving order to file: " + e.getMessage() + "\n\nPlease check file permissions.",
+                "❌ Error saving order: " + e.getMessage(),
                 "File Error",
                 JOptionPane.ERROR_MESSAGE);
         } finally {
-            // Close all resources
             if (writer != null) {
                 writer.close();
             }
@@ -932,6 +1104,80 @@ public class NewOrderPanel extends JPanel {
         }
     }
     
+    private String buildOrderLine(SenderOrder order) {
+        SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+        
+        String currentDateTime = dateTimeFormat.format(new Date());
+        
+        // Calculate estimated delivery date
+        String estimatedDeliveryDate = calculateEstimatedDeliveryDate();
+        
+        // Clean notes - remove pipes and newlines to prevent field shifting
+        String cleanNotes = order.getNotes() != null ? 
+            order.getNotes().replace("|", ";").replace("\n", " ").replace("\r", " ") : "";
+        
+        return String.join("|",
+            safeString(order.getId()),                    // 0: id
+            safeString(order.getCustomerName()),          // 1: customerName
+            safeString(order.getCustomerPhone()),         // 2: customerPhone
+            safeString(order.getCustomerEmail()),         // 3: customerEmail
+            safeString(order.getCustomerAddress()),       // 4: customerAddress
+            safeString(order.getRecipientName()),         // 5: recipientName
+            safeString(order.getRecipientPhone()),        // 6: recipientPhone
+            safeString(order.getRecipientAddress()),      // 7: recipientAddress
+            "Pending",                                     // 8: status
+            currentDateTime,                               // 9: orderDate
+            estimatedDeliveryDate,                         // 10: estimatedDelivery
+            "",                                            // 11: actualDelivery
+            "",                                            // 12: driverId
+            "",                                            // 13: vehicleId
+            String.valueOf(order.getWeight()),             // 14: weight
+            safeString(order.getDimensions()),             // 15: dimensions
+            cleanNotes,                                    // 16: notes
+            "",                                            // 17: reason
+            "",                                            // 18: pickupTime
+            "",                                            // 19: deliveryTime
+            "0",                                           // 20: distance
+            "0",                                           // 21: fuelUsed
+            "",                                            // 22: deliveryPhoto
+            "",                                            // 23: recipientSignature
+            "false",                                       // 24: onTime
+            "Paid",                                        // 25: paymentStatus
+            safeString(order.getPaymentMethod()),          // 26: paymentMethod
+            safeString(order.getTransactionId()),          // 27: transactionId
+            safeString(order.getPaymentDate() != null ? order.getPaymentDate() : currentDateTime)  // 28: paymentDate
+        );
+    }
+    
+    private String calculateEstimatedDeliveryDate() {
+        try {
+            String deliveryText = deliveryTimeLabel.getText();
+            int days = 3; // default
+            
+            if (deliveryText.contains("business days")) {
+                String[] parts = deliveryText.split(" ");
+                if (parts.length > 0) {
+                    try {
+                        days = Integer.parseInt(parts[0]);
+                    } catch (NumberFormatException e) {
+                        days = 3;
+                    }
+                }
+            }
+            
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_MONTH, days);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            return sdf.format(cal.getTime());
+            
+        } catch (Exception e) {
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_MONTH, 3);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            return sdf.format(cal.getTime());
+        }
+    }
+    
     private String safeString(String s) {
         return s != null && !s.isEmpty() ? s : "";
     }
@@ -941,11 +1187,41 @@ public class NewOrderPanel extends JPanel {
             return;
         }
 
+        String paymentMethod = (String) paymentMethodCombo.getSelectedItem();
+        if (paymentMethod == null || paymentMethod.equals("Select Payment Method")) {
+            JOptionPane.showMessageDialog(this,
+                "Please select a payment method",
+                "Payment Required",
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String costText = estimatedCostLabel.getText().replace("RM", "").trim();
+        double estimatedCost;
+        try {
+            estimatedCost = Double.parseDouble(costText);
+            if (estimatedCost <= 0) {
+                JOptionPane.showMessageDialog(this,
+                    "Invalid order amount. Please check weight and addresses.",
+                    "Invalid Amount",
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this,
+                "Unable to calculate order cost. Please check your inputs.",
+                "Calculation Error",
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         try {
             String orderId = generateCustomOrderId();
             System.out.println("Generated Order ID: " + orderId);
             
             String currentDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
+            String transactionId = "TXN" + System.currentTimeMillis() + orderId.substring(0, 3);
+            String paymentDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
             
             String fromState = (String) fromStateCombo.getSelectedItem();
             String fromCity = (String) fromCityCombo.getSelectedItem();
@@ -961,24 +1237,26 @@ public class NewOrderPanel extends JPanel {
             String toAddress = toAddressLine + ", " + toCity + ", " + toState + " " + toPostcode;
             
             String dimensions;
-            if (!lengthField.getText().isEmpty() && !widthField.getText().isEmpty() && !heightField.getText().isEmpty()) {
-                dimensions = lengthField.getText() + "x" + widthField.getText() + "x" + heightField.getText();
-            } else {
-                dimensions = "0x0x0";
+            String lengthStr = lengthField.getText().trim();
+            String widthStr = widthField.getText().trim();
+            String heightStr = heightField.getText().trim();
+
+            try {
+                double length = Double.parseDouble(lengthStr);
+                double width = Double.parseDouble(widthStr);
+                double height = Double.parseDouble(heightStr);
+                dimensions = lengthStr + "x" + widthStr + "x" + heightStr;
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this,
+                    "Please enter valid numbers for dimensions",
+                    "Validation Error",
+                    JOptionPane.ERROR_MESSAGE);
+                return;
             }
             
             double weight = Double.parseDouble(weightField.getText());
             String recipientName = recipientNameField.getText().trim();
             String recipientPhone = recipientPhoneField.getText().trim();
-            
-            // Get estimated cost
-            double estimatedCost = 0;
-            String costText = estimatedCostLabel.getText().replace("RM", "").trim();
-            try {
-                estimatedCost = Double.parseDouble(costText);
-            } catch (NumberFormatException e) {
-                estimatedCost = 0;
-            }
             
             SenderOrder order = new SenderOrder(
                 orderId,
@@ -995,82 +1273,119 @@ public class NewOrderPanel extends JPanel {
             
             order.setStatus("Pending");
             order.setOrderDate(currentDateTime);
-            order.setPaymentStatus("Pending");
-            order.setPaymentMethod("Not Selected");
+            order.setPaymentStatus("Paid");
+            order.setPaymentMethod(paymentMethod);
+            order.setTransactionId(transactionId);
+            order.setPaymentDate(paymentDate);
             order.setEstimatedDelivery(deliveryTimeLabel.getText());
             
-            // Store package type in a separate field or as structured data in notes
             String packageType = (String) packageTypeCombo.getSelectedItem();
             String description = descriptionArea.getText().trim();
             
-            // Create structured notes with pipe separators for easy parsing
+            // Clean notes - remove newlines and format properly
             StringBuilder notesBuilder = new StringBuilder();
-            notesBuilder.append("Package Type:").append(packageType);
-            notesBuilder.append("|Estimated Cost:RM ").append(String.format("%.2f", estimatedCost));
-            notesBuilder.append("|Estimated Delivery:").append(deliveryTimeLabel.getText());
-            notesBuilder.append("|Description:").append(description);
+            notesBuilder.append("Package Type: ").append(packageType);
+            notesBuilder.append("; Estimated Cost: RM ").append(String.format("%.2f", estimatedCost));
+            notesBuilder.append("; Estimated Delivery: ").append(deliveryTimeLabel.getText());
+            notesBuilder.append("; Description: ").append(description);
             
             order.setNotes(notesBuilder.toString());
             
-            // Save to orders.txt first
-            saveOrderToFile(order);
+            JDialog processingDialog = createPaymentProcessingDialog(estimatedCost, paymentMethod);
             
-            // Then add to SenderDataManager for in-memory access
-            SenderDataManager dataManager = SenderDataManager.getInstance();
-            dataManager.addOrder(order);
+            SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    Thread.sleep(2000);
+                    return null;
+                }
+
+                @Override
+                protected void done() {
+                    processingDialog.dispose();
+                    
+                    // Save to orders.txt in correct format
+                    saveOrderToFile(order);
+                    
+                    // Also add to SenderDataManager
+                    SenderDataManager dataManager = SenderDataManager.getInstance();
+                    dataManager.addOrder(order);
+                    
+                    // Force refresh to ensure data is loaded
+                    dataManager.refreshData();
+                    
+                    // Add to main OrderStorage system
+                    try {
+                        logistics.orders.OrderStorage mainOrderStorage = new logistics.orders.OrderStorage();
+                        mainOrderStorage.addOrderFromSender(order);
+                        System.out.println("Order also added to main OrderStorage system");
+                    } catch (Exception e) {
+                        System.err.println("Warning: Could not add to main OrderStorage: " + e.getMessage());
+                    }
+                    
+                    // Verify order was saved correctly
+                    SenderOrder savedOrder = dataManager.getOrderById(orderId);
+                    
+                    if (savedOrder != null) {
+                        System.out.println("Order successfully saved and verified!");
+                        System.out.println("  - Order ID: " + savedOrder.getId());
+                        System.out.println("  - Payment Method: " + savedOrder.getPaymentMethod());
+                        System.out.println("  - Transaction ID: " + savedOrder.getTransactionId());
+                        System.out.println("  - Payment Date: " + savedOrder.getPaymentDate());
+                        System.out.println("  - Estimated Cost: RM " + savedOrder.getEstimatedCost());
+                        
+                        SenderDataManager.getInstance().refreshData();
+                        dashboard.refreshStats();
+                        
+                        clearForm();
+                        
+                        JOptionPane.showMessageDialog(NewOrderPanel.this,
+                            "✅ Order Created & Payment Successful!\n\n" +
+                            "Order ID: " + orderId + "\n" +
+                            "Date: " + currentDateTime + "\n" +
+                            "From: " + fromCity + ", " + fromState + "\n" +
+                            "To: " + toCity + ", " + toState + "\n" +
+                            "Weight: " + weight + " kg\n" +
+                            "Dimensions: " + dimensions + " cm\n" +
+                            "Package Type: " + packageType + "\n" +
+                            "Amount Paid: RM " + String.format("%.2f", estimatedCost) + "\n" +
+                            "Payment Method: " + paymentMethod + "\n" +
+                            "Transaction ID: " + transactionId + "\n\n" +
+                            "Your order has been saved and payment confirmed.",
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                        
+                        // Switch to tracking panel
+                        dashboard.showPanel("TRACK");
+                        
+                        // Use invokeLater to ensure the panel is fully loaded before setting tracking number
+                        SwingUtilities.invokeLater(() -> {
+                            // Find and set tracking number with a small delay to ensure panel is ready
+                            new Thread(() -> {
+                                try {
+                                    Thread.sleep(500);
+                                } catch (InterruptedException ex) {
+                                    // Ignore
+                                }
+                                SwingUtilities.invokeLater(() -> {
+                                    findAndSetTrackingNumber(dashboard, orderId);
+                                });
+                            }).start();
+                        });
+                        
+                    } else {
+                        System.err.println("Order was not found after saving!");
+                        JOptionPane.showMessageDialog(NewOrderPanel.this,
+                            "⚠️ Order was created but could not be verified.\n" +
+                            "Please check your orders list to confirm.",
+                            "Warning",
+                            JOptionPane.WARNING_MESSAGE);
+                    }
+                }
+            };
             
-            // Also add to main OrderStorage system
-            try {
-                logistics.orders.OrderStorage mainOrderStorage = new logistics.orders.OrderStorage();
-                mainOrderStorage.addOrderFromSender(order);
-                System.out.println("Order also added to main OrderStorage system");
-            } catch (Exception e) {
-                System.err.println("Warning: Could not add to main OrderStorage: " + e.getMessage());
-                // Don't fail the order creation if this fails
-            }
-            
-            // Verify order was saved
-            SenderOrder savedOrder = dataManager.getOrderById(orderId);
-            
-            if (savedOrder != null) {
-                System.out.println("Order successfully saved and verified!");
-                
-                // Force reload of data in all panels
-                SenderDataManager.getInstance().refreshData();
-                
-                // Update dashboard stats
-                dashboard.refreshStats();
-                
-                clearForm();
-                
-                JOptionPane.showMessageDialog(this,
-                    "✅ Order created successfully!\n\n" +
-                    "Order ID: " + orderId + "\n" +
-                    "Date: " + currentDateTime + "\n" +
-                    "From: " + fromCity + ", " + fromState + "\n" +
-                    "To: " + toCity + ", " + toState + "\n" +
-                    "Weight: " + weight + " kg\n" +
-                    "Dimensions: " + dimensions + " cm\n" +
-                    "Package Type: " + packageType + "\n" +
-                    "Estimated Cost: RM " + String.format("%.2f", estimatedCost) + "\n\n" +
-                    "Order has been saved to orders.txt",
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
-                
-                dashboard.showPanel("MY_ORDERS");
-                
-                SwingUtilities.invokeLater(() -> {
-                    findAndSetTrackingNumber(dashboard, orderId);
-                });
-                
-            } else {
-                System.err.println("Order was not found after saving!");
-                JOptionPane.showMessageDialog(this,
-                    "⚠️ Order was created but could not be verified.\n" +
-                    "Please check your orders list to confirm.",
-                    "Warning",
-                    JOptionPane.WARNING_MESSAGE);
-            }
+            worker.execute();
+            processingDialog.setVisible(true);
             
         } catch (NumberFormatException e) {
             e.printStackTrace();
@@ -1085,6 +1400,55 @@ public class NewOrderPanel extends JPanel {
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
         }
+    }
+    
+    private JDialog createPaymentProcessingDialog(double amount, String paymentMethod) {
+        Window ancestor = SwingUtilities.getWindowAncestor(this);
+        JDialog dialog = new JDialog((Frame) ancestor, "Processing Payment", true);
+        
+        dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        dialog.setSize(350, 180);
+        dialog.setLocationRelativeTo(this);
+        dialog.setResizable(false);
+        
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Color.WHITE);
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 5, 10);
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        
+        JLabel amountLabel = new JLabel("Amount: RM " + String.format("%.2f", amount));
+        amountLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        amountLabel.setForeground(new Color(0, 123, 255));
+        panel.add(amountLabel, gbc);
+        
+        gbc.gridy = 1;
+        JLabel methodLabel = new JLabel("Payment Method: " + paymentMethod);
+        methodLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        panel.add(methodLabel, gbc);
+        
+        gbc.gridy = 2;
+        JLabel processingLabel = new JLabel("Processing payment...");
+        processingLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        panel.add(processingLabel, gbc);
+        
+        gbc.gridy = 3;
+        JProgressBar progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setPreferredSize(new Dimension(250, 15));
+        panel.add(progressBar, gbc);
+        
+        gbc.gridy = 4;
+        JLabel pleaseWaitLabel = new JLabel("Please wait while we process your payment...");
+        pleaseWaitLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        pleaseWaitLabel.setForeground(new Color(108, 117, 125));
+        panel.add(pleaseWaitLabel, gbc);
+        
+        dialog.add(panel);
+        
+        return dialog;
     }
 
     private void findAndSetTrackingNumber(Container container, String orderId) {
@@ -1163,7 +1527,7 @@ public class NewOrderPanel extends JPanel {
         }
 
         try {
-            double weight = Double.parseDouble(weightField.getText());
+            double weight = Double.parseDouble(weightField.getText().trim());
             if (weight <= 0 || weight > 100) {
                 JOptionPane.showMessageDialog(this, 
                     "Please enter a valid weight (0.1 - 100 kg)", 
@@ -1173,6 +1537,43 @@ public class NewOrderPanel extends JPanel {
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(this, 
                 "Please enter a valid weight", 
+                "Validation Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        // NEW: Validate dimensions - all three fields required
+        String lengthStr = lengthField.getText().trim();
+        String widthStr = widthField.getText().trim();
+        String heightStr = heightField.getText().trim();
+
+        if (lengthStr.isEmpty() || widthStr.isEmpty() || heightStr.isEmpty()) {
+            JOptionPane.showMessageDialog(this, 
+                "Please enter all dimensions (Length, Width, Height)", 
+                "Validation Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        try {
+            double length = Double.parseDouble(lengthStr);
+            double width = Double.parseDouble(widthStr);
+            double height = Double.parseDouble(heightStr);
+            
+            if (length <= 0 || width <= 0 || height <= 0) {
+                JOptionPane.showMessageDialog(this, 
+                    "All dimensions must be greater than 0", 
+                    "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+            
+            if (length > 200 || width > 200 || height > 200) {
+                JOptionPane.showMessageDialog(this, 
+                    "Dimensions should not exceed 200 cm", 
+                    "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, 
+                "Please enter valid numbers for dimensions", 
                 "Validation Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
@@ -1204,8 +1605,15 @@ public class NewOrderPanel extends JPanel {
         heightField.setText("");
         descriptionArea.setText("");
         
-        estimatedCostLabel.setText("RM 0.00");
-        deliveryTimeLabel.setText("3-5 business days");
+        paymentMethodCombo.setSelectedIndex(0);
+        paymentDetailsLayout.show(paymentDetailsPanel, "EMPTY");
+        
+        if (estimatedCostLabel != null) {
+            estimatedCostLabel.setText("RM 0.00");
+        }
+        if (deliveryTimeLabel != null) {
+            deliveryTimeLabel.setText("3-5 business days");
+        }
         
         updateFromCities();
         updateToCities();

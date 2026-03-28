@@ -24,6 +24,10 @@ public class SenderOrder {
     private String transactionId;
     private String paymentDate;
     
+    // New fields for tracking
+    private String driverId;
+    private String vehicleId;
+    
     public SenderOrder() {
         this.orderDate = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
         this.status = "Pending";
@@ -92,7 +96,9 @@ public class SenderOrder {
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
     
-    public String getPaymentStatus() { return paymentStatus; }
+    public String getPaymentStatus() { 
+        return paymentStatus; 
+    }
     public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
     
     public String getPaymentMethod() { return paymentMethod; }
@@ -104,31 +110,34 @@ public class SenderOrder {
     public String getPaymentDate() { return paymentDate; }
     public void setPaymentDate(String paymentDate) { this.paymentDate = paymentDate; }
     
+    public String getDriverId() { return driverId; }
+    public void setDriverId(String driverId) { this.driverId = driverId; }
+    
+    public String getVehicleId() { return vehicleId; }
+    public void setVehicleId(String vehicleId) { this.vehicleId = vehicleId; }
+    
     /**
      * Extract package type from notes
      */
     public String getPackageType() {
-        if (notes != null) {
-            // Try to find Package Type with pipe separator first
-            if (notes.contains("|Package Type:")) {
-                String[] parts = notes.split("\\|");
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("Package Type:")) {
+                String[] parts = notes.split(";");
                 for (String part : parts) {
-                    if (part.startsWith("Package Type:")) {
-                        return part.substring("Package Type:".length()).trim();
+                    String trimmedPart = part.trim();
+                    if (trimmedPart.startsWith("Package Type:")) {
+                        String result = trimmedPart.substring("Package Type:".length()).trim();
+                        int pipeIndex = result.indexOf("|");
+                        if (pipeIndex > 0) {
+                            result = result.substring(0, pipeIndex);
+                        }
+                        int semiIndex = result.indexOf(";");
+                        if (semiIndex > 0) {
+                            result = result.substring(0, semiIndex);
+                        }
+                        return result;
                     }
                 }
-            }
-            // Try with colon separator
-            else if (notes.contains("Package Type:")) {
-                int startIdx = notes.indexOf("Package Type:") + "Package Type:".length();
-                int endIdx = notes.indexOf("|", startIdx);
-                if (endIdx == -1) {
-                    endIdx = notes.indexOf(" ", startIdx + 1);
-                    if (endIdx == -1) {
-                        endIdx = notes.length();
-                    }
-                }
-                return notes.substring(startIdx, endIdx).trim();
             }
         }
         return "Standard";
@@ -138,38 +147,20 @@ public class SenderOrder {
      * Extract estimated cost from notes
      */
     public double getEstimatedCost() {
-        if (notes != null) {
-            // Try to find Estimated Cost with pipe separator first
-            if (notes.contains("|Estimated Cost:")) {
-                String[] parts = notes.split("\\|");
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("Estimated Cost:")) {
+                String[] parts = notes.split(";");
                 for (String part : parts) {
-                    if (part.startsWith("Estimated Cost:")) {
-                        String costStr = part.substring("Estimated Cost:".length()).trim();
+                    String trimmedPart = part.trim();
+                    if (trimmedPart.startsWith("Estimated Cost:")) {
+                        String costStr = trimmedPart.substring("Estimated Cost:".length()).trim();
                         costStr = costStr.replace("RM", "").replace("$", "").replace(",", "").trim();
                         try {
                             return Double.parseDouble(costStr);
                         } catch (NumberFormatException e) {
-                            // Continue to fallback
+                            // Continue
                         }
                     }
-                }
-            }
-            // Try with colon separator
-            else if (notes.contains("Estimated Cost:")) {
-                int startIdx = notes.indexOf("Estimated Cost:") + "Estimated Cost:".length();
-                int endIdx = notes.indexOf("|", startIdx);
-                if (endIdx == -1) {
-                    endIdx = notes.indexOf(" ", startIdx + 1);
-                    if (endIdx == -1) {
-                        endIdx = notes.length();
-                    }
-                }
-                String costStr = notes.substring(startIdx, endIdx).trim();
-                costStr = costStr.replace("RM", "").replace("$", "").replace(",", "").trim();
-                try {
-                    return Double.parseDouble(costStr);
-                } catch (NumberFormatException e) {
-                    // Return 0
                 }
             }
         }
@@ -191,26 +182,44 @@ public class SenderOrder {
      * Get description from notes
      */
     public String getDescription() {
-        if (notes != null) {
-            if (notes.contains("|Description:")) {
-                String[] parts = notes.split("\\|");
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("Description:")) {
+                String[] parts = notes.split(";");
                 for (String part : parts) {
-                    if (part.startsWith("Description:")) {
-                        return part.substring("Description:".length()).trim();
+                    String trimmedPart = part.trim();
+                    if (trimmedPart.startsWith("Description:")) {
+                        String result = trimmedPart.substring("Description:".length()).trim();
+                        int pipeIndex = result.indexOf("|");
+                        if (pipeIndex > 0) {
+                            result = result.substring(0, pipeIndex);
+                        }
+                        int semiIndex = result.indexOf(";");
+                        if (semiIndex > 0) {
+                            result = result.substring(0, semiIndex);
+                        }
+                        return result;
                     }
                 }
-            } else if (notes.contains("Description:")) {
-                int startIdx = notes.indexOf("Description:") + "Description:".length();
-                return notes.substring(startIdx).trim();
             }
         }
         return "";
     }
+
+    public String getReason() {
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("Reason:")) {
+                String[] parts = notes.split(";");
+                for (String part : parts) {
+                    String trimmedPart = part.trim();
+                    if (trimmedPart.startsWith("Reason:")) {
+                        return trimmedPart.substring("Reason:".length()).trim();
+                    }
+                }
+            }
+        }
+        return null;
+    }
     
-    /**
-     * Convert this SenderOrder to a format compatible with the main Order system
-     * @return A string representation for the main orders.txt file
-     */
     public String toMainSystemFormat() {
         StringBuilder sb = new StringBuilder();
         sb.append(safeString(id)).append("|");
@@ -224,23 +233,22 @@ public class SenderOrder {
         sb.append(safeString(status)).append("|");
         sb.append(safeString(orderDate)).append("|");
         sb.append(safeString(estimatedDelivery)).append("|");
-        sb.append("|"); // actualDelivery (empty)
-        sb.append("|"); // driverId (empty)
-        sb.append("|"); // vehicleId (empty)
+        sb.append("|");
+        sb.append(safeString(driverId)).append("|");
+        sb.append(safeString(vehicleId)).append("|");
         sb.append(weight).append("|");
         sb.append(safeString(dimensions)).append("|");
         
-        // Clean notes - remove newlines
-        String cleanNotes = notes != null ? notes.replace("\n", " ").replace("\r", " ") : "";
+        String cleanNotes = notes != null ? notes.replace("\n", " ").replace("\r", " ").replace("|", ";") : "";
         sb.append(cleanNotes).append("|");
-        sb.append("|"); // reason (empty)
-        sb.append("|"); // pickupTime (empty)
-        sb.append("|"); // deliveryTime (empty)
-        sb.append("0|"); // distance
-        sb.append("0|"); // fuelUsed
-        sb.append("|"); // deliveryPhoto (empty)
-        sb.append("|"); // recipientSignature (empty)
-        sb.append("true|"); // onTime
+        sb.append("|");
+        sb.append("|");
+        sb.append("|");
+        sb.append("0|");
+        sb.append("0|");
+        sb.append("|");
+        sb.append("|");
+        sb.append("false|");
         sb.append(safeString(paymentStatus)).append("|");
         sb.append(safeString(paymentMethod)).append("|");
         sb.append(safeString(transactionId)).append("|");
@@ -253,7 +261,6 @@ public class SenderOrder {
         return s != null && !s.isEmpty() ? s : "";
     }
     
-    // Helper methods
     public String getFormattedWeight() {
         return String.format("%.2f kg", weight);
     }
@@ -266,18 +273,20 @@ public class SenderOrder {
         return String.format("%s | %s", recipientName, recipientPhone);
     }
     
-    /**
-     * Check if this order can be cancelled
-     */
     public boolean isCancellable() {
         return "Pending".equals(status);
     }
     
-    /**
-     * Check if this order can be modified
-     */
     public boolean isModifiable() {
         return "Pending".equals(status);
+    }
+    
+    public boolean isDeletable() {
+        return "Pending".equals(status);
+    }
+
+    public boolean isDemoOrder() {
+        return customerEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(customerEmail);
     }
     
     @Override

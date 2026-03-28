@@ -145,7 +145,7 @@ public class HomePanel extends JPanel {
         JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         statusPanel.setOpaque(false);
         
-        JLabel statusDot = new JLabel("●");
+        JLabel statusDot = new JLabel("");
         statusDot.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         statusDot.setForeground(SUCCESS_GREEN);
         statusPanel.add(statusDot);
@@ -186,7 +186,7 @@ public class HomePanel extends JPanel {
         panel.add(createModernStatCard("Delivered", 
             String.valueOf(dashboard.getDeliveredOrders()), SUCCESS_GREEN, 
             "Successfully delivered"));
-        panel.add(createModernStatCard("Pending Payments", 
+        panel.add(createModernStatCard("Pending", 
             String.valueOf(dashboard.getPendingPayments()), WARNING_YELLOW, 
             "Awaiting payment"));
         panel.add(createModernStatCard("Total Spent", 
@@ -217,8 +217,8 @@ public class HomePanel extends JPanel {
         titleLabel.setForeground(TEXT_DARK);
         bottomPanel.add(titleLabel, BorderLayout.WEST);
 
-        JLabel infoLabel = new JLabel("ⓘ");
-        infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        JLabel infoLabel = new JLabel("i");
+        infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         infoLabel.setForeground(TEXT_GRAY);
         infoLabel.setToolTipText(subtitle);
         bottomPanel.add(infoLabel, BorderLayout.EAST);
@@ -242,15 +242,13 @@ public class HomePanel extends JPanel {
         title.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         panel.add(title, BorderLayout.NORTH);
 
-        JPanel actionsGrid = new JPanel(new GridLayout(4, 1, 0, 12));
+        JPanel actionsGrid = new JPanel(new GridLayout(3, 1, 0, 12));
         actionsGrid.setOpaque(false);
 
         actionsGrid.add(createModernActionButton("Create New Order", 
             "Start shipping now", BLUE_PRIMARY, "NEW_ORDER"));
         actionsGrid.add(createModernActionButton("Track Order", 
-            "Enter tracking number", new Color(23, 162, 184), "TRACK"));
-        actionsGrid.add(createModernActionButton("Make Payment", 
-            dashboard.getPendingPayments() + " pending payments", SUCCESS_GREEN, "PAYMENT"));
+            "Enter tracking number", SUCCESS_GREEN, "TRACK"));
         actionsGrid.add(createModernActionButton("Need Help?", 
             "Contact support 24/7", TEXT_GRAY, "SUPPORT"));
 
@@ -258,7 +256,7 @@ public class HomePanel extends JPanel {
 
         return panel;
     }
-
+    
     private JPanel createModernActionButton(String text, String subtitle, Color color, String targetCard) {
         JPanel panel = new JPanel(new BorderLayout(10, 5));
         panel.setBackground(CARD_BG);
@@ -402,7 +400,7 @@ public class HomePanel extends JPanel {
             viewAllBtn.setFocusPainted(false);
             viewAllBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
             viewAllBtn.setHorizontalAlignment(SwingConstants.RIGHT);
-            viewAllBtn.addActionListener(e -> dashboard.showPanel("MY_ORDERS"));
+            viewAllBtn.addActionListener(e -> dashboard.showPanel("TRACK"));
             
             for (Component comp : components) {
                 if (comp instanceof JButton) {
@@ -448,11 +446,25 @@ public class HomePanel extends JPanel {
             
             @Override
             public void mouseClicked(MouseEvent e) {
-                dashboard.showPanel("MY_ORDERS");
+                dashboard.showPanel("TRACK");
+                SwingUtilities.invokeLater(() -> {
+                    findAndSetTrackingNumber(dashboard, order.getId());
+                });
             }
         });
 
         return row;
+    }
+    
+    private void findAndSetTrackingNumber(Container container, String orderId) {
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof TrackOrderPanel) {
+                ((TrackOrderPanel) comp).setTrackingNumber(orderId);
+                return;
+            } else if (comp instanceof Container) {
+                findAndSetTrackingNumber((Container) comp, orderId);
+            }
+        }
     }
 
     private Color getStatusColor(String status) {

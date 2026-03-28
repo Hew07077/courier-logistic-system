@@ -4,7 +4,6 @@ package sender;
 import logistics.login.Login;
 
 import javax.swing.*;
-import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -18,14 +17,9 @@ public class SenderDashboard extends JFrame {
 
     // Refined color palette
     private final Color BLUE_PRIMARY = new Color(0, 123, 255);
-    private final Color BLUE_DARK = new Color(0, 86, 179);
     private final Color BG_LIGHT = new Color(250, 250, 250);
-    private final Color CARD_BG = Color.WHITE;
-    private final Color TEXT_DARK = new Color(33, 37, 41);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
     private final Color BORDER_COLOR = new Color(230, 230, 230);
-    private final Color SUCCESS_GREEN = new Color(40, 167, 69);
-    private final Color WARNING_YELLOW = new Color(255, 193, 7);
     private final Color DANGER_RED = new Color(220, 53, 69);
     
     // Button colors
@@ -48,8 +42,6 @@ public class SenderDashboard extends JFrame {
     // Panel instances
     private HomePanel homePanel;
     private NewOrderPanel newOrderPanel;
-    private MyOrdersPanel myOrdersPanel;
-    private PaymentPanel paymentPanel;
     private SupportPanel supportPanel;
     private ProfilePanel profilePanel;
     private TrackOrderPanel trackOrderPanel;
@@ -58,7 +50,7 @@ public class SenderDashboard extends JFrame {
     private String senderName;
     private String senderEmail;
     private String senderPhone;
-    private String senderAddress = "PV9, Kuala Lumpur";
+    private String senderAddress;
     private String username;
     private int activeOrders = 0;
     private int deliveredOrders = 0;
@@ -117,8 +109,37 @@ public class SenderDashboard extends JFrame {
         }
         
         initializeStats();
+        fixPendingPayments(); // Fix any incorrect payment statuses
         initialize();
         startAutoRefresh();
+    }
+    
+    // Temporary fix - call this from constructor after initializeStats()
+    private void fixPendingPayments() {
+        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(senderEmail);
+        boolean fixed = false;
+        
+        for (SenderOrder order : userOrders) {
+            // If order is not pending and not cancelled, but payment is pending, fix it
+            if (!"Pending".equals(order.getStatus()) && !"Cancelled".equals(order.getStatus()) 
+                && "Pending".equals(order.getPaymentStatus())) {
+                System.out.println("Fixing payment status for order: " + order.getId());
+                order.setPaymentStatus("Paid");
+                // Generate a transaction ID if not present
+                if (order.getTransactionId() == null || order.getTransactionId().isEmpty()) {
+                    order.setTransactionId("TXN" + System.currentTimeMillis() + order.getId().substring(0, 3));
+                }
+                if (order.getPaymentDate() == null || order.getPaymentDate().isEmpty()) {
+                    order.setPaymentDate(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+                }
+                fixed = true;
+            }
+        }
+        
+        if (fixed) {
+            SenderDataManager.getInstance().saveOrders();
+            System.out.println("Fixed pending payments for orders");
+        }
     }
 
     private void initializeStats() {
@@ -132,31 +153,38 @@ public class SenderDashboard extends JFrame {
         System.out.println("Initializing stats for " + senderEmail + " with " + userOrders.size() + " orders");
         
         for (SenderOrder order : userOrders) {
+            // Count active orders (not delivered and not cancelled)
             if (!"Delivered".equals(order.getStatus()) && !"Cancelled".equals(order.getStatus())) {
                 activeOrders++;
+                System.out.println("  Active order: " + order.getId() + " - Status: " + order.getStatus());
             }
             
+            // Count delivered orders
             if ("Delivered".equals(order.getStatus())) {
                 deliveredOrders++;
+                System.out.println("  Delivered order: " + order.getId());
             }
             
+            // Count pending payments - FIX: Check payment status correctly
             if ("Pending".equals(order.getPaymentStatus())) {
                 pendingPayments++;
+                System.out.println("  Pending payment order: " + order.getId() + " - Payment Status: " + order.getPaymentStatus());
+            } else {
+                System.out.println("  Order " + order.getId() + " payment status: " + order.getPaymentStatus());
             }
             
+            // Calculate total spent from paid orders only
             if ("Paid".equals(order.getPaymentStatus())) {
-                String cost = extractCost(order.getNotes());
-                try {
-                    String cleanCost = cost.replace("RM", "").replace("$", "").trim();
-                    totalSpent += Double.parseDouble(cleanCost);
-                } catch (NumberFormatException e) {
-                    // Skip if cost can't be parsed
-                }
+                double cost = order.getEstimatedCost();
+                totalSpent += cost;
+                System.out.println("  Paid order amount: RM " + cost);
             }
         }
         
-        System.out.println("Stats - Active: " + activeOrders + ", Delivered: " + deliveredOrders + 
-                           ", Pending Payments: " + pendingPayments + ", Total Spent: RM " + totalSpent);
+        System.out.println("Stats - Active: " + activeOrders + 
+                           ", Delivered: " + deliveredOrders + 
+                           ", Pending Payments: " + pendingPayments + 
+                           ", Total Spent: RM " + String.format("%.2f", totalSpent));
     }
 
     private String extractCost(String notes) {
@@ -192,16 +220,12 @@ public class SenderDashboard extends JFrame {
     private void initializePanels() {
         homePanel = new HomePanel(this);
         newOrderPanel = new NewOrderPanel(this);
-        myOrdersPanel = new MyOrdersPanel(this);
-        paymentPanel = new PaymentPanel(this);
         supportPanel = new SupportPanel(this);
         profilePanel = new ProfilePanel(this);
         trackOrderPanel = new TrackOrderPanel(this);
         
         panelCache.put("HOME", homePanel);
         panelCache.put("NEW_ORDER", newOrderPanel);
-        panelCache.put("MY_ORDERS", myOrdersPanel);
-        panelCache.put("PAYMENT", paymentPanel);
         panelCache.put("SUPPORT", supportPanel);
         panelCache.put("PROFILE", profilePanel);
         panelCache.put("TRACK", trackOrderPanel);
@@ -236,9 +260,9 @@ public class SenderDashboard extends JFrame {
             JLabel logoImage = new JLabel(new ImageIcon(resizedImg));
             leftPanel.add(logoImage);
         } else {
-            // Fallback to emoji if logo not found
-            JLabel logoLabel = new JLabel("📦");
-            logoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 40));
+            // Fallback text if logo not found (no emoji)
+            JLabel logoLabel = new JLabel("LX");
+            logoLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
             logoLabel.setForeground(Color.WHITE);
             leftPanel.add(logoLabel);
         }
@@ -268,20 +292,10 @@ public class SenderDashboard extends JFrame {
 
         rightPanel.add(timePanel);
 
-        JLabel welcomeUser = new JLabel("👤 " + senderName);
+        JLabel welcomeUser = new JLabel(senderName);
         welcomeUser.setFont(new Font("Segoe UI", Font.BOLD, 14));
         welcomeUser.setForeground(Color.WHITE);
         rightPanel.add(welcomeUser);
-
-        JButton notificationBtn = createButton("🔔", new Color(0, 123, 180));
-        notificationBtn.setToolTipText("Notifications");
-        notificationBtn.addActionListener(e -> showNotifications());
-        rightPanel.add(notificationBtn);
-
-        JButton refreshBtn = createButton("⟳ Refresh", SUCCESS_GREEN);
-        refreshBtn.setToolTipText("Refresh data from system");
-        refreshBtn.addActionListener(e -> refreshAllData());
-        rightPanel.add(refreshBtn);
 
         JButton logout = createButton("Logout", DANGER_RED);
         logout.addActionListener(e -> logout());
@@ -309,9 +323,9 @@ public class SenderDashboard extends JFrame {
             logoImage.setHorizontalAlignment(SwingConstants.CENTER);
             logoPanel.add(logoImage, BorderLayout.NORTH);
         } else {
-            // Fallback to emoji if logo not found
-            JLabel placeholderLogo = new JLabel("📦", SwingConstants.CENTER);
-            placeholderLogo.setFont(new Font("Segoe UI", Font.PLAIN, 60));
+            // Fallback text if logo not found (no emoji)
+            JLabel placeholderLogo = new JLabel("LX", SwingConstants.CENTER);
+            placeholderLogo.setFont(new Font("Segoe UI", Font.BOLD, 48));
             placeholderLogo.setForeground(Color.WHITE);
             logoPanel.add(placeholderLogo, BorderLayout.NORTH);
         }
@@ -329,22 +343,20 @@ public class SenderDashboard extends JFrame {
 
         sidebar.add(logoPanel, BorderLayout.NORTH);
 
-        // Menu items
-        JPanel menu = new JPanel(new GridLayout(8, 1, 0, 5));
+        // Menu items - 5 items (no emojis)
+        JPanel menu = new JPanel(new GridLayout(5, 1, 0, 5));
         menu.setOpaque(false);
         menu.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
 
-        menu.add(createNavButtonWithTooltip(" Home", "HOME", "Dashboard overview with statistics and quick actions", true));
-        menu.add(createNavButtonWithTooltip(" New Order", "NEW_ORDER", "Create a new shipment order", false));
-        menu.add(createNavButtonWithTooltip(" My Orders", "MY_ORDERS", "View and manage your orders (" + activeOrders + " active)", false));
-        menu.add(createNavButtonWithTooltip(" Track Order", "TRACK", "Track your package by tracking number", false));
-        menu.add(createNavButtonWithTooltip(" Payments", "PAYMENT", "Manage payments and invoices (" + pendingPayments + " pending)", false));
-        menu.add(createNavButtonWithTooltip(" Support", "SUPPORT", "Get help and contact support", false));
-        menu.add(createNavButtonWithTooltip(" Profile", "PROFILE", "Manage your account settings", false));
+        menu.add(createNavButtonWithTooltip("Home", "HOME", "Dashboard overview with statistics and quick actions", true));
+        menu.add(createNavButtonWithTooltip("New Order", "NEW_ORDER", "Create a new shipment order", false));
+        menu.add(createNavButtonWithTooltip("Track Order", "TRACK", "Track your package by tracking number", false));
+        menu.add(createNavButtonWithTooltip("Support", "SUPPORT", "Get help and contact support", false));
+        menu.add(createNavButtonWithTooltip("Profile", "PROFILE", "Manage your account settings", false));
 
         sidebar.add(menu, BorderLayout.CENTER);
 
-        // User profile
+        // User profile (no emoji)
         JPanel profile = new JPanel(new BorderLayout());
         profile.setBackground(new Color(0, 0, 0, 30));
         profile.setBorder(BorderFactory.createEmptyBorder(15, 15, 20, 15));
@@ -352,7 +364,7 @@ public class SenderDashboard extends JFrame {
         JPanel userInfo = new JPanel(new GridLayout(2, 1));
         userInfo.setOpaque(false);
 
-        JLabel userName = new JLabel("👤 " + senderName, SwingConstants.CENTER);
+        JLabel userName = new JLabel(senderName, SwingConstants.CENTER);
         userName.setFont(new Font("Segoe UI", Font.BOLD, 14));
         userName.setForeground(Color.WHITE);
         userInfo.add(userName);
@@ -409,16 +421,8 @@ public class SenderDashboard extends JFrame {
         JPanel contentPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
         contentPanel.setOpaque(false);
         
-        String icon = text.substring(0, text.indexOf(' ') + 1);
-        String title = text.substring(text.indexOf(' ') + 1);
-        
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 18));
-        iconLabel.setForeground(Color.WHITE);
-        iconLabel.setPreferredSize(new Dimension(30, 30));
-        contentPanel.add(iconLabel);
-        
-        JLabel textLabel = new JLabel(title);
+        // No icon, just text
+        JLabel textLabel = new JLabel(text);
         textLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         textLabel.setForeground(Color.WHITE);
         contentPanel.add(textLabel);
@@ -526,13 +530,13 @@ public class SenderDashboard extends JFrame {
         statusBar.setPreferredSize(new Dimension(getWidth(), 35));
         statusBar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR));
 
-        JLabel status = new JLabel("  System Status: ● Connected | Last updated: " + 
+        JLabel status = new JLabel("  System Status: Connected | Last updated: " + 
             new SimpleDateFormat("HH:mm:ss").format(new Date()));
         status.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         status.setForeground(TEXT_GRAY);
         
         Timer statusTimer = new Timer(1000, e -> 
-            status.setText("  System Status: ● Connected | Last updated: " + 
+            status.setText("  System Status: Connected | Last updated: " + 
                 new SimpleDateFormat("HH:mm:ss").format(new Date()))
         );
         statusTimer.start();
@@ -552,39 +556,10 @@ public class SenderDashboard extends JFrame {
             case "HOME":
                 if (homePanel != null) homePanel.refreshData();
                 break;
-            case "MY_ORDERS":
-                if (myOrdersPanel != null) myOrdersPanel.refreshData();
-                break;
-            case "PAYMENT":
-                if (paymentPanel != null) paymentPanel.refreshData();
-                break;
             case "TRACK":
                 if (trackOrderPanel != null) trackOrderPanel.refreshOrders();
                 break;
         }
-    }
-
-    private void showNotifications() {
-        StringBuilder message = new StringBuilder();
-        message.append("📋 Notifications for ").append(senderName).append(":\n\n");
-        
-        if (activeOrders > 0) {
-            message.append("• ").append(activeOrders).append(" active orders\n");
-        }
-        if (pendingPayments > 0) {
-            message.append("• ").append(pendingPayments).append(" pending payments\n");
-        }
-        if (deliveredOrders > 0) {
-            message.append("• ").append(deliveredOrders).append(" orders delivered\n");
-        }
-        
-        if (activeOrders == 0 && pendingPayments == 0 && deliveredOrders == 0) {
-            message.append("No notifications at this time.");
-        }
-        
-        JOptionPane.showMessageDialog(this, 
-            message.toString(), 
-            "Notifications", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void logout() {
@@ -639,12 +614,6 @@ public class SenderDashboard extends JFrame {
                 case "HOME":
                     if (homePanel != null) homePanel.refreshData();
                     break;
-                case "MY_ORDERS":
-                    if (myOrdersPanel != null) myOrdersPanel.refreshData();
-                    break;
-                case "PAYMENT":
-                    if (paymentPanel != null) paymentPanel.refreshData();
-                    break;
                 case "TRACK":
                     if (trackOrderPanel != null) trackOrderPanel.refreshOrders();
                     break;
@@ -656,7 +625,7 @@ public class SenderDashboard extends JFrame {
     }
 
     /**
-     * Refresh statistics from current data
+     * Refresh statistics from current data - FIXED VERSION
      */
     public void refreshStats() {
         List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(senderEmail);
@@ -666,32 +635,41 @@ public class SenderDashboard extends JFrame {
         pendingPayments = 0;
         totalSpent = 0.0;
         
+        System.out.println("Refreshing stats for " + senderEmail + " - Total orders: " + userOrders.size());
+        
         for (SenderOrder order : userOrders) {
+            // Count active orders (not delivered and not cancelled)
             if (!"Delivered".equals(order.getStatus()) && !"Cancelled".equals(order.getStatus())) {
                 activeOrders++;
+                System.out.println("  Active order: " + order.getId() + " - Status: " + order.getStatus());
             }
             
+            // Count delivered orders
             if ("Delivered".equals(order.getStatus())) {
                 deliveredOrders++;
+                System.out.println("  Delivered order: " + order.getId());
             }
             
+            // Count pending payments - FIX: Check payment status correctly
             if ("Pending".equals(order.getPaymentStatus())) {
                 pendingPayments++;
+                System.out.println("  Pending payment order: " + order.getId() + " - Payment Status: " + order.getPaymentStatus());
+            } else {
+                System.out.println("  Order " + order.getId() + " payment status: " + order.getPaymentStatus());
             }
             
+            // Calculate total spent from paid orders only
             if ("Paid".equals(order.getPaymentStatus())) {
-                String cost = extractCost(order.getNotes());
-                try {
-                    String cleanCost = cost.replace("RM", "").replace("$", "").trim();
-                    totalSpent += Double.parseDouble(cleanCost);
-                } catch (NumberFormatException e) {
-                    // Skip if cost can't be parsed
-                }
+                double cost = order.getEstimatedCost();
+                totalSpent += cost;
+                System.out.println("  Paid order amount: RM " + cost);
             }
         }
         
-        System.out.println("Stats refreshed - Active: " + activeOrders + ", Delivered: " + deliveredOrders + 
-                           ", Pending Payments: " + pendingPayments + ", Total Spent: RM " + totalSpent);
+        System.out.println("Stats refreshed - Active: " + activeOrders + 
+                           ", Delivered: " + deliveredOrders + 
+                           ", Pending Payments: " + pendingPayments + 
+                           ", Total Spent: RM " + String.format("%.2f", totalSpent));
     }
 
     /**
@@ -706,9 +684,7 @@ public class SenderDashboard extends JFrame {
                     String text = label.getText();
                     if (text.contains("Home")) return "HOME";
                     if (text.contains("New Order")) return "NEW_ORDER";
-                    if (text.contains("My Orders")) return "MY_ORDERS";
-                    if (text.contains("Track")) return "TRACK";
-                    if (text.contains("Payments")) return "PAYMENT";
+                    if (text.contains("Track Order")) return "TRACK";
                     if (text.contains("Support")) return "SUPPORT";
                     if (text.contains("Profile")) return "PROFILE";
                 }
@@ -721,25 +697,7 @@ public class SenderDashboard extends JFrame {
      * Update notification counts in sidebar
      */
     private void updateSidebarNotifications() {
-        Component[] components = sidebar.getComponents();
-        for (Component comp : components) {
-            if (comp instanceof JPanel) {
-                JPanel panel = (JPanel) comp;
-                for (Component subComp : panel.getComponents()) {
-                    if (subComp instanceof JButton) {
-                        JButton btn = (JButton) subComp;
-                        String tooltip = btn.getToolTipText();
-                        if (tooltip != null) {
-                            if (tooltip.contains("My Orders")) {
-                                btn.setToolTipText("View and manage your orders (" + activeOrders + " active)");
-                            } else if (tooltip.contains("Payments")) {
-                                btn.setToolTipText("Manage payments and invoices (" + pendingPayments + " pending)");
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // Notifications removed - this method is kept for compatibility
     }
 
     // ================= GETTERS AND SETTERS =================

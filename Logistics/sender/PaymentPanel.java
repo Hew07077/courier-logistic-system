@@ -6,8 +6,6 @@ import javax.swing.border.LineBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -283,8 +281,6 @@ public class PaymentPanel extends JPanel {
         
         String userEmail = dashboard.getSenderEmail();
         List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(userEmail);
-        
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
         
         if (!userOrders.isEmpty()) {
             int paymentCounter = 1;

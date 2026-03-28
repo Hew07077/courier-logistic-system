@@ -4,7 +4,6 @@ import admin.management.*;
 import logistics.login.Login;
 
 import javax.swing.*;
-import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -17,13 +16,8 @@ public class AdminDashboard extends JFrame {
 
     // Refined color palette
     private final Color ORANGE_PRIMARY = new Color(255, 140, 0);
-    private final Color ORANGE_DARK = new Color(215, 115, 0);
-    private final Color ORANGE_LIGHT = new Color(255, 200, 130);
-    private final Color ORANGE_PALE = new Color(255, 245, 235);
     private final Color ORANGE_TOP_BAR = new Color(255, 160, 40);
     private final Color BG_LIGHT = new Color(250, 250, 250);
-    private final Color CARD_BG = Color.WHITE;
-    private final Color TEXT_DARK = new Color(33, 37, 41);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
     private final Color BORDER_COLOR = new Color(230, 230, 230);
     

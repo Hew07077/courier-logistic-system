@@ -73,7 +73,6 @@ public class VehicleManagement {
     
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("MMM dd, yyyy");
-    private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
     
     public interface DriverProfileListener {
         void onDriverProfileClicked(String driverName);
@@ -2105,11 +2104,6 @@ public class VehicleManagement {
 
     private Optional<Driver> findDriver(String name) {
         return drivers.stream().filter(d -> d.name.equals(name)).findFirst();
-    }
-
-    private int getSelectedRow() {
-        int row = vehiclesTable.getSelectedRow();
-        return row == -1 ? -1 : vehiclesTable.convertRowIndexToModel(row);
     }
 
     private void refreshTable() {

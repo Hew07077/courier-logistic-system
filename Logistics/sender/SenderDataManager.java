@@ -65,18 +65,12 @@ public class SenderDataManager {
     }
     
     /**
-     * Refresh data from the main orders.txt file
-     * Call this method to ensure you have the latest data
+     * Parse order from the full 29-field format
      */
-    public void refreshData() {
-        System.out.println("Refreshing sender data from main orders file...");
-        loadOrders();
-    }
-    
     private SenderOrder parseOrderFromString(String line) {
         try {
             String[] parts = line.split("\\|", -1);
-            if (parts.length < 15) {
+            if (parts.length < 18) {
                 System.out.println("Invalid order format (too few fields): " + parts.length);
                 return null;
             }
@@ -94,31 +88,49 @@ public class SenderDataManager {
             order.setOrderDate(parts[9]);
             order.setEstimatedDelivery(parts[10].isEmpty() ? null : parts[10]);
             
+            // Field 12 = driverId (new)
+            if (parts.length > 12) {
+                order.setDriverId(parts[12].isEmpty() ? null : parts[12]);
+            }
+            
+            // Field 13 = vehicleId (new)
+            if (parts.length > 13) {
+                order.setVehicleId(parts[13].isEmpty() ? null : parts[13]);
+            }
+            
             try {
-                order.setWeight(Double.parseDouble(parts[11]));
+                order.setWeight(Double.parseDouble(parts[14]));
             } catch (NumberFormatException e) {
                 order.setWeight(0.0);
             }
             
-            order.setDimensions(parts[12]);
-            order.setNotes(parts[13].isEmpty() ? null : parts[13]);
+            order.setDimensions(parts[15]);
+            order.setNotes(parts[16].isEmpty() ? null : parts[16]);
             
-            // Payment fields
-            if (parts.length > 14) {
+            // Payment fields - now at positions 25-28
+            if (parts.length > 25) {
+                order.setPaymentStatus(parts[25].isEmpty() ? "Pending" : parts[25]);
+            } else if (parts.length > 14) {
                 order.setPaymentStatus(parts[14].isEmpty() ? "Pending" : parts[14]);
             } else {
                 order.setPaymentStatus("Pending");
             }
             
-            if (parts.length > 15) {
+            if (parts.length > 26) {
+                order.setPaymentMethod(parts[26].isEmpty() ? null : parts[26]);
+            } else if (parts.length > 15) {
                 order.setPaymentMethod(parts[15].isEmpty() ? null : parts[15]);
             }
             
-            if (parts.length > 16) {
+            if (parts.length > 27) {
+                order.setTransactionId(parts[27].isEmpty() ? null : parts[27]);
+            } else if (parts.length > 16) {
                 order.setTransactionId(parts[16].isEmpty() ? null : parts[16]);
             }
             
-            if (parts.length > 17) {
+            if (parts.length > 28) {
+                order.setPaymentDate(parts[28].isEmpty() ? null : parts[28]);
+            } else if (parts.length > 17) {
                 order.setPaymentDate(parts[17].isEmpty() ? null : parts[17]);
             }
             
@@ -131,7 +143,6 @@ public class SenderDataManager {
     }
     
     private String orderToString(SenderOrder order) {
-        // Clean notes - remove any newlines that might break the pipe format
         String cleanNotes = order.getNotes() != null ? 
             order.getNotes().replace("\n", " ").replace("\r", " ") : "";
         
@@ -147,9 +158,20 @@ public class SenderDataManager {
             safeString(order.getStatus()),
             safeString(order.getOrderDate()),
             safeString(order.getEstimatedDelivery()),
+            "",
+            safeString(order.getDriverId()),
+            safeString(order.getVehicleId()),
             String.valueOf(order.getWeight()),
             safeString(order.getDimensions()),
             cleanNotes,
+            "",
+            "",
+            "",
+            "0",
+            "0",
+            "",
+            "",
+            "false",
             safeString(order.getPaymentStatus()),
             safeString(order.getPaymentMethod()),
             safeString(order.getTransactionId()),
@@ -166,25 +188,35 @@ public class SenderDataManager {
             File file = new File(ORDER_FILE);
             System.out.println("Saving orders to: " + file.getAbsolutePath());
             
-            // Create parent directories if needed
             File parentDir = file.getParentFile();
             if (parentDir != null && !parentDir.exists()) {
                 parentDir.mkdirs();
             }
             
-            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
+            // Create a temporary file first
+            File tempFile = new File(ORDER_FILE + ".tmp");
+            
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(tempFile))) {
                 // Write header
-                bw.write("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|weight|dimensions|notes|paymentStatus|paymentMethod|transactionId|paymentDate");
+                bw.write("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|actualDelivery|driverId|vehicleId|weight|dimensions|notes|reason|pickupTime|deliveryTime|distance|fuelUsed|deliveryPhoto|recipientSignature|onTime|paymentStatus|paymentMethod|transactionId|paymentDate");
                 bw.newLine();
                 
+                // Write all orders
                 for (SenderOrder order : orders) {
                     bw.write(orderToString(order));
                     bw.newLine();
                 }
                 
                 bw.flush();
-                System.out.println("Saved " + orders.size() + " orders to " + file.getAbsolutePath());
             }
+            
+            // Delete original file and rename temp file
+            if (file.exists()) {
+                file.delete();
+            }
+            tempFile.renameTo(file);
+            
+            System.out.println("Saved " + orders.size() + " orders to " + file.getAbsolutePath());
             
         } catch (IOException e) {
             System.out.println("Error saving orders: " + e.getMessage());
@@ -194,7 +226,6 @@ public class SenderDataManager {
     
     public void addOrder(SenderOrder order) {
         if (order != null) {
-            // Check if order already exists
             SenderOrder existing = getOrderById(order.getId());
             if (existing == null) {
                 orders.add(order);
@@ -204,6 +235,85 @@ public class SenderDataManager {
                 System.out.println("Order already exists, not adding duplicate: " + order.getId());
             }
         }
+    }
+    
+    /**
+     * Delete an order from the system by ID
+     */
+    public boolean deleteOrder(String orderId) {
+        System.out.println("===== DELETE ORDER CALLED =====");
+        System.out.println("Attempting to delete order: " + orderId);
+        
+        if (orderId == null || orderId.trim().isEmpty()) {
+            System.out.println("Order ID is null or empty");
+            return false;
+        }
+        
+        // Find the order to delete
+        SenderOrder orderToDelete = getOrderById(orderId);
+        if (orderToDelete == null) {
+            System.out.println("Order not found for deletion: " + orderId);
+            return false;
+        }
+        
+        System.out.println("Found order: " + orderToDelete.getId() + " - Status: " + orderToDelete.getStatus());
+        
+        // Check if order can be deleted (not delivered)
+        if ("Delivered".equals(orderToDelete.getStatus())) {
+            System.out.println("Cannot delete delivered order: " + orderId);
+            return false;
+        }
+        
+        // Store original size for verification
+        int originalSize = orders.size();
+        System.out.println("Original orders list size: " + originalSize);
+        
+        // Remove from list
+        boolean removed = orders.removeIf(o -> {
+            boolean match = orderId.equals(o.getId());
+            if (match) {
+                System.out.println("Removing order: " + o.getId());
+            }
+            return match;
+        });
+        
+        System.out.println("Order removed from list: " + removed);
+        System.out.println("New orders list size: " + orders.size());
+        
+        if (removed) {
+            // Save updated orders to file
+            saveOrders();
+            System.out.println("Order deleted successfully: " + orderId);
+            
+            // Force reload to verify
+            refreshData();
+            
+            // Verify deletion
+            SenderOrder verifyDeleted = getOrderById(orderId);
+            if (verifyDeleted == null) {
+                System.out.println("Verification: Order successfully deleted from system");
+            } else {
+                System.out.println("WARNING: Order still exists after deletion!");
+            }
+            
+            // Also try to delete from main OrderStorage system
+            try {
+                logistics.orders.OrderStorage mainStorage = new logistics.orders.OrderStorage();
+                logistics.orders.Order mainOrder = mainStorage.findOrder(orderId);
+                if (mainOrder != null) {
+                    // Delete from main system if possible
+                    // Note: You may need to add a deleteOrder method to OrderStorage
+                    System.out.println("Found order in main system, would sync deletion");
+                }
+            } catch (Exception e) {
+                System.err.println("Error syncing deletion to main system: " + e.getMessage());
+            }
+            
+            return true;
+        }
+        
+        System.out.println("Failed to delete order: " + orderId);
+        return false;
     }
     
     public List<SenderOrder> getAllOrders() {
@@ -248,9 +358,6 @@ public class SenderDataManager {
             .collect(Collectors.toList());
     }
     
-    /**
-     * Update order status and sync with main system
-     */
     public boolean updateOrderStatus(String orderId, String newStatus) {
         SenderOrder order = getOrderById(orderId);
         
@@ -258,7 +365,6 @@ public class SenderDataManager {
             order.setStatus(newStatus);
             saveOrders();
             
-            // Also update in main OrderStorage
             try {
                 logistics.orders.OrderStorage mainStorage = new logistics.orders.OrderStorage();
                 logistics.orders.Order mainOrder = mainStorage.findOrder(orderId);
@@ -283,7 +389,6 @@ public class SenderDataManager {
             order.setStatus("Cancelled");
             saveOrders();
             
-            // Also cancel in main OrderStorage
             try {
                 logistics.orders.OrderStorage mainStorage = new logistics.orders.OrderStorage();
                 logistics.orders.Order mainOrder = mainStorage.findOrder(orderId);
@@ -312,7 +417,6 @@ public class SenderDataManager {
             order.setPaymentDate(paymentDate);
             saveOrders();
             
-            // Also update in main OrderStorage
             try {
                 logistics.orders.OrderStorage mainStorage = new logistics.orders.OrderStorage();
                 logistics.orders.Order mainOrder = mainStorage.findOrder(orderId);
@@ -346,19 +450,37 @@ public class SenderDataManager {
     }
     
     public int getPendingPayments(String email) {
-        return (int) getOrdersByEmail(email).stream()
+        List<SenderOrder> orders = getOrdersByEmail(email);
+        int pendingCount = (int) orders.stream()
             .filter(o -> "Pending".equals(o.getPaymentStatus()))
             .count();
+        
+        System.out.println("getPendingPayments(" + email + ") = " + pendingCount);
+        for (SenderOrder order : orders) {
+            if ("Pending".equals(order.getPaymentStatus())) {
+                System.out.println("  - Order " + order.getId() + " has pending payment");
+            }
+        }
+        return pendingCount;
     }
     
     public double getTotalSpent(String email) {
-        return getOrdersByEmail(email).stream()
+        List<SenderOrder> orders = getOrdersByEmail(email);
+        double total = orders.stream()
             .filter(o -> "Paid".equals(o.getPaymentStatus()))
-            .mapToDouble(o -> extractCostFromNotes(o))
+            .mapToDouble(o -> o.getEstimatedCost())
             .sum();
+        
+        System.out.println("getTotalSpent(" + email + ") = RM " + total);
+        return total;
     }
     
     private double extractCostFromNotes(SenderOrder order) {
         return order.getEstimatedCost();
+    }
+    
+    public void refreshData() {
+        System.out.println("Refreshing sender data from main orders file...");
+        loadOrders();
     }
 }
