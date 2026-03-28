@@ -4,6 +4,7 @@ import logistics.driver.Driver;
 import logistics.driver.DriverStorage;
 import logistics.orders.Order;
 import logistics.orders.OrderStorage;
+import courier.ProfilePanel;
 
 import javax.swing.Timer;
 import javax.swing.*;
@@ -24,7 +25,7 @@ public class CourierDashboard extends JFrame {
     // --- Refined Color Palette ---
     private final Color PRIMARY_GREEN = new Color(46, 125, 50);
     private final Color GREEN_DARK = new Color(27, 94, 32);
-    private final Color GREEN_LIGHT = new Color(220, 245, 220);
+    private final Color GREEN_LIGHT = new Color(34, 139, 34);
     private final Color BG_LIGHT = new Color(245, 247, 250);
     private final Color BORDER_COLOR = new Color(224, 224, 224);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
@@ -32,7 +33,7 @@ public class CourierDashboard extends JFrame {
     // Modern UI Colors
     private static final Color SUCCESS = new Color(40, 167, 69);
     private static final Color INFO = new Color(23, 162, 184);
-    private static final Color WARNING = new Color(255, 193, 7);
+    private static final Color WARNING = new Color(225, 173, 1);
     private static final Color DANGER = new Color(220, 53, 69);
     private static final Color PURPLE = new Color(111, 66, 193);
     private static final Color ORANGE = new Color(255, 87, 34);
@@ -43,7 +44,7 @@ public class CourierDashboard extends JFrame {
     private static final Color STATUS_DELIVERED = new Color(40, 167, 69);
     private static final Color STATUS_DELAYED = new Color(220, 53, 69);
     
-    // Button colors - matching AdminDashboard pattern exactly
+    // Button colors
     private final Color BUTTON_SELECTED = new Color(27, 94, 32);
     private final Color BUTTON_HOVER = new Color(35, 110, 40);
     private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0);
@@ -65,16 +66,15 @@ public class CourierDashboard extends JFrame {
     private JButton activeButton;
     private JLabel timeLabel;
     
-    // Profile Components
-    private JLabel profilePhotoLabel;
-    private File profilePhotoFile;
-    private JTextField nameField;
-    private JTextField staffIdField;
-    private JTextField emailField;
-    private JTextField phoneField;
-    private JTextField vehicleModelField;
-    private JTextField plateNoField;
-    private JTextField mileageField;
+    // Complete Delivery Components
+    private JComboBox<String> orderSelectCombo;
+    private JTextField distanceField;
+    private JTextField fuelField;
+    private JTextArea signatureArea;
+    private JCheckBox onTimeCheck;
+    private JLabel photoFileNameLabel;
+    private File deliveryPhotoFile;
+    private JLabel orderDetailsLabel;
     
     // Data
     private Driver currentDriver;
@@ -82,13 +82,8 @@ public class CourierDashboard extends JFrame {
     private OrderStorage orderStorage;
     private List<Order> myOrders;
     
-    // Delivery completion components
-    private JTextField orderIdField;
-    private JTextField distanceField;
-    private JTextField fuelField;
-    private JLabel photoFileNameLabel;
-    private File deliveryPhotoFile;
-    private JTextArea signatureArea;
+    // Profile Panel
+    private ProfilePanel profilePanel;
     
     // Vehicle Report
     private VehicleReport vehicleReport;
@@ -161,8 +156,33 @@ public class CourierDashboard extends JFrame {
         // Refresh delivery table
         refreshDeliveriesTable();
         
+        // Refresh complete delivery order list
+        refreshOrderSelectCombo();
+        
         // Update sidebar
         updateUserProfile();
+        
+        // Update profile panel if visible
+        if (profilePanel != null) {
+            profilePanel.refreshProfile(currentDriver);
+        }
+    }
+    
+    private void refreshOrderSelectCombo() {
+        if (orderSelectCombo != null) {
+            orderSelectCombo.removeAllItems();
+            List<Order> inTransitOrders = myOrders.stream()
+                .filter(o -> "In Transit".equals(o.status))
+                .collect(Collectors.toList());
+            
+            if (inTransitOrders.isEmpty()) {
+                orderSelectCombo.addItem("No orders available");
+            } else {
+                for (Order o : inTransitOrders) {
+                    orderSelectCombo.addItem(o.id + " - " + o.recipientName);
+                }
+            }
+        }
     }
     
     private void startAutoRefresh() {
@@ -177,21 +197,6 @@ public class CourierDashboard extends JFrame {
         add(createSidebar(), BorderLayout.WEST);
         add(createContentPanel(), BorderLayout.CENTER);
         add(createStatusBar(), BorderLayout.SOUTH);
-    }
-    
-    private void loadDriverPhoto(String photoPath) {
-        try {
-            File photoFile = new File(photoPath);
-            if (photoFile.exists()) {
-                ImageIcon icon = new ImageIcon(photoPath);
-                Image image = icon.getImage().getScaledInstance(140, 140, Image.SCALE_SMOOTH);
-                profilePhotoLabel.setIcon(new ImageIcon(image));
-                profilePhotoLabel.setText("");
-                profilePhotoFile = photoFile;
-            }
-        } catch (Exception e) {
-            System.err.println("Error loading photo: " + e.getMessage());
-        }
     }
     
     private void updateUserProfile() {
@@ -220,14 +225,14 @@ public class CourierDashboard extends JFrame {
 
     private JPanel createTopBar() {
         JPanel bar = new JPanel(new BorderLayout());
-        bar.setBackground(GREEN_DARK);
+        bar.setBackground(GREEN_LIGHT);
         bar.setPreferredSize(new Dimension(getWidth(), 80));
         bar.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 25));
 
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
         leftPanel.setOpaque(false);
 
-        ImageIcon logoIcon = loadLogo("logo.ct.png");
+        ImageIcon logoIcon = loadLogo("logo.c.png");
         if (logoIcon != null) {
             Image img = logoIcon.getImage();
             Image resizedImg = img.getScaledInstance(50, 50, Image.SCALE_SMOOTH);
@@ -235,14 +240,14 @@ public class CourierDashboard extends JFrame {
             leftPanel.add(logoLabel);
         }
 
-        JLabel title = new JLabel("LogiXpress Courier Portal");
+        JLabel title = new JLabel("LogiXpress");
         title.setFont(new Font("Segoe UI", Font.BOLD, 22));
         title.setForeground(Color.WHITE);
         leftPanel.add(title);
 
         JLabel badge = new JLabel("COURIER");
         badge.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        badge.setForeground(PRIMARY_GREEN);
+        badge.setForeground(GREEN_DARK);
         badge.setBackground(new Color(255, 255, 255, 200));
         badge.setOpaque(true);
         badge.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
@@ -327,6 +332,10 @@ public class CourierDashboard extends JFrame {
             currentDriver.getCurrentOrderCount() + " active orders", true);
         menu.add(myDeliveriesBtn);
         
+        JButton completeDeliveryBtn = createNavButton("✅ Complete Delivery", "COMPLETE", 
+            "Mark order as delivered", false);
+        menu.add(completeDeliveryBtn);
+        
         menu.add(createNavButton("🚗 Vehicle Report", "VEHICLE", 
             "Report vehicle issues", false));
         menu.add(createNavButton("📊 My Statistics", "STATS", 
@@ -407,9 +416,16 @@ public class CourierDashboard extends JFrame {
             btn.setBackground(BUTTON_SELECTED);
             activeButton = btn;
             
-            if (!card.equals("VEHICLE") && !card.equals("PROFILE")) {
+            if (!card.equals("VEHICLE") && !card.equals("PROFILE") && !card.equals("COMPLETE")) {
                 refreshData();
             }
+            
+            // Refresh order list when opening complete delivery page
+            if (card.equals("COMPLETE")) {
+                refreshOrderSelectCombo();
+                clearCompleteDeliveryForm();
+            }
+            
             cardLayout.show(contentPanel, card);
         });
 
@@ -508,21 +524,427 @@ public class CourierDashboard extends JFrame {
         contentPanel.setBackground(BG_LIGHT);
 
         contentPanel.add(createDeliveriesPanel(), "DELIVERIES");
+        contentPanel.add(createCompleteDeliveryPanel(), "COMPLETE");
         contentPanel.add(vehicleReport.createVehicleReportPanel(), "VEHICLE");
         contentPanel.add(createStatsPanel(), "STATS");
-        contentPanel.add(createEnhancedProfilePage(), "PROFILE");
+        
+        // Create profile panel
+        profilePanel = new ProfilePanel(currentDriver);
+        contentPanel.add(profilePanel, "PROFILE");
 
         return contentPanel;
     }
     
-    // ==================== DELIVERIES MANAGEMENT PANEL WITH CLICKABLE FILTER CARDS ====================
+    // ==================== COMPLETE DELIVERY PANEL ====================
+    
+    private JPanel createCompleteDeliveryPanel() {
+        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
+        mainPanel.setBackground(BG_LIGHT);
+        mainPanel.setBorder(new EmptyBorder(25, 25, 25, 25));
+        
+        // Header
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(BG_LIGHT);
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
+        
+        JLabel titleLabel = new JLabel("✅ Complete Delivery");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        titleLabel.setForeground(PRIMARY_GREEN);
+        
+        JLabel subtitleLabel = new JLabel("Mark an order as delivered and record delivery details");
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        subtitleLabel.setForeground(TEXT_GRAY);
+        
+        JPanel titlePanel = new JPanel(new BorderLayout());
+        titlePanel.setBackground(BG_LIGHT);
+        titlePanel.add(titleLabel, BorderLayout.NORTH);
+        titlePanel.add(subtitleLabel, BorderLayout.SOUTH);
+        
+        headerPanel.add(titlePanel, BorderLayout.WEST);
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        
+        // Form Panel
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBackground(Color.WHITE);
+        formPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+            new EmptyBorder(30, 30, 30, 30)));
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(12, 15, 12, 15);
+        gbc.weightx = 1.0;
+        
+        int row = 0;
+        
+        // Order Selection
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
+        gbc.weightx = 0.3;
+        JLabel orderLabel = new JLabel("Select Order:*");
+        orderLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        formPanel.add(orderLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 0.7;
+        orderSelectCombo = new JComboBox<>();
+        orderSelectCombo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        orderSelectCombo.setBackground(Color.WHITE);
+        orderSelectCombo.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+        orderSelectCombo.setPreferredSize(new Dimension(400, 40));
+        orderSelectCombo.addActionListener(e -> updateOrderDetails());
+        formPanel.add(orderSelectCombo, gbc);
+        
+        row++;
+        
+        // Order Details Display
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        orderDetailsLabel = new JLabel();
+        orderDetailsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        orderDetailsLabel.setForeground(TEXT_GRAY);
+        orderDetailsLabel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(232, 245, 233), 1),
+            BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+        orderDetailsLabel.setBackground(new Color(245, 250, 245));
+        orderDetailsLabel.setOpaque(true);
+        formPanel.add(orderDetailsLabel, gbc);
+        
+        row++;
+        
+        // Separator
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        JSeparator separator = new JSeparator();
+        separator.setForeground(BORDER_COLOR);
+        formPanel.add(separator, gbc);
+        row++;
+        
+        // Distance
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
+        gbc.weightx = 0.3;
+        JLabel distanceLabel = new JLabel("Distance (km):*");
+        distanceLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        formPanel.add(distanceLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 0.7;
+        distanceField = new JTextField();
+        distanceField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        distanceField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+        distanceField.setToolTipText("Enter the distance traveled in kilometers");
+        formPanel.add(distanceField, gbc);
+        
+        row++;
+        
+        // Fuel Used
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel fuelLabel = new JLabel("Fuel Used (L):*");
+        fuelLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        formPanel.add(fuelLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        fuelField = new JTextField();
+        fuelField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        fuelField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+        fuelField.setToolTipText("Enter the fuel used in liters");
+        formPanel.add(fuelField, gbc);
+        
+        row++;
+        
+        // On Time Delivery
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        onTimeCheck = new JCheckBox("Delivered on time");
+        onTimeCheck.setSelected(true);
+        onTimeCheck.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        onTimeCheck.setBackground(Color.WHITE);
+        formPanel.add(onTimeCheck, gbc);
+        
+        row++;
+        
+        // Delivery Photo
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
+        JLabel photoLabel = new JLabel("Delivery Photo:*");
+        photoLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        formPanel.add(photoLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridwidth = 1;
+        JButton uploadPhotoBtn = new JButton("📷 Choose Photo");
+        uploadPhotoBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        uploadPhotoBtn.setBackground(INFO);
+        uploadPhotoBtn.setForeground(Color.WHITE);
+        uploadPhotoBtn.setBorderPainted(false);
+        uploadPhotoBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        uploadPhotoBtn.addActionListener(e -> selectDeliveryPhoto());
+        formPanel.add(uploadPhotoBtn, gbc);
+        
+        gbc.gridx = 2; gbc.gridwidth = 1;
+        photoFileNameLabel = new JLabel("No file selected");
+        photoFileNameLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+        photoFileNameLabel.setForeground(TEXT_GRAY);
+        formPanel.add(photoFileNameLabel, gbc);
+        
+        row++;
+        
+        // Signature
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
+        JLabel signatureLabel = new JLabel("Signature:*");
+        signatureLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        formPanel.add(signatureLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        signatureArea = new JTextArea(3, 20);
+        signatureArea.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        signatureArea.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+        signatureArea.setLineWrap(true);
+        signatureArea.setWrapStyleWord(true);
+        
+        JScrollPane sigScroll = new JScrollPane(signatureArea);
+        sigScroll.setBorder(null);
+        sigScroll.setPreferredSize(new Dimension(300, 70));
+        formPanel.add(sigScroll, gbc);
+        
+        row++;
+        
+        // Required fields note
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        JLabel noteLabel = new JLabel("* Required fields", SwingConstants.CENTER);
+        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        noteLabel.setForeground(TEXT_GRAY);
+        formPanel.add(noteLabel, gbc);
+        
+        row++;
+        
+        // Button Panel
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        gbc.insets = new Insets(20, 15, 10, 15);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
+        buttonPanel.setBackground(Color.WHITE);
+        
+        JButton clearBtn = new JButton("Clear Form");
+        clearBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        clearBtn.setForeground(TEXT_GRAY);
+        clearBtn.setBackground(Color.WHITE);
+        clearBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        clearBtn.setPreferredSize(new Dimension(120, 40));
+        clearBtn.addActionListener(e -> clearCompleteDeliveryForm());
+        
+        JButton completeBtn = new JButton("Complete Delivery");
+        completeBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        completeBtn.setForeground(Color.WHITE);
+        completeBtn.setBackground(SUCCESS);
+        completeBtn.setBorderPainted(false);
+        completeBtn.setPreferredSize(new Dimension(150, 40));
+        completeBtn.addActionListener(e -> completeDelivery());
+        
+        buttonPanel.add(clearBtn);
+        buttonPanel.add(completeBtn);
+        
+        formPanel.add(buttonPanel, gbc);
+        
+        mainPanel.add(formPanel, BorderLayout.CENTER);
+        
+        return mainPanel;
+    }
+    
+    private void updateOrderDetails() {
+        String selected = (String) orderSelectCombo.getSelectedItem();
+        if (selected == null || selected.equals("No orders available")) {
+            orderDetailsLabel.setText("<html><b>No orders available for delivery</b><br>All orders are either delivered or pending pickup.</html>");
+            return;
+        }
+        
+        String orderId = selected.split(" - ")[0];
+        Order order = orderStorage.findOrder(orderId);
+        
+        if (order != null) {
+            String details = String.format("<html>" +
+                "<b>Order ID:</b> %s<br>" +
+                "<b>Recipient:</b> %s<br>" +
+                "<b>Phone:</b> %s<br>" +
+                "<b>Address:</b> %s<br>" +
+                "<b>Weight:</b> %.1f kg<br>" +
+                "<b>Est. Delivery:</b> %s</html>",
+                order.id,
+                order.recipientName,
+                order.recipientPhone,
+                order.recipientAddress.length() > 50 ? order.recipientAddress.substring(0, 47) + "..." : order.recipientAddress,
+                order.weight,
+                order.estimatedDelivery != null ? order.estimatedDelivery : "Not set"
+            );
+            orderDetailsLabel.setText(details);
+        }
+    }
+    
+    private void selectDeliveryPhoto() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Select Delivery Photo");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter(
+            "Image Files (JPG, PNG)", "jpg", "jpeg", "png");
+        fileChooser.setFileFilter(filter);
+        
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            deliveryPhotoFile = fileChooser.getSelectedFile();
+            photoFileNameLabel.setText(deliveryPhotoFile.getName());
+        }
+    }
+    
+    private void clearCompleteDeliveryForm() {
+        orderSelectCombo.setSelectedIndex(0);
+        distanceField.setText("");
+        fuelField.setText("");
+        onTimeCheck.setSelected(true);
+        signatureArea.setText("");
+        photoFileNameLabel.setText("No file selected");
+        deliveryPhotoFile = null;
+        updateOrderDetails();
+    }
+    
+    private void completeDelivery() {
+        String selected = (String) orderSelectCombo.getSelectedItem();
+        if (selected == null || selected.equals("No orders available")) {
+            showNotification("Please select an order to complete", WARNING);
+            return;
+        }
+        
+        String orderId = selected.split(" - ")[0];
+        String distanceText = distanceField.getText().trim();
+        String fuelText = fuelField.getText().trim();
+        String signature = signatureArea.getText().trim();
+        boolean onTime = onTimeCheck.isSelected();
+        
+        // Validation
+        if (distanceText.isEmpty()) {
+            showNotification("Please enter distance traveled", WARNING);
+            distanceField.requestFocus();
+            return;
+        }
+        
+        if (fuelText.isEmpty()) {
+            showNotification("Please enter fuel used", WARNING);
+            fuelField.requestFocus();
+            return;
+        }
+        
+        if (signature.isEmpty()) {
+            showNotification("Please enter recipient signature", WARNING);
+            signatureArea.requestFocus();
+            return;
+        }
+        
+        if (deliveryPhotoFile == null) {
+            showNotification("Please upload a delivery photo", WARNING);
+            return;
+        }
+        
+        try {
+            double distance = Double.parseDouble(distanceText);
+            double fuel = Double.parseDouble(fuelText);
+            
+            if (distance <= 0) {
+                showNotification("Distance must be greater than 0", WARNING);
+                return;
+            }
+            
+            if (fuel <= 0) {
+                showNotification("Fuel used must be greater than 0", WARNING);
+                return;
+            }
+            
+            Order order = orderStorage.findOrder(orderId);
+            if (order == null) {
+                showNotification("Order not found", DANGER);
+                return;
+            }
+            
+            if (!"In Transit".equals(order.status)) {
+                showNotification("Order status is '" + order.status + "'. Only 'In Transit' orders can be completed.", WARNING);
+                return;
+            }
+            
+            if (!currentDriver.id.equals(order.driverId)) {
+                showNotification("This order is assigned to another driver", DANGER);
+                return;
+            }
+            
+            // Confirm completion
+            int confirm = JOptionPane.showConfirmDialog(this,
+                String.format("Complete delivery for order %s?\n\n" +
+                    "📦 Recipient: %s\n" +
+                    "📍 Address: %s\n" +
+                    "🚚 Distance: %.1f km\n" +
+                    "⛽ Fuel: %.1f L\n" +
+                    "✅ On Time: %s\n\n" +
+                    "Signature: %s",
+                    orderId, order.recipientName, 
+                    order.recipientAddress.length() > 50 ? order.recipientAddress.substring(0, 47) + "..." : order.recipientAddress,
+                    distance, fuel, onTime ? "Yes" : "No", signature),
+                "Confirm Completion",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                // Complete the order
+                boolean success = orderStorage.completeOrder(
+                    orderId, distance, fuel, 
+                    deliveryPhotoFile.getAbsolutePath(), 
+                    signature);
+                
+                if (success) {
+                    // Update onTime flag
+                    order.onTime = onTime;
+                    orderStorage.updateOrder(order);
+                    
+                    // Update driver stats
+                    currentDriver.completeOrder(orderId, onTime, distance, fuel);
+                    driverStorage.updateDriver(currentDriver);
+                    
+                    showNotification("✓ Delivery completed successfully!", SUCCESS);
+                    
+                    // Clear the form
+                    clearCompleteDeliveryForm();
+                    
+                    // Refresh data
+                    refreshData();
+                    
+                    // Show success message with details
+                    JOptionPane.showMessageDialog(this,
+                        String.format("✅ Delivery Completed Successfully!\n\n" +
+                            "Order ID: %s\n" +
+                            "Recipient: %s\n" +
+                            "Distance: %.1f km\n" +
+                            "Fuel: %.1f L\n" +
+                            "Efficiency: %.2f km/L\n" +
+                            "On Time: %s\n\n" +
+                            "Your performance statistics have been updated.",
+                            orderId, order.recipientName, distance, fuel, 
+                            distance / fuel, onTime ? "Yes" : "No"),
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                        
+                } else {
+                    showNotification("Failed to complete delivery. Please try again.", DANGER);
+                }
+            }
+            
+        } catch (NumberFormatException e) {
+            showNotification("Please enter valid numbers for distance and fuel", WARNING);
+        }
+    }
+    
+    // ==================== DELIVERIES MANAGEMENT PANEL ====================
     
     private JPanel createDeliveriesPanel() {
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(BG_LIGHT);
         mainPanel.setBorder(new EmptyBorder(25, 25, 25, 25));
         
-        // Top container with header and stats cards (clickable filters)
+        // Top container with header and stats cards
         JPanel topContainer = new JPanel(new BorderLayout(10, 10));
         topContainer.setBackground(BG_LIGHT);
         topContainer.add(createDeliveriesHeaderPanel(), BorderLayout.NORTH);
@@ -558,7 +980,6 @@ public class CourierDashboard extends JFrame {
         return panel;
     }
     
-    // Stats Panel with clickable cards (like Vehicle Management)
     private JPanel createDeliveriesStatsPanel() {
         JPanel statsPanel = new JPanel(new GridLayout(1, 5, 15, 0));
         statsPanel.setBackground(BG_LIGHT);
@@ -584,7 +1005,6 @@ public class CourierDashboard extends JFrame {
         return statsPanel;
     }
     
-    // Create clickable stat card (like Vehicle Management)
     private JPanel createClickableStatCard(String title, String description, String value, 
                                             Color color, Color bgColor, int index) {
         JPanel card = new JPanel();
@@ -618,7 +1038,6 @@ public class CourierDashboard extends JFrame {
         
         statValues[index] = valueLabel;
         
-        // Add click filter for status cards (index 1-4) - In Transit, Pending, Delivered, Delayed
         if (index >= 1 && index <= 4) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             final String filterStatus = title;
@@ -650,7 +1069,6 @@ public class CourierDashboard extends JFrame {
                 }
             });
         } 
-        // Add click filter for Total Orders card (index 0) - clears filter
         else if (index == 0) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             card.addMouseListener(new MouseAdapter() {
@@ -689,30 +1107,25 @@ public class CourierDashboard extends JFrame {
         resetDeliveriesCardBorders();
         
         if (currentFilterIndex == cardIndex) {
-            // Clear filter if clicking the same card
             currentStatusFilter = null;
             currentFilterIndex = -1;
             deliveriesRowSorter.setRowFilter(null);
             
-            // Reset card style
             statCards[cardIndex].setBorder(BorderFactory.createCompoundBorder(
                 new LineBorder(BORDER_COLOR, 1, true),
                 BorderFactory.createEmptyBorder(8, 12, 8, 12)
             ));
             statCards[cardIndex].setBackground(Color.WHITE);
         } else {
-            // Apply new filter
             currentStatusFilter = status;
             currentFilterIndex = cardIndex;
             
-            // Highlight selected card
             statCards[cardIndex].setBorder(BorderFactory.createCompoundBorder(
                 new LineBorder(ACTIVE_FILTER_BORDER, 2, true),
                 BorderFactory.createEmptyBorder(7, 11, 7, 11)
             ));
             statCards[cardIndex].setBackground(color.brighter());
             
-            // Apply filter to table (status is at column index 3)
             deliveriesRowSorter.setRowFilter(RowFilter.regexFilter("^" + status + "$", 3));
         }
     }
@@ -739,7 +1152,6 @@ public class CourierDashboard extends JFrame {
         panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
         
-        // Add search panel
         JPanel searchPanel = createDeliveriesSearchPanel();
         panel.add(searchPanel, BorderLayout.NORTH);
         
@@ -853,7 +1265,6 @@ public class CourierDashboard extends JFrame {
         deliveriesRowSorter = new TableRowSorter<>(deliveriesTableModel);
         deliveriesTable.setRowSorter(deliveriesRowSorter);
         
-        // Set column widths
         deliveriesTable.getColumnModel().getColumn(0).setPreferredWidth(90);
         deliveriesTable.getColumnModel().getColumn(1).setPreferredWidth(140);
         deliveriesTable.getColumnModel().getColumn(2).setPreferredWidth(100);
@@ -863,7 +1274,6 @@ public class CourierDashboard extends JFrame {
         deliveriesTable.getColumnModel().getColumn(6).setPreferredWidth(180);
         deliveriesTable.getColumnModel().getColumn(7).setPreferredWidth(70);
         
-        // Custom renderers
         deliveriesTable.getColumnModel().getColumn(3).setCellRenderer(new DeliveriesStatusCellRenderer());
         deliveriesTable.getColumnModel().getColumn(7).setCellRenderer(new WeightCellRenderer());
         
@@ -965,7 +1375,6 @@ public class CourierDashboard extends JFrame {
         deliveriesTableModel.setRowCount(0);
         
         for (Order o : myOrders) {
-            // Safely get pickup time
             String pickupTime = "-";
             if (o.pickupTime != null && o.pickupTime.length() >= 16) {
                 pickupTime = o.pickupTime.substring(11, 16);
@@ -973,7 +1382,6 @@ public class CourierDashboard extends JFrame {
                 pickupTime = o.pickupTime;
             }
             
-            // Safely get estimated delivery
             String estDelivery = "-";
             if (o.estimatedDelivery != null && o.estimatedDelivery.length() >= 16) {
                 estDelivery = o.estimatedDelivery.substring(11, 16);
@@ -1024,11 +1432,9 @@ public class CourierDashboard extends JFrame {
         panel.setBackground(BG_LIGHT);
         
         JButton viewDetailsBtn = createActionButton("View Details", INFO, this::viewSelectedOrderDetails);
-        JButton completeBtn = createActionButton("Complete Delivery", SUCCESS, this::completeSelectedDelivery);
         JButton trackBtn = createActionButton("Track Order", PURPLE, this::trackSelectedOrder);
         
         panel.add(viewDetailsBtn);
-        panel.add(completeBtn);
         panel.add(trackBtn);
         
         return panel;
@@ -1071,93 +1477,6 @@ public class CourierDashboard extends JFrame {
         }
     }
     
-    private void completeSelectedDelivery() {
-        int row = deliveriesTable.getSelectedRow();
-        if (row == -1) {
-            showNotification("Please select an order", WARNING);
-            return;
-        }
-        
-        int modelRow = deliveriesTable.convertRowIndexToModel(row);
-        if (modelRow >= 0 && modelRow < myOrders.size()) {
-            Order order = myOrders.get(modelRow);
-            
-            if (!"In Transit".equals(order.status)) {
-                showNotification("Only 'In Transit' orders can be completed", WARNING);
-                return;
-            }
-            
-            showDeliveryCompletionDialog(order);
-        }
-    }
-    
-    private void showDeliveryCompletionDialog(Order order) {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(Color.WHITE);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 10, 5, 10);
-        
-        JLabel orderLabel = new JLabel("Order: " + order.id);
-        orderLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        
-        JTextField distanceFieldLocal = new JTextField(10);
-        distanceFieldLocal.setPreferredSize(new Dimension(150, 30));
-        JTextField fuelFieldLocal = new JTextField(10);
-        fuelFieldLocal.setPreferredSize(new Dimension(150, 30));
-        JCheckBox onTimeCheck = new JCheckBox("Delivered on time", true);
-        onTimeCheck.setBackground(Color.WHITE);
-        
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
-        panel.add(orderLabel, gbc);
-        
-        gbc.gridy = 1; gbc.gridwidth = 1;
-        gbc.gridx = 0;
-        panel.add(new JLabel("Distance (km):"), gbc);
-        gbc.gridx = 1;
-        panel.add(distanceFieldLocal, gbc);
-        
-        gbc.gridy = 2;
-        gbc.gridx = 0;
-        panel.add(new JLabel("Fuel Used (L):"), gbc);
-        gbc.gridx = 1;
-        panel.add(fuelFieldLocal, gbc);
-        
-        gbc.gridy = 3;
-        gbc.gridx = 0; gbc.gridwidth = 2;
-        panel.add(onTimeCheck, gbc);
-        
-        int result = JOptionPane.showConfirmDialog(this, panel,
-            "Complete Delivery", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        
-        if (result == JOptionPane.OK_OPTION) {
-            try {
-                double distance = Double.parseDouble(distanceFieldLocal.getText().trim());
-                double fuel = Double.parseDouble(fuelFieldLocal.getText().trim());
-                boolean onTime = onTimeCheck.isSelected();
-                
-                boolean success = orderStorage.completeOrder(
-                    order.id, distance, fuel, "", "Completed by courier");
-                
-                if (success) {
-                    order.onTime = onTime;
-                    orderStorage.updateOrder(order);
-                    
-                    // Update driver stats
-                    currentDriver.completeOrder(order.id, onTime, distance, fuel);
-                    driverStorage.updateDriver(currentDriver);
-                    
-                    showNotification("✓ Delivery completed successfully", SUCCESS);
-                    refreshData();
-                } else {
-                    showNotification("Failed to complete delivery", DANGER);
-                }
-            } catch (NumberFormatException e) {
-                showNotification("Please enter valid numbers", WARNING);
-            }
-        }
-    }
-    
     private void trackSelectedOrder() {
         int row = deliveriesTable.getSelectedRow();
         if (row == -1) {
@@ -1189,33 +1508,28 @@ public class CourierDashboard extends JFrame {
         timelinePanel.setLayout(new BoxLayout(timelinePanel, BoxLayout.Y_AXIS));
         timelinePanel.setBackground(Color.WHITE);
         
-        // Order Created
         timelinePanel.add(createTimelineEvent("Order Created", 
             "Order placed by " + order.customerName, order.orderDate, true));
         timelinePanel.add(Box.createVerticalStrut(5));
         
-        // Payment
         boolean paymentCompleted = "Paid".equals(order.paymentStatus);
         timelinePanel.add(createTimelineEvent("Payment", 
             paymentCompleted ? "Payment completed" : "Payment pending",
             order.paymentDate != null ? order.paymentDate : "Not paid", paymentCompleted));
         timelinePanel.add(Box.createVerticalStrut(5));
         
-        // Pickup
         boolean pickedUp = order.pickupTime != null;
         timelinePanel.add(createTimelineEvent("Pickup", 
             pickedUp ? "Picked up by courier" : "Awaiting pickup",
             pickedUp ? order.pickupTime : "Not picked up", pickedUp));
         timelinePanel.add(Box.createVerticalStrut(5));
         
-        // In Transit
         boolean inTransit = "In Transit".equals(order.status) || "Delayed".equals(order.status) || "Delivered".equals(order.status);
         timelinePanel.add(createTimelineEvent("In Transit", 
             inTransit ? "Package is on the way" : "Not in transit",
             order.estimatedDelivery != null ? "Est: " + order.estimatedDelivery : "-", inTransit));
         timelinePanel.add(Box.createVerticalStrut(5));
         
-        // Delivered
         boolean delivered = "Delivered".equals(order.status);
         String deliveryInfo = delivered ? (order.onTime ? "Delivered on time" : "Delivered late") : "Not delivered";
         timelinePanel.add(createTimelineEvent("Delivered", deliveryInfo,
@@ -1316,7 +1630,6 @@ public class CourierDashboard extends JFrame {
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         mainPanel.setBackground(Color.WHITE);
         
-        // Header with status
         JPanel headerPanel = new JPanel(new BorderLayout(15, 0));
         headerPanel.setBackground(Color.WHITE);
         
@@ -1363,50 +1676,29 @@ public class CourierDashboard extends JFrame {
         
         mainPanel.add(headerPanel, BorderLayout.NORTH);
         
-        // Create tabbed pane for organized information
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 13));
         tabbedPane.setBackground(Color.WHITE);
         
-        // Tab 1: Order Information
         JPanel orderTab = createOrderInfoTab(order);
         tabbedPane.addTab("📋 Order Info", orderTab);
         
-        // Tab 2: Customer & Recipient
         JPanel customerTab = createCustomerInfoTab(order);
         tabbedPane.addTab("👥 Customer & Recipient", customerTab);
         
-        // Tab 3: Package Details
         JPanel packageTab = createPackageInfoTab(order);
         tabbedPane.addTab("📦 Package Details", packageTab);
         
-        // Tab 4: Delivery Information
         JPanel deliveryTab = createDeliveryInfoTab(order);
         tabbedPane.addTab("🚚 Delivery Info", deliveryTab);
         
-        // Tab 5: Payment Information
         JPanel paymentTab = createPaymentInfoTab(order);
         tabbedPane.addTab("💰 Payment", paymentTab);
         
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
         
-        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
         buttonPanel.setBackground(Color.WHITE);
-        
-        if ("In Transit".equals(order.status)) {
-            JButton completeBtn = new JButton("Complete Delivery");
-            completeBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            completeBtn.setForeground(Color.WHITE);
-            completeBtn.setBackground(SUCCESS);
-            completeBtn.setBorderPainted(false);
-            completeBtn.setPreferredSize(new Dimension(150, 35));
-            completeBtn.addActionListener(e -> {
-                dialog.dispose();
-                showDeliveryCompletionDialog(order);
-            });
-            buttonPanel.add(completeBtn);
-        }
         
         JButton closeBtn = new JButton("Close");
         closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -1471,7 +1763,6 @@ public class CourierDashboard extends JFrame {
         
         int row = 0;
         
-        // Sender Section
         JLabel senderTitle = new JLabel("📤 SENDER INFORMATION");
         senderTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         senderTitle.setForeground(PRIMARY_GREEN);
@@ -1484,11 +1775,9 @@ public class CourierDashboard extends JFrame {
         addDetailRow(panel, "Email:", order.customerEmail, gbc, row++);
         addDetailRow(panel, "Address:", order.customerAddress, gbc, row++);
         
-        // Separator
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         panel.add(new JSeparator(), gbc);
         
-        // Recipient Section
         JLabel recipientTitle = new JLabel("📥 RECIPIENT INFORMATION");
         recipientTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         recipientTitle.setForeground(SUCCESS);
@@ -1663,7 +1952,6 @@ public class CourierDashboard extends JFrame {
         
         int row = 0;
         
-        // Summary Cards
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         JPanel summaryPanel = new JPanel(new GridLayout(2, 4, 15, 15));
         summaryPanel.setBackground(BG_LIGHT);
@@ -1682,7 +1970,6 @@ public class CourierDashboard extends JFrame {
         
         row++;
         
-        // Order Status Breakdown
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         gbc.insets = new Insets(20, 10, 10, 10);
         
@@ -1776,392 +2063,6 @@ public class CourierDashboard extends JFrame {
         return panel;
     }
     
-    // ==================== PROFILE PANEL ====================
-    
-    private JPanel createEnhancedProfilePage() {
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(BG_LIGHT);
-        mainPanel.setBorder(new EmptyBorder(25, 25, 25, 25));
-        
-        JPanel profileCard = new JPanel(new BorderLayout(20, 20));
-        profileCard.setBackground(Color.WHITE);
-        profileCard.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(1, 1, 3, 3, new Color(0, 0, 0, 20)),
-            new EmptyBorder(30, 30, 30, 30)));
-        
-        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
-        headerPanel.setBackground(Color.WHITE);
-        
-        JLabel headerLabel = new JLabel("My Profile");
-        headerLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        headerLabel.setForeground(PRIMARY_GREEN);
-        headerPanel.add(headerLabel);
-        
-        JPanel contentPanel = new JPanel(new GridBagLayout());
-        contentPanel.setBackground(Color.WHITE);
-        
-        JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.setBorder(null);
-        scrollPane.setBackground(Color.WHITE);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.getViewport().setBackground(Color.WHITE);
-        
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(8, 15, 8, 15);
-        gbc.weightx = 1.0;
-        
-        Dimension fieldSize = new Dimension(400, 35);
-        Dimension labelSize = new Dimension(120, 30);
-        
-        int row = 0;
-        
-        // ===== PHOTO SECTION =====
-        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
-        JLabel photoSectionLabel = new JLabel("PROFILE PHOTO");
-        photoSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        photoSectionLabel.setForeground(PRIMARY_GREEN);
-        contentPanel.add(photoSectionLabel, gbc);
-        
-        gbc.gridwidth = 1;
-        
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.CENTER;
-        
-        JPanel photoPanel = new JPanel();
-        photoPanel.setLayout(new BoxLayout(photoPanel, BoxLayout.Y_AXIS));
-        photoPanel.setBackground(Color.WHITE);
-        
-        profilePhotoLabel = new JLabel("", SwingConstants.CENTER);
-        profilePhotoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 80));
-        profilePhotoLabel.setPreferredSize(new Dimension(150, 150));
-        profilePhotoLabel.setMaximumSize(new Dimension(150, 150));
-        profilePhotoLabel.setBorder(BorderFactory.createLineBorder(PRIMARY_GREEN, 3));
-        
-        JButton uploadProfilePhotoBtn = new JButton("Upload Photo");
-        uploadProfilePhotoBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        uploadProfilePhotoBtn.setBackground(Color.WHITE);
-        uploadProfilePhotoBtn.setForeground(PRIMARY_GREEN);
-        uploadProfilePhotoBtn.setBorder(BorderFactory.createLineBorder(PRIMARY_GREEN));
-        uploadProfilePhotoBtn.setMaximumSize(new Dimension(120, 30));
-        uploadProfilePhotoBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        uploadProfilePhotoBtn.addActionListener(e -> uploadProfilePhoto());
-        
-        uploadProfilePhotoBtn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                uploadProfilePhotoBtn.setBackground(PRIMARY_GREEN);
-                uploadProfilePhotoBtn.setForeground(Color.WHITE);
-            }
-            
-            @Override
-            public void mouseExited(MouseEvent e) {
-                uploadProfilePhotoBtn.setBackground(Color.WHITE);
-                uploadProfilePhotoBtn.setForeground(PRIMARY_GREEN);
-            }
-        });
-        
-        photoPanel.add(profilePhotoLabel);
-        photoPanel.add(Box.createVerticalStrut(10));
-        photoPanel.add(uploadProfilePhotoBtn);
-        
-        contentPanel.add(photoPanel, gbc);
-        
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.gridwidth = 1;
-        row++;
-        
-        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
-        contentPanel.add(Box.createVerticalStrut(15), gbc);
-        gbc.gridwidth = 1;
-        
-        // ===== PERSONAL INFORMATION SECTION =====
-        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
-        JLabel personalSectionLabel = new JLabel("PERSONAL INFORMATION");
-        personalSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        personalSectionLabel.setForeground(PRIMARY_GREEN);
-        contentPanel.add(personalSectionLabel, gbc);
-        
-        gbc.gridwidth = 1;
-        
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel nameLabel = new JLabel("Full Name:");
-        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        nameLabel.setForeground(TEXT_GRAY);
-        nameLabel.setPreferredSize(labelSize);
-        nameLabel.setMinimumSize(labelSize);
-        contentPanel.add(nameLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        nameField = new JTextField(currentDriver != null ? currentDriver.name : "");
-        styleTextField(nameField, fieldSize);
-        contentPanel.add(nameField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel idLabel = new JLabel("Staff ID:");
-        idLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        idLabel.setForeground(TEXT_GRAY);
-        idLabel.setPreferredSize(labelSize);
-        idLabel.setMinimumSize(labelSize);
-        contentPanel.add(idLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        staffIdField = new JTextField(currentDriver != null ? currentDriver.id : "");
-        styleTextField(staffIdField, fieldSize);
-        staffIdField.setEditable(false);
-        staffIdField.setBackground(new Color(240, 240, 240));
-        contentPanel.add(staffIdField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel emailLabel = new JLabel("Email:");
-        emailLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        emailLabel.setForeground(TEXT_GRAY);
-        emailLabel.setPreferredSize(labelSize);
-        emailLabel.setMinimumSize(labelSize);
-        contentPanel.add(emailLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        emailField = new JTextField(currentDriver != null ? currentDriver.email : "");
-        styleTextField(emailField, fieldSize);
-        contentPanel.add(emailField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel phoneLabel = new JLabel("Phone:");
-        phoneLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        phoneLabel.setForeground(TEXT_GRAY);
-        phoneLabel.setPreferredSize(labelSize);
-        phoneLabel.setMinimumSize(labelSize);
-        contentPanel.add(phoneLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        phoneField = new JTextField(currentDriver != null ? currentDriver.phone : "");
-        styleTextField(phoneField, fieldSize);
-        contentPanel.add(phoneField, gbc);
-        
-        // License Info
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel licenseLabel = new JLabel("License:");
-        licenseLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        licenseLabel.setForeground(TEXT_GRAY);
-        licenseLabel.setPreferredSize(labelSize);
-        licenseLabel.setMinimumSize(labelSize);
-        contentPanel.add(licenseLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        JTextField licenseField = new JTextField(currentDriver != null ? 
-            currentDriver.licenseNumber + " (" + currentDriver.licenseType + ")" : "");
-        styleTextField(licenseField, fieldSize);
-        licenseField.setEditable(false);
-        licenseField.setBackground(new Color(240, 240, 240));
-        contentPanel.add(licenseField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel icLabel = new JLabel("IC Number:");
-        icLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        icLabel.setForeground(TEXT_GRAY);
-        icLabel.setPreferredSize(labelSize);
-        icLabel.setMinimumSize(labelSize);
-        contentPanel.add(icLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        JTextField icField = new JTextField(currentDriver != null ? currentDriver.icNumber : "");
-        styleTextField(icField, fieldSize);
-        icField.setEditable(false);
-        icField.setBackground(new Color(240, 240, 240));
-        contentPanel.add(icField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
-        contentPanel.add(Box.createVerticalStrut(15), gbc);
-        gbc.gridwidth = 1;
-        
-        // ===== VEHICLE INFORMATION SECTION =====
-        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
-        JLabel vehicleSectionLabel = new JLabel("VEHICLE INFORMATION");
-        vehicleSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        vehicleSectionLabel.setForeground(PRIMARY_GREEN);
-        contentPanel.add(vehicleSectionLabel, gbc);
-        
-        gbc.gridwidth = 1;
-        
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel vehicleTypeLabel = new JLabel("Vehicle:");
-        vehicleTypeLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        vehicleTypeLabel.setForeground(TEXT_GRAY);
-        vehicleTypeLabel.setPreferredSize(labelSize);
-        vehicleTypeLabel.setMinimumSize(labelSize);
-        contentPanel.add(vehicleTypeLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        vehicleModelField = new JTextField(currentDriver != null && currentDriver.vehicleId != null ? 
-            currentDriver.vehicleId : "Not Assigned");
-        styleTextField(vehicleModelField, fieldSize);
-        vehicleModelField.setEditable(false);
-        vehicleModelField.setBackground(new Color(240, 240, 240));
-        contentPanel.add(vehicleModelField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel plateLabel = new JLabel("Plate No:");
-        plateLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        plateLabel.setForeground(TEXT_GRAY);
-        plateLabel.setPreferredSize(labelSize);
-        plateLabel.setMinimumSize(labelSize);
-        contentPanel.add(plateLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        plateNoField = new JTextField("VAF 1234");
-        styleTextField(plateNoField, fieldSize);
-        plateNoField.setEditable(false);
-        plateNoField.setBackground(new Color(240, 240, 240));
-        contentPanel.add(plateNoField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel mileageLabel = new JLabel("Current Mileage:");
-        mileageLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        mileageLabel.setForeground(TEXT_GRAY);
-        mileageLabel.setPreferredSize(labelSize);
-        mileageLabel.setMinimumSize(labelSize);
-        contentPanel.add(mileageLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        JPanel mileagePanel = new JPanel(new BorderLayout());
-        mileagePanel.setBackground(Color.WHITE);
-        mileagePanel.setPreferredSize(fieldSize);
-        
-        mileageField = new JTextField(String.format("%,.0f km", currentDriver.totalDistance));
-        mileageField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        mileageField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            new EmptyBorder(8, 10, 8, 10)));
-        mileageField.setBackground(new Color(240, 240, 240));
-        mileageField.setEditable(false);
-        mileageField.setHorizontalAlignment(JTextField.RIGHT);
-        
-        mileagePanel.add(mileageField, BorderLayout.CENTER);
-        
-        contentPanel.add(mileagePanel, gbc);
-        
-        if (currentDriver != null && currentDriver.photoPath != null && !currentDriver.photoPath.isEmpty()) {
-            loadDriverPhoto(currentDriver.photoPath);
-        }
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setBackground(Color.WHITE);
-        
-        JButton saveBtn = new JButton("Save Changes");
-        saveBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        saveBtn.setForeground(Color.WHITE);
-        saveBtn.setBackground(PRIMARY_GREEN);
-        saveBtn.setBorder(BorderFactory.createEmptyBorder(10, 25, 10, 25));
-        saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        saveBtn.setFocusPainted(false);
-        saveBtn.setContentAreaFilled(true);
-        saveBtn.setOpaque(true);
-        saveBtn.setBorderPainted(false);
-        saveBtn.setPreferredSize(new Dimension(150, 40));
-        
-        saveBtn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                saveBtn.setBackground(GREEN_DARK);
-            }
-            
-            @Override
-            public void mouseExited(MouseEvent e) {
-                saveBtn.setBackground(PRIMARY_GREEN);
-            }
-        });
-        
-        saveBtn.addActionListener(e -> saveProfileChanges());
-        
-        buttonPanel.add(saveBtn);
-        
-        profileCard.add(headerPanel, BorderLayout.NORTH);
-        profileCard.add(scrollPane, BorderLayout.CENTER);
-        profileCard.add(buttonPanel, BorderLayout.SOUTH);
-        
-        mainPanel.add(profileCard, BorderLayout.CENTER);
-        
-        return mainPanel;
-    }
-    
-    private void styleTextField(JTextField field, Dimension size) {
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        field.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            new EmptyBorder(8, 10, 8, 10)));
-        field.setBackground(new Color(250, 250, 250));
-        field.setPreferredSize(size);
-        field.setMinimumSize(size);
-        field.setMaximumSize(size);
-    }
-    
-    private void uploadProfilePhoto() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Select Profile Photo");
-        FileNameExtensionFilter filter = new FileNameExtensionFilter(
-            "Image Files (JPG, PNG, GIF)", "jpg", "jpeg", "png", "gif");
-        fileChooser.setFileFilter(filter);
-        
-        int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            profilePhotoFile = fileChooser.getSelectedFile();
-            
-            ImageIcon icon = new ImageIcon(profilePhotoFile.getPath());
-            Image image = icon.getImage().getScaledInstance(140, 140, Image.SCALE_SMOOTH);
-            profilePhotoLabel.setIcon(new ImageIcon(image));
-            profilePhotoLabel.setText("");
-        }
-    }
-
-    private void saveProfileChanges() {
-        // Update current driver object
-        currentDriver.name = nameField.getText().trim();
-        currentDriver.email = emailField.getText().trim();
-        currentDriver.phone = phoneField.getText().trim();
-        
-        // If new photo
-        if (profilePhotoFile != null) {
-            // Save photo to driver photos directory
-            String photoDir = "driver_photos/";
-            File dir = new File(photoDir);
-            if (!dir.exists()) dir.mkdirs();
-            
-            String extension = profilePhotoFile.getName().substring(profilePhotoFile.getName().lastIndexOf('.'));
-            String newPhotoPath = photoDir + currentDriver.id + extension;
-            
-            try {
-                java.nio.file.Files.copy(profilePhotoFile.toPath(), 
-                    new File(newPhotoPath).toPath(), 
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                currentDriver.photoPath = newPhotoPath;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        
-        // Save to file
-        driverStorage.updateDriver(currentDriver);
-        
-        String message = "Profile updated successfully!\n\n" +
-            "Name: " + currentDriver.name + "\n" +
-            "Staff ID: " + currentDriver.id + "\n" +
-            "Email: " + currentDriver.email + "\n" +
-            "Phone: " + currentDriver.phone;
-        
-        JOptionPane.showMessageDialog(this,
-            message,
-            "Profile Saved",
-            JOptionPane.INFORMATION_MESSAGE);
-        
-        // Update sidebar username
-        updateUserProfile();
-        
-        // Clear photo file reference
-        profilePhotoFile = null;
-    }
-
     private JPanel createStatusBar() {
         JPanel bar = new JPanel(new BorderLayout());
         bar.setBackground(Color.WHITE);
@@ -2189,7 +2090,6 @@ public class CourierDashboard extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            // For testing - create a sample driver
             logistics.driver.DriverStorage storage = new logistics.driver.DriverStorage();
             Driver testDriver = storage.findDriver("DRV001");
             if (testDriver != null) {
