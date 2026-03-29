@@ -1,0 +1,13 @@
+VEHICLE_ID|VEHICLE_TYPE|LICENSE_PLATE|VEHICLE_MODEL|ROAD_TAX_EXPIRY|STATUS|ASSIGNED_TO|FUEL_TYPE
+TRK001|Truck|WAB1234|Freightliner Cascadia 125|1746057600000|Active|Ahmad Bin Abdullah|Diesel
+TRK002|Truck|BBC5678|Peterbilt 579 EPIQ|1743465600000|Maintenance|Tan Siew Ming|Diesel
+TRK003|Truck|AJM9876|Kenworth T680|1754006400000|Active|Unassigned|Diesel
+TRK004|Truck|PDA3456|Volvo VNL 860|1733011200000|Inactive|Unassigned|Diesel
+VAN001|Van|NGA7890|Ford Transit 350 HD|1756684800000|Active|Unassigned|Diesel
+VAN002|Van|MCCC7345|RAM ProMaster 3500|1740873600000|Maintenance|Unassigned|Diesel
+VAN003|Van|CJ6789|Mercedes-Benz Sprinter 2500|1759276800000|Active|Chong Wei Ming|Diesel
+CAR001|Car|WAB8901|Volkswagen Jetta TDI|1738281600000|Active|Unassigned|Diesel
+CAR002|Car|BBG3456|BMW 328d|1743465600000|Maintenance|Unassigned|Diesel
+CAR003|Car|ASB5678|Chevrolet Cruze Diesel|1756684800000|Active|Unassigned|Diesel
+MTC001|Motorcycle|WAL1234|Royal Enfield Taurus|1735689600000|Inactive|Unassigned|Diesel
+MTC002|Motorcycle|WAM5678|Moto Guzzi V7 Diesel|1761955200000|Active|Unassigned|Diesel

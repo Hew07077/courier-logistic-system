@@ -1,0 +1,4 @@
+Van=3
+Motorcycle=2
+Car=3
+Truck=4
