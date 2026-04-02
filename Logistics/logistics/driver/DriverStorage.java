@@ -118,7 +118,7 @@ public class DriverStorage {
         
         try {
             // Driver 1 - Approved, On Delivery with orders
-            Driver d1 = new Driver("DRV001", "Ahmad Bin Abdullah", "012-3456789", 
+            Driver d1 = new Driver("DRV001", "Ahmad Bin Abdullah", "0123456789", 
                 "ahmad.abdullah@logixpress.com", "L12345678", "2025-12-31");
             d1.workStatus = "On Delivery";
             d1.approvalStatus = "APPROVED";
@@ -127,11 +127,11 @@ public class DriverStorage {
             d1.totalDeliveries = 1245;
             d1.rating = 4.9;
             d1.emergencyContact = "Siti Aminah";
-            d1.emergencyPhone = "012-9876543";
+            d1.emergencyPhone = "0129876543";
             d1.address = "No 15, Jalan SS2/72, 47300 Petaling Jaya, Selangor";
             d1.notes = "Experienced in long-haul deliveries";
             d1.passwordHash = hashPassword("ahmad123");
-            d1.icNumber = "850101-01-1234";
+            d1.icNumber = "850101011234";
             d1.licenseType = "D";
             d1.currentOrderIds = Arrays.asList("ORD20240301001", "ORD20240301002");
             d1.completedOrderIds = Arrays.asList("ORD20240228004", "ORD20240228005", "ORD20240228006");
@@ -142,7 +142,7 @@ public class DriverStorage {
             drivers.add(d1);
             
             // Driver 2 - Approved, Available
-            Driver d2 = new Driver("DRV002", "Tan Siew Ming", "013-4567890", 
+            Driver d2 = new Driver("DRV002", "Tan Siew Ming", "0134567890", 
                 "siewming.tan@logixpress.com", "L87654321", "2025-10-15");
             d2.workStatus = "Available";
             d2.approvalStatus = "APPROVED";
@@ -151,10 +151,10 @@ public class DriverStorage {
             d2.totalDeliveries = 892;
             d2.rating = 4.7;
             d2.emergencyContact = "Tan Siew Hong";
-            d2.emergencyPhone = "013-4561237";
+            d2.emergencyPhone = "0134561237";
             d2.address = "No 8, Jalan SS15/4, 47500 Subang Jaya, Selangor";
             d2.passwordHash = hashPassword("tan123");
-            d2.icNumber = "870202-02-5678";
+            d2.icNumber = "870202025678";
             d2.licenseType = "D";
             d2.completedOrderIds = Arrays.asList("ORD20240301003", "ORD20240228001");
             d2.totalDistance = 32450.2;
@@ -164,7 +164,7 @@ public class DriverStorage {
             drivers.add(d2);
             
             // Driver 3 - Pending Approval
-            Driver d3 = new Driver("DRV003", "Rajesh Kumar", "014-5678901", 
+            Driver d3 = new Driver("DRV003", "Rajesh Kumar", "0145678901", 
                 "rajesh.kumar@logixpress.com", "L34567890", "2024-08-20");
             d3.workStatus = "Off Duty";
             d3.approvalStatus = "PENDING";
@@ -172,16 +172,16 @@ public class DriverStorage {
             d3.totalDeliveries = 0;
             d3.rating = 5.0;
             d3.emergencyContact = "Lakshmi Kumar";
-            d3.emergencyPhone = "014-5671234";
+            d3.emergencyPhone = "0145671234";
             d3.address = "No 23, Jalan Ipoh, 51200 Kuala Lumpur";
             d3.passwordHash = hashPassword("rajesh123");
-            d3.icNumber = "900303-03-9101";
+            d3.icNumber = "900303039101";
             d3.licenseType = "B2";
             d3.photoPath = "pending_photo.jpg";
             drivers.add(d3);
             
             // Driver 4 - Rejected
-            Driver d4 = new Driver("DRV004", "Nurul Huda", "015-6789012", 
+            Driver d4 = new Driver("DRV004", "Nurul Huda", "0156789012", 
                 "nurul.huda@logixpress.com", "L45678901", "2026-02-28");
             d4.workStatus = "Off Duty";
             d4.approvalStatus = "REJECTED";
@@ -189,16 +189,16 @@ public class DriverStorage {
             d4.totalDeliveries = 0;
             d4.rating = 0;
             d4.emergencyContact = "Ahmad Faiz";
-            d4.emergencyPhone = "015-6785432";
+            d4.emergencyPhone = "0156785432";
             d4.address = "No 45, Jalan Gasing, 46000 Petaling Jaya, Selangor";
             d4.passwordHash = hashPassword("nurul123");
-            d4.icNumber = "910404-04-1213";
+            d4.icNumber = "910404041213";
             d4.licenseType = "D";
             d4.remarks = "Invalid license document - expired";
             drivers.add(d4);
             
             // Driver 5 - Approved, Available
-            Driver d5 = new Driver("DRV005", "Chong Wei Ming", "016-7890123", 
+            Driver d5 = new Driver("DRV005", "Chong Wei Ming", "0167890123", 
                 "weiming.chong@logixpress.com", "L56789012", "2025-05-30");
             d5.workStatus = "Available";
             d5.approvalStatus = "APPROVED";
@@ -207,10 +207,10 @@ public class DriverStorage {
             d5.totalDeliveries = 78;
             d5.rating = 5.0;
             d5.emergencyContact = "Chong Wei Ling";
-            d5.emergencyPhone = "016-7894321";
+            d5.emergencyPhone = "0167894321";
             d5.address = "No 67, Jalan SS21/56, 47400 Petaling Jaya, Selangor";
             d5.passwordHash = hashPassword("chong123");
-            d5.icNumber = "880505-05-1415";
+            d5.icNumber = "880505051415";
             d5.licenseType = "D";
             d5.completedOrderIds = Arrays.asList("ORD20240301004", "ORD20240301005");
             d5.totalDistance = 2450.8;
@@ -246,7 +246,57 @@ public class DriverStorage {
         }
     }
     
-    // CRUD Operations
+    // ========== VALIDATION METHODS (NEW) ==========
+    
+    /**
+     * Check if an IC number is already registered
+     * @param icNumber IC number to check (12 digits)
+     * @return true if IC number exists, false otherwise
+     */
+    public boolean isIcNumberExists(String icNumber) {
+        if (icNumber == null || icNumber.trim().isEmpty()) return false;
+        loadDrivers(); // Ensure latest data
+        for (Driver driver : drivers) {
+            if (icNumber.equals(driver.icNumber)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Check if an email is already registered
+     * @param email Email to check
+     * @return true if email exists, false otherwise
+     */
+    public boolean isEmailExists(String email) {
+        if (email == null || email.trim().isEmpty()) return false;
+        loadDrivers(); // Ensure latest data
+        for (Driver driver : drivers) {
+            if (email.equalsIgnoreCase(driver.email)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Check if a phone number is already registered
+     * @param phone Phone number to check
+     * @return true if phone number exists, false otherwise
+     */
+    public boolean isPhoneExists(String phone) {
+        if (phone == null || phone.trim().isEmpty()) return false;
+        loadDrivers(); // Ensure latest data
+        for (Driver driver : drivers) {
+            if (phone.equals(driver.phone)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // ========== CRUD Operations ==========
     public List<Driver> getAllDrivers() {
         drivers.sort((a, b) -> a.id.compareTo(b.id));
         return drivers;
@@ -466,7 +516,6 @@ public class DriverStorage {
     }
     
     public List<Driver> getDriversWithExpiringLicense(int months) {
-        Date today = new Date();
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.MONTH, months);
         Date expiryThreshold = cal.getTime();
