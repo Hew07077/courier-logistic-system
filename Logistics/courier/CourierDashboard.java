@@ -152,7 +152,7 @@ public class CourierDashboard extends JFrame {
                 if (statusCombo != null) statusCombo.setEnabled(false);
             } else {
                 for (Order o : activeOrders) {
-                    orderSelectCombo.addItem(o.id + " - " + o.recipientName + " (" + o.status + ")");
+                    orderSelectCombo.addItem(o.id + " - " + o.recipientName + " (" + o.getCourierStatus() + ")");
                 }
                 if (statusCombo != null) {
                     statusCombo.setEnabled(true);
@@ -611,7 +611,7 @@ public class CourierDashboard extends JFrame {
         formPanel.add(Box.createVerticalStrut(10), gbc);
         row++;
         
-        // Order Details Display - This will be in the middle
+        // Order Details Display
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
         gbc.insets = new Insets(10, 15, 10, 15);
         gbc.weighty = 0.5;
@@ -776,7 +776,7 @@ public class CourierDashboard extends JFrame {
                 "<b>Current Status:</b> <span style='color: %s;'>%s</span></html>",
                 order.id, order.recipientName, order.recipientPhone,
                 order.recipientAddress.length() > 50 ? order.recipientAddress.substring(0, 47) + "..." : order.recipientAddress,
-                getStatusHexColor(order.status), order.status);
+                getStatusHexColor(order.getCourierStatus()), order.getCourierStatus());
             orderDetailsLabel.setText(details);
             updateStatusOptions(order.status);
         }
@@ -1406,46 +1406,46 @@ public class CourierDashboard extends JFrame {
                 label.setOpaque(true);
                 
                 switch (status) {
-                    case "In Transit":
-                        label.setForeground(new Color(13, 110, 130));
-                        label.setBackground(new Color(227, 242, 253));
-                        label.setBorder(BorderFactory.createCompoundBorder(
-                            new LineBorder(INFO, 1, true),
-                            BorderFactory.createEmptyBorder(4, 12, 4, 12)));
-                        break;
                     case "Pending":
                         label.setForeground(new Color(150, 100, 0));
                         label.setBackground(new Color(255, 243, 224));
                         label.setBorder(BorderFactory.createCompoundBorder(
-                            new LineBorder(WARNING, 1, true),
+                            new LineBorder(new Color(225, 173, 1), 1, true),
+                            BorderFactory.createEmptyBorder(4, 12, 4, 12)));
+                        break;
+                    case "In Transit":
+                        label.setForeground(new Color(13, 110, 130));
+                        label.setBackground(new Color(227, 242, 253));
+                        label.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(new Color(23, 162, 184), 1, true),
                             BorderFactory.createEmptyBorder(4, 12, 4, 12)));
                         break;
                     case "Delivered":
                         label.setForeground(new Color(0, 100, 0));
                         label.setBackground(new Color(232, 245, 233));
                         label.setBorder(BorderFactory.createCompoundBorder(
-                            new LineBorder(SUCCESS, 1, true),
+                            new LineBorder(new Color(40, 167, 69), 1, true),
                             BorderFactory.createEmptyBorder(4, 12, 4, 12)));
                         break;
                     case "Delayed":
                         label.setForeground(new Color(150, 20, 30));
                         label.setBackground(new Color(255, 235, 238));
                         label.setBorder(BorderFactory.createCompoundBorder(
-                            new LineBorder(DANGER, 1, true),
+                            new LineBorder(new Color(220, 53, 69), 1, true),
                             BorderFactory.createEmptyBorder(4, 12, 4, 12)));
                         break;
                     case "Picked Up":
                         label.setForeground(new Color(70, 40, 120));
                         label.setBackground(new Color(240, 235, 255));
                         label.setBorder(BorderFactory.createCompoundBorder(
-                            new LineBorder(PURPLE, 1, true),
+                            new LineBorder(new Color(111, 66, 193), 1, true),
                             BorderFactory.createEmptyBorder(4, 12, 4, 12)));
                         break;
                     case "Failed":
                         label.setForeground(new Color(150, 0, 0));
                         label.setBackground(new Color(255, 220, 220));
                         label.setBorder(BorderFactory.createCompoundBorder(
-                            new LineBorder(DANGER, 1, true),
+                            new LineBorder(new Color(220, 53, 69), 1, true),
                             BorderFactory.createEmptyBorder(4, 12, 4, 12)));
                         break;
                     default:
@@ -1496,11 +1496,12 @@ public class CourierDashboard extends JFrame {
                 address = "-";
             }
             
+            // Use courier-specific status
             deliveriesTableModel.addRow(new Object[]{
                 o.id, 
                 o.recipientName != null ? o.recipientName : "-",
                 o.recipientPhone != null ? o.recipientPhone : "-",
-                o.status != null ? o.status : "-", 
+                o.getCourierStatus(),
                 pickupTime, 
                 estDelivery, 
                 address,
@@ -1753,7 +1754,7 @@ public class CourierDashboard extends JFrame {
         detailsPanel.setOpaque(false);
         
         detailsPanel.add(createSummaryDetail("Recipient:", order.recipientName != null ? order.recipientName : "-"));
-        detailsPanel.add(createSummaryDetail("Status:", order.status != null ? order.status : "-"));
+        detailsPanel.add(createSummaryDetail("Status:", order.getCourierStatus()));
         detailsPanel.add(createSummaryDetail("Weight:", String.format("%.1f kg", order.weight)));
         detailsPanel.add(createSummaryDetail("Est. Cost:", extractCost(order.notes)));
         
@@ -1870,7 +1871,20 @@ public class CourierDashboard extends JFrame {
         JLabel lbl = new JLabel(label + " " + value);
         lbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         if (label.contains("Status:")) {
-            lbl.setForeground(getStatusColorForBadge(value));
+            String status = value;
+            if ("Pending".equals(status)) {
+                lbl.setForeground(WARNING);
+            } else if ("Delivered".equals(status)) {
+                lbl.setForeground(SUCCESS);
+            } else if ("Delayed".equals(status) || "Failed".equals(status)) {
+                lbl.setForeground(DANGER);
+            } else if ("In Transit".equals(status)) {
+                lbl.setForeground(INFO);
+            } else if ("Picked Up".equals(status)) {
+                lbl.setForeground(PURPLE);
+            } else {
+                lbl.setForeground(PRIMARY_GREEN);
+            }
             lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
         } else {
             lbl.setForeground(TEXT_GRAY);
@@ -1878,9 +1892,7 @@ public class CourierDashboard extends JFrame {
         return lbl;
     }
     
-    // UPDATED: Changed from bottom-right to CENTER of screen using JOptionPane
     private void showNotification(String message, Color color) {
-        // Use JOptionPane for centered dialog
         String title = "Notification";
         if (color == SUCCESS) {
             title = "Success";
@@ -1891,7 +1903,6 @@ public class CourierDashboard extends JFrame {
         } else if (color == INFO) {
             title = "Information";
         }
-        
         JOptionPane.showMessageDialog(this, message, title, JOptionPane.INFORMATION_MESSAGE);
     }
     
@@ -1918,11 +1929,11 @@ public class CourierDashboard extends JFrame {
         JPanel statusBadgePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         statusBadgePanel.setBackground(Color.WHITE);
         
-        JLabel statusBadge = new JLabel("  " + order.status + "  ");
+        JLabel statusBadge = new JLabel("  " + order.getCourierStatus() + "  ");
         statusBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
         statusBadge.setOpaque(true);
         statusBadge.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        statusBadge.setBackground(getStatusColorForBadge(order.status));
+        statusBadge.setBackground(getStatusColorForBadge(order.getCourierStatus()));
         statusBadge.setForeground(Color.WHITE);
         statusBadgePanel.add(statusBadge);
         
@@ -1996,7 +2007,7 @@ public class CourierDashboard extends JFrame {
         
         gbc.gridwidth = 1;
         addDetailRow(panel, "Order ID:", order.id, gbc, row++);
-        addDetailRow(panel, "Status:", order.status, gbc, row++);
+        addDetailRow(panel, "Status:", order.getCourierStatus(), gbc, row++);
         addDetailRow(panel, "Order Date:", order.orderDate, gbc, row++);
         addDetailRow(panel, "Estimated Delivery:", order.estimatedDelivery != null ? order.estimatedDelivery : "-", gbc, row++);
         
