@@ -247,14 +247,81 @@ public class Order {
         }
     }
     
+    // ========== STATUS METHODS FOR DIFFERENT VIEWS ==========
+    
+    /**
+     * Get status for Admin view - Admin sees actual system status
+     */
+    public String getAdminStatus() {
+        return this.status;
+    }
+    
+    /**
+     * Get status for Courier view
+     * When status is "In Transit", courier sees "Pending" (waiting for pickup)
+     */
+    public String getCourierStatus() {
+        if ("In Transit".equals(this.status)) {
+            return "Pending";
+        }
+        if ("Failed".equals(this.status)) {
+            return "Failed";
+        }
+        return this.status;
+    }
+    
+    /**
+     * Get status for Sender/Customer view (same as Courier view)
+     */
+    public String getCustomerStatus() {
+        return getCourierStatus();
+    }
+    
+    /**
+     * Get status description for Customer view
+     */
+    public String getCustomerStatusDescription() {
+        String status = getCustomerStatus();
+        switch(status) {
+            case "Pending":
+                return "Your order is pending pickup by courier";
+            case "Picked Up":
+                return "Your package has been picked up and is with the courier";
+            case "In Transit":
+                return "Your package is on the way to the recipient";
+            case "Delayed":
+                return "Your delivery has been delayed";
+            case "Delivered":
+                return "Your package has been delivered successfully";
+            case "Failed":
+                return "Delivery was unsuccessful. Please contact support.";
+            default:
+                return "";
+        }
+    }
+    
+    /**
+     * Get formatted status for display (with icon)
+     */
+    public String getFormattedCustomerStatus() {
+        String icon;
+        switch(getCustomerStatus()) {
+            case "Pending": icon = "⏳"; break;
+            case "Picked Up": icon = "📦"; break;
+            case "In Transit": icon = "🚚"; break;
+            case "Delayed": icon = "⚠️"; break;
+            case "Delivered": icon = "✅"; break;
+            case "Failed": icon = "❌"; break;
+            default: icon = "📋";
+        }
+        return icon + " " + getCustomerStatus();
+    }
+    
     /**
      * Get the status that should be displayed to drivers
      */
     public String getDriverDisplayStatus() {
-        if ("Failed".equals(this.status)) {
-            return "Failed - Contact Admin";
-        }
-        return this.status;
+        return getCourierStatus();
     }
     
     /**
