@@ -1,4 +1,3 @@
-// TrackOrderPanel.java
 package sender;
 
 import javax.swing.*;
@@ -308,10 +307,11 @@ public class TrackOrderPanel extends JPanel {
         JPanel rightPanel = new JPanel(new GridLayout(3, 1, 2, 2));
         rightPanel.setOpaque(false);
         
-        JLabel statusLabel = new JLabel(order.getStatus());
+        // Use customer status (same as courier - "Pending" instead of "In Transit")
+        JLabel statusLabel = new JLabel(getCustomerStatus(order.getStatus()));
         statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         statusLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        statusLabel.setForeground(getStatusColor(order.getStatus()));
+        statusLabel.setForeground(getCustomerStatusColor(order.getStatus()));
         rightPanel.add(statusLabel);
         
         JLabel costLabel = new JLabel(order.getFormattedEstimatedCost());
@@ -540,6 +540,37 @@ public class TrackOrderPanel extends JPanel {
         addBackButton();
     }
 
+    // ========== CUSTOMER STATUS METHODS ==========
+    
+    /**
+     * Get customer-friendly status (same as courier view)
+     * "In Transit" from system shows as "Pending" to customer
+     */
+    private String getCustomerStatus(String systemStatus) {
+        if ("In Transit".equals(systemStatus)) {
+            return "Pending";
+        }
+        if ("Failed".equals(systemStatus)) {
+            return "Failed";
+        }
+        return systemStatus;
+    }
+    
+    /**
+     * Get customer-friendly status color
+     */
+    private Color getCustomerStatusColor(String systemStatus) {
+        String customerStatus = getCustomerStatus(systemStatus);
+        switch(customerStatus) {
+            case "Delivered": return SUCCESS_GREEN;
+            case "Pending": return WARNING_YELLOW;
+            case "Cancelled": return DANGER_RED;
+            case "Delayed": return new Color(255, 87, 34);
+            case "Failed": return DANGER_RED;
+            default: return TEXT_GRAY;
+        }
+    }
+    
     private void displayOrderTrackingDetails(SenderOrder order) {
         JPanel statusHeader = createStatusHeader(order);
         trackingResultPanel.add(statusHeader);
@@ -631,9 +662,11 @@ public class TrackOrderPanel extends JPanel {
         orderIdLabel.setForeground(TEXT_DARK);
         infoPanel.add(orderIdLabel);
         
-        JLabel statusLabel = new JLabel(order.getStatus());
+        // Use customer status
+        String customerStatus = getCustomerStatus(order.getStatus());
+        JLabel statusLabel = new JLabel(customerStatus);
         statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        statusLabel.setForeground(getStatusColor(order.getStatus()));
+        statusLabel.setForeground(getCustomerStatusColor(order.getStatus()));
         infoPanel.add(statusLabel);
         
         leftPanel.add(infoPanel);
@@ -680,21 +713,23 @@ public class TrackOrderPanel extends JPanel {
             getProcessingTime(order.getOrderDate()), 
             !"Pending".equals(order.getStatus())));
         
-        if ("In Transit".equals(order.getStatus())) {
-            timelinePanel.add(createTimelineEvent("In Transit", 
-                "Your package is on its way to the destination", 
-                order.getEstimatedDelivery() != null ? "Est: " + order.getEstimatedDelivery() : "In progress", 
+        String customerStatus = getCustomerStatus(order.getStatus());
+        
+        if ("Pending".equals(customerStatus) && !"Delivered".equals(order.getStatus()) && !"Failed".equals(order.getStatus())) {
+            timelinePanel.add(createTimelineEvent("Awaiting Pickup", 
+                "Your order is waiting for courier pickup", 
+                "Pending", 
+                false));
+        } else if ("Picked Up".equals(order.getStatus())) {
+            timelinePanel.add(createTimelineEvent("Picked Up", 
+                "Your package has been picked up by the courier", 
+                "Picked up", 
                 true));
         } else if ("Delayed".equals(order.getStatus())) {
             String reason = extractReason(order.getNotes());
             timelinePanel.add(createTimelineEvent("Delayed", 
                 "Your shipment is experiencing a delay - " + (reason != null ? reason : "Please check back for updates"), 
                 order.getEstimatedDelivery() != null ? "Est: " + order.getEstimatedDelivery() : "Check back later", 
-                false));
-        } else if ("Pending".equals(order.getStatus())) {
-            timelinePanel.add(createTimelineEvent("Awaiting Processing", 
-                "Your order is in queue and will be processed soon", 
-                "Pending confirmation", 
                 false));
         }
         
@@ -703,6 +738,13 @@ public class TrackOrderPanel extends JPanel {
                 "Your package has been successfully delivered", 
                 order.getEstimatedDelivery() != null ? order.getEstimatedDelivery() : "Completed", 
                 true));
+        }
+        
+        if ("Failed".equals(order.getStatus())) {
+            timelinePanel.add(createTimelineEvent("Failed", 
+                "Delivery was unsuccessful. Please contact support.", 
+                order.getEstimatedDelivery() != null ? order.getEstimatedDelivery() : "Failed", 
+                false));
         }
         
         if ("Cancelled".equals(order.getStatus())) {
@@ -999,9 +1041,10 @@ public class TrackOrderPanel extends JPanel {
         JPanel statusHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         statusHeader.setBackground(CARD_BG);
         
-        JLabel statusLabel = new JLabel(order.getStatus());
+        String customerStatus = getCustomerStatus(order.getStatus());
+        JLabel statusLabel = new JLabel(customerStatus);
         statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        statusLabel.setForeground(getStatusColor(order.getStatus()));
+        statusLabel.setForeground(getCustomerStatusColor(order.getStatus()));
         statusHeader.add(statusLabel);
         
         gbc.gridy = y++;
@@ -1012,7 +1055,7 @@ public class TrackOrderPanel extends JPanel {
         
         addDetailRow(panel, "Order ID:", order.getId(), gbc, y++);
         addDetailRow(panel, "Order Date:", order.getOrderDate(), gbc, y++);
-        addDetailRow(panel, "Status:", order.getStatus(), gbc, y++);
+        addDetailRow(panel, "Status:", customerStatus, gbc, y++);
         
         // Payment section header
         gbc.gridy = y++;
@@ -1154,17 +1197,6 @@ public class TrackOrderPanel extends JPanel {
             return date.substring(0, 10);
         }
         return date;
-    }
-
-    private Color getStatusColor(String status) {
-        switch(status) {
-            case "Delivered": return SUCCESS_GREEN;
-            case "In Transit": return INFO_BLUE;
-            case "Pending": return WARNING_YELLOW;
-            case "Cancelled": return DANGER_RED;
-            case "Delayed": return new Color(255, 87, 34);
-            default: return TEXT_GRAY;
-        }
     }
 
     private String extractReason(String notes) {
