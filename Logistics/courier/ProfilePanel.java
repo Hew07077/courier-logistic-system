@@ -1,3 +1,4 @@
+// ProfilePanel.java
 package courier;
 
 import logistics.driver.Driver;
@@ -25,11 +26,9 @@ public class ProfilePanel extends JPanel {
     private JTextField phoneField;
     private JTextField vehicleModelField;
     private JTextField plateNoField;
-    private JTextField mileageField;
     private JTextField vehicleStatusField;
     private JTextField vehicleTypeField;
     private JTextField roadTaxExpiryField;
-    private JTextField vinField;
     private JTextField fuelTypeField;
     private JTextField vehicleIdField;
     
@@ -41,7 +40,7 @@ public class ProfilePanel extends JPanel {
     private final Color TEXT_GRAY = new Color(108, 117, 125);
     private final Color WARNING_ORANGE = new Color(255, 152, 0);
     
-    // Vehicle Data Class matching your file format
+    // Vehicle Data Class
     private static class VehicleData {
         String vehicleId;
         String vehicleType;
@@ -83,12 +82,6 @@ public class ProfilePanel extends JPanel {
         this.driverStorage = new DriverStorage();
         this.vehicleDataMap = new HashMap<>();
         
-        // Debug: Print driver information
-        System.out.println("=== ProfilePanel Initialized ===");
-        System.out.println("Driver ID: " + (driver != null ? driver.id : "null"));
-        System.out.println("Driver Name: " + (driver != null ? driver.name : "null"));
-        System.out.println("Driver Vehicle ID: " + (driver != null ? driver.vehicleId : "null"));
-        
         loadVehicleData();
         initUI();
     }
@@ -97,108 +90,64 @@ public class ProfilePanel extends JPanel {
         vehicleDataMap.clear();
         File vehicleFile = new File("vehicles.txt");
         
-        if (!vehicleFile.exists()) {
-            System.err.println("vehicles.txt not found!");
-            System.err.println("Current working directory: " + System.getProperty("user.dir"));
-            JOptionPane.showMessageDialog(this,
-                "Vehicle data file not found: vehicles.txt\n" +
-                "Please ensure the file exists in: " + System.getProperty("user.dir"),
-                "File Not Found",
-                JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        System.out.println("\n=== Loading Vehicle Data from vehicles.txt ===");
-        System.out.println("File path: " + vehicleFile.getAbsolutePath());
+        if (!vehicleFile.exists()) return;
         
         try (BufferedReader reader = new BufferedReader(new FileReader(vehicleFile))) {
             String line;
             boolean isFirstLine = true;
-            int lineNumber = 0;
             
             while ((line = reader.readLine()) != null) {
-                lineNumber++;
                 if (line.trim().isEmpty()) continue;
                 
-                // Skip header line
-                if (isFirstLine && line.contains("VEHICLE_ID") && line.contains("VEHICLE_TYPE")) {
-                    System.out.println("Line " + lineNumber + " - Skipping header: " + line);
+                if (isFirstLine && line.contains("VEHICLE_ID")) {
                     isFirstLine = false;
                     continue;
                 }
                 isFirstLine = false;
                 
                 String[] parts = line.split("\\|");
-                System.out.println("Line " + lineNumber + " - Found " + parts.length + " fields: " + line);
                 
-                // Your format: VEHICLE_ID|VEHICLE_TYPE|LICENSE_PLATE|VEHICLE_MODEL|ROAD_TAX_EXPIRY|STATUS|ASSIGNED_TO|FUEL_TYPE
                 if (parts.length >= 8) {
                     long roadTaxExpiry = 0;
                     try {
                         roadTaxExpiry = Long.parseLong(parts[4].trim());
                     } catch (NumberFormatException e) {
-                        System.err.println("Invalid road tax expiry date for line " + lineNumber + ": " + parts[4]);
+                        // Ignore
                     }
                     
                     VehicleData vehicle = new VehicleData(
-                        parts[0].trim(),           // VEHICLE_ID
-                        parts[1].trim(),           // VEHICLE_TYPE
-                        parts[2].trim(),           // LICENSE_PLATE
-                        parts[3].trim(),           // VEHICLE_MODEL
-                        roadTaxExpiry,             // ROAD_TAX_EXPIRY (timestamp)
-                        parts[5].trim(),           // STATUS
-                        parts[6].trim(),           // ASSIGNED_TO (driver name or "Unassigned")
-                        parts[7].trim()            // FUEL_TYPE
+                        parts[0].trim(),
+                        parts[1].trim(),
+                        parts[2].trim(),
+                        parts[3].trim(),
+                        roadTaxExpiry,
+                        parts[5].trim(),
+                        parts[6].trim(),
+                        parts[7].trim()
                     );
                     vehicleDataMap.put(vehicle.vehicleId, vehicle);
-                    System.out.println("  -> Added vehicle: " + vehicle.vehicleId + " | Model: " + vehicle.vehicleModel + " | Assigned to: " + vehicle.assignedTo);
-                } else {
-                    System.out.println("  -> WARNING: Line " + lineNumber + " has " + parts.length + " fields, expected 8");
                 }
             }
-            System.out.println("\nTotal vehicles loaded: " + vehicleDataMap.size());
-            System.out.println("Vehicle IDs in map: " + vehicleDataMap.keySet());
-            
         } catch (Exception e) {
-            System.err.println("Error loading vehicle data: " + e.getMessage());
-            e.printStackTrace();
+            // Silent fail
         }
     }
     
     private VehicleData getAssignedVehicle() {
-        System.out.println("\n=== Getting Assigned Vehicle ===");
-        System.out.println("Current driver: " + (currentDriver != null ? currentDriver.id : "null"));
-        System.out.println("Current driver name: " + (currentDriver != null ? currentDriver.name : "null"));
-        
-        if (currentDriver == null) {
-            System.out.println("Driver is null!");
-            return null;
-        }
-        
-        // Try to find vehicle by driver name (since ASSIGNED_TO stores driver name)
-        System.out.println("Looking for vehicle assigned to driver name: '" + currentDriver.name + "'");
+        if (currentDriver == null) return null;
         
         for (VehicleData vehicle : vehicleDataMap.values()) {
-            System.out.println("Checking vehicle " + vehicle.vehicleId + " - Assigned to: '" + vehicle.assignedTo + "'");
             if (vehicle.assignedTo != null && !vehicle.assignedTo.equals("Unassigned")) {
                 if (vehicle.assignedTo.equalsIgnoreCase(currentDriver.name)) {
-                    System.out.println("Found vehicle assigned to this driver: " + vehicle.vehicleId);
                     return vehicle;
                 }
             }
         }
         
-        // Also try by vehicle ID if driver has vehicleId field
         if (currentDriver.vehicleId != null && !currentDriver.vehicleId.isEmpty()) {
-            System.out.println("Trying to find by vehicle ID: '" + currentDriver.vehicleId + "'");
-            VehicleData vehicle = vehicleDataMap.get(currentDriver.vehicleId);
-            if (vehicle != null) {
-                System.out.println("Found vehicle by ID: " + vehicle.vehicleId);
-                return vehicle;
-            }
+            return vehicleDataMap.get(currentDriver.vehicleId);
         }
         
-        System.out.println("No vehicle found assigned to this driver");
         return null;
     }
     
@@ -240,7 +189,7 @@ public class ProfilePanel extends JPanel {
         
         int row = 0;
         
-        // ===== PHOTO SECTION =====
+        // Photo Section
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JLabel photoSectionLabel = new JLabel("PROFILE PHOTO");
         photoSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -301,7 +250,7 @@ public class ProfilePanel extends JPanel {
         contentPanel.add(Box.createVerticalStrut(15), gbc);
         gbc.gridwidth = 1;
         
-        // ===== PERSONAL INFORMATION SECTION =====
+        // Personal Information Section
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JLabel personalSectionLabel = new JLabel("PERSONAL INFORMATION");
         personalSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -321,6 +270,8 @@ public class ProfilePanel extends JPanel {
         gbc.gridx = 1; gbc.gridy = row++;
         nameField = new JTextField(currentDriver != null ? currentDriver.name : "");
         styleTextField(nameField, fieldSize);
+        nameField.setEditable(false);
+        nameField.setBackground(new Color(240, 240, 240));
         contentPanel.add(nameField, gbc);
         
         gbc.gridx = 0; gbc.gridy = row;
@@ -349,6 +300,8 @@ public class ProfilePanel extends JPanel {
         gbc.gridx = 1; gbc.gridy = row++;
         emailField = new JTextField(currentDriver != null ? currentDriver.email : "");
         styleTextField(emailField, fieldSize);
+        emailField.setEditable(false);
+        emailField.setBackground(new Color(240, 240, 240));
         contentPanel.add(emailField, gbc);
         
         gbc.gridx = 0; gbc.gridy = row;
@@ -362,9 +315,10 @@ public class ProfilePanel extends JPanel {
         gbc.gridx = 1; gbc.gridy = row++;
         phoneField = new JTextField(currentDriver != null ? currentDriver.phone : "");
         styleTextField(phoneField, fieldSize);
+        phoneField.setEditable(false);
+        phoneField.setBackground(new Color(240, 240, 240));
         contentPanel.add(phoneField, gbc);
         
-        // License Info
         gbc.gridx = 0; gbc.gridy = row;
         JLabel licenseLabel = new JLabel("License:");
         licenseLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -400,7 +354,7 @@ public class ProfilePanel extends JPanel {
         contentPanel.add(Box.createVerticalStrut(15), gbc);
         gbc.gridwidth = 1;
         
-        // ===== VEHICLE INFORMATION SECTION =====
+        // Vehicle Information Section
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JLabel vehicleSectionLabel = new JLabel("VEHICLE INFORMATION");
         vehicleSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -411,18 +365,16 @@ public class ProfilePanel extends JPanel {
         
         VehicleData assignedVehicle = getAssignedVehicle();
         
-        // Vehicle Info Note (if no vehicle assigned)
         if (assignedVehicle == null) {
             gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
-            JLabel noVehicleLabel = new JLabel("⚠️ No vehicle assigned yet. Please contact administrator.");
+            JLabel noVehicleLabel = new JLabel("No vehicle assigned yet. Please contact administrator.");
             noVehicleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
             noVehicleLabel.setForeground(WARNING_ORANGE);
             contentPanel.add(noVehicleLabel, gbc);
             gbc.gridwidth = 1;
         } else {
-            // Show assignment info if vehicle is found
             gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
-            JLabel assignedLabel = new JLabel("✓ Vehicle successfully assigned to you");
+            JLabel assignedLabel = new JLabel("Vehicle successfully assigned to you");
             assignedLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
             assignedLabel.setForeground(PRIMARY_GREEN);
             contentPanel.add(assignedLabel, gbc);
@@ -519,7 +471,6 @@ public class ProfilePanel extends JPanel {
         roadTaxExpiryField.setEditable(false);
         roadTaxExpiryField.setBackground(new Color(240, 240, 240));
         
-        // Color code road tax expiry
         if (assignedVehicle != null && assignedVehicle.isExpired()) {
             roadTaxExpiryField.setForeground(Color.RED);
             roadTaxExpiryField.setText("EXPIRED - " + expiryText);
@@ -542,22 +493,20 @@ public class ProfilePanel extends JPanel {
         vehicleStatusField.setEditable(false);
         vehicleStatusField.setBackground(new Color(240, 240, 240));
         
-        // Color code status
         if (assignedVehicle != null) {
             if (assignedVehicle.status.equalsIgnoreCase("Maintenance")) {
                 vehicleStatusField.setForeground(WARNING_ORANGE);
-                vehicleStatusField.setText("🔧 Under Maintenance");
+                vehicleStatusField.setText("Under Maintenance");
             } else if (assignedVehicle.status.equalsIgnoreCase("Active")) {
                 vehicleStatusField.setForeground(PRIMARY_GREEN);
-                vehicleStatusField.setText("✅ Active");
+                vehicleStatusField.setText("Active");
             } else if (assignedVehicle.status.equalsIgnoreCase("Inactive")) {
                 vehicleStatusField.setForeground(Color.RED);
-                vehicleStatusField.setText("❌ Inactive");
+                vehicleStatusField.setText("Inactive");
             }
         }
         contentPanel.add(vehicleStatusField, gbc);
         
-        // Load existing photo if any
         if (currentDriver != null && currentDriver.photoPath != null && !currentDriver.photoPath.isEmpty()) {
             loadDriverPhoto(currentDriver.photoPath);
         }
@@ -605,7 +554,6 @@ public class ProfilePanel extends JPanel {
         field.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
             new EmptyBorder(8, 10, 8, 10)));
-        field.setBackground(new Color(250, 250, 250));
         field.setPreferredSize(size);
         field.setMinimumSize(size);
         field.setMaximumSize(size);
@@ -622,7 +570,7 @@ public class ProfilePanel extends JPanel {
                 profilePhotoFile = photoFile;
             }
         } catch (Exception e) {
-            System.err.println("Error loading photo: " + e.getMessage());
+            // Silent fail
         }
     }
     
@@ -633,10 +581,8 @@ public class ProfilePanel extends JPanel {
             "Image Files (JPG, PNG, GIF)", "jpg", "jpeg", "png", "gif");
         fileChooser.setFileFilter(filter);
         
-        int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
+        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             profilePhotoFile = fileChooser.getSelectedFile();
-            
             ImageIcon icon = new ImageIcon(profilePhotoFile.getPath());
             Image image = icon.getImage().getScaledInstance(140, 140, Image.SCALE_SMOOTH);
             profilePhotoLabel.setIcon(new ImageIcon(image));
@@ -645,14 +591,7 @@ public class ProfilePanel extends JPanel {
     }
     
     private void saveProfileChanges() {
-        // Update current driver object (personal info only)
-        currentDriver.name = nameField.getText().trim();
-        currentDriver.email = emailField.getText().trim();
-        currentDriver.phone = phoneField.getText().trim();
-        
-        // If new photo
         if (profilePhotoFile != null) {
-            // Save photo to driver photos directory
             String photoDir = "driver_photos/";
             File dir = new File(photoDir);
             if (!dir.exists()) dir.mkdirs();
@@ -665,21 +604,23 @@ public class ProfilePanel extends JPanel {
                     new File(newPhotoPath).toPath(), 
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 currentDriver.photoPath = newPhotoPath;
+                driverStorage.updateDriver(currentDriver);
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent fail
             }
         }
         
-        // Save to file
-        driverStorage.updateDriver(currentDriver);
-        
         VehicleData assignedVehicle = getAssignedVehicle();
         
-        String message = "Profile updated successfully!\n\n" +
+        String message = "Profile Information\n\n" +
             "Name: " + currentDriver.name + "\n" +
             "Staff ID: " + currentDriver.id + "\n" +
             "Email: " + currentDriver.email + "\n" +
             "Phone: " + currentDriver.phone;
+        
+        if (profilePhotoFile != null) {
+            message += "\n\nProfile photo updated successfully!";
+        }
         
         if (assignedVehicle != null) {
             message += "\n\nAssigned Vehicle:\n" +
@@ -691,32 +632,29 @@ public class ProfilePanel extends JPanel {
                 "Road Tax Expiry: " + assignedVehicle.getFormattedExpiryDate() + "\n" +
                 "Status: " + assignedVehicle.status;
             if (assignedVehicle.isExpired()) {
-                message += "\n⚠️ ROAD TAX EXPIRED! Please renew immediately.";
+                message += "\n ROAD TAX EXPIRED! Please renew immediately.";
             }
         } else {
-            message += "\n\n⚠️ No vehicle assigned yet.";
+            message += "\n\n No vehicle assigned yet.";
         }
         
         JOptionPane.showMessageDialog(this,
             message,
-            "Profile Saved",
+            "Profile Information",
             JOptionPane.INFORMATION_MESSAGE);
         
-        // Clear photo file reference
         profilePhotoFile = null;
     }
     
-    // Method to refresh profile data when driver or vehicle is updated externally
     public void refreshProfile(Driver updatedDriver) {
         this.currentDriver = updatedDriver;
-        loadVehicleData(); // Reload vehicle data from file
+        loadVehicleData();
         VehicleData assignedVehicle = getAssignedVehicle();
         
         nameField.setText(currentDriver.name);
         emailField.setText(currentDriver.email);
         phoneField.setText(currentDriver.phone);
         
-        // Update vehicle information
         if (assignedVehicle != null) {
             vehicleIdField.setText(assignedVehicle.vehicleId);
             vehicleModelField.setText(assignedVehicle.vehicleModel);
@@ -735,13 +673,13 @@ public class ProfilePanel extends JPanel {
             
             if (assignedVehicle.status.equalsIgnoreCase("Maintenance")) {
                 vehicleStatusField.setForeground(WARNING_ORANGE);
-                vehicleStatusField.setText("🔧 Under Maintenance");
+                vehicleStatusField.setText("Under Maintenance");
             } else if (assignedVehicle.status.equalsIgnoreCase("Active")) {
                 vehicleStatusField.setForeground(PRIMARY_GREEN);
-                vehicleStatusField.setText("✅ Active");
+                vehicleStatusField.setText("Active");
             } else if (assignedVehicle.status.equalsIgnoreCase("Inactive")) {
                 vehicleStatusField.setForeground(Color.RED);
-                vehicleStatusField.setText("❌ Inactive");
+                vehicleStatusField.setText("Inactive");
             }
         }
         
@@ -749,7 +687,6 @@ public class ProfilePanel extends JPanel {
         repaint();
     }
     
-    // Get updated driver
     public Driver getUpdatedDriver() {
         return currentDriver;
     }

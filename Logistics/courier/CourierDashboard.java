@@ -4,7 +4,6 @@ import logistics.driver.Driver;
 import logistics.driver.DriverStorage;
 import logistics.orders.Order;
 import logistics.orders.OrderStorage;
-import courier.ProfilePanel;
 
 import javax.swing.Timer;
 import javax.swing.*;
@@ -22,7 +21,7 @@ import java.util.stream.Collectors;
 
 public class CourierDashboard extends JFrame {
 
-    // --- Refined Color Palette ---
+    // Color Palette
     private final Color PRIMARY_GREEN = new Color(46, 125, 50);
     private final Color GREEN_DARK = new Color(27, 94, 32);
     private final Color GREEN_LIGHT = new Color(34, 139, 34);
@@ -30,7 +29,7 @@ public class CourierDashboard extends JFrame {
     private final Color BORDER_COLOR = new Color(224, 224, 224);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
     
-    // Modern UI Colors
+    // UI Colors
     private static final Color SUCCESS = new Color(40, 167, 69);
     private static final Color INFO = new Color(23, 162, 184);
     private static final Color WARNING = new Color(225, 173, 1);
@@ -38,74 +37,53 @@ public class CourierDashboard extends JFrame {
     private static final Color PURPLE = new Color(111, 66, 193);
     private static final Color ORANGE = new Color(255, 87, 34);
     
-    // Status colors
-    private static final Color STATUS_PENDING = new Color(255, 193, 7);
-    private static final Color STATUS_TRANSIT = new Color(23, 162, 184);
-    private static final Color STATUS_DELIVERED = new Color(40, 167, 69);
-    private static final Color STATUS_DELAYED = new Color(220, 53, 69);
-    
     // Button colors
     private final Color BUTTON_SELECTED = new Color(27, 94, 32);
     private final Color BUTTON_HOVER = new Color(35, 110, 40);
     private final Color BUTTON_NORMAL = new Color(0, 0, 0, 0);
+    private static final Color ACTIVE_FILTER_BORDER = new Color(46, 125, 50);
     
     // Delivery Management components
     private JTable deliveriesTable;
     private DefaultTableModel deliveriesTableModel;
     private TableRowSorter<DefaultTableModel> deliveriesRowSorter;
-    private JPanel[] statCards = new JPanel[5];
-    private JLabel[] statValues = new JLabel[5];
+    private JPanel[] statCards = new JPanel[6];
+    private JLabel[] statValues = new JLabel[6];
     private String currentStatusFilter = null;
     private int currentFilterIndex = -1;
-    private JTextField searchField;
-    private JComboBox<String> searchColumnCombo;
-    private static final Color ACTIVE_FILTER_BORDER = new Color(46, 125, 50);
-
+    
     private CardLayout cardLayout;
     private JPanel contentPanel;
     private JButton activeButton;
     private JLabel timeLabel;
     
-    // Complete Delivery Components
+    // Update Status Components
     private JComboBox<String> orderSelectCombo;
-    private JTextField distanceField;
-    private JTextField fuelField;
+    private JComboBox<String> statusCombo;
     private JTextArea signatureArea;
-    private JCheckBox onTimeCheck;
     private JLabel photoFileNameLabel;
     private File deliveryPhotoFile;
     private JLabel orderDetailsLabel;
+    private JPanel photoPanel;
+    private JLabel photoLabel;
     
     // Data
     private Driver currentDriver;
     private DriverStorage driverStorage;
     private OrderStorage orderStorage;
     private List<Order> myOrders;
-    
-    // Profile Panel
     private ProfilePanel profilePanel;
-    
-    // Vehicle Report
     private VehicleReport vehicleReport;
-    
-    // Date formatters
-    private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-    private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("MMM dd, yyyy");
-    private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm");
 
     public CourierDashboard(Driver driver) {
-        // Reload latest driver data from file
         this.driverStorage = new DriverStorage();
         this.orderStorage = new OrderStorage();
         this.currentDriver = driverStorage.findDriver(driver.id);
         
-        // If not found (maybe deleted), use the passed object
         if (this.currentDriver == null) {
             this.currentDriver = driver;
         }
         
-        // Load my orders
         loadMyOrders();
         
         setTitle("LogiXpress Courier Portal - " + currentDriver.name);
@@ -126,7 +104,7 @@ public class CourierDashboard extends JFrame {
     
     private void loadMyOrders() {
         myOrders = orderStorage.getOrdersByDriver(currentDriver.id);
-        // Sort by status: In Transit > Delayed > Pending > Delivered
+        // Keep failed orders in the list for record
         myOrders.sort((a, b) -> {
             int scoreA = getStatusScore(a.status);
             int scoreB = getStatusScore(b.status);
@@ -137,32 +115,25 @@ public class CourierDashboard extends JFrame {
     
     private int getStatusScore(String status) {
         switch(status) {
-            case "In Transit": return 4;
-            case "Delayed": return 3;
-            case "Pending": return 2;
-            case "Delivered": return 1;
+            case "In Transit": return 5;
+            case "Delayed": return 4;
+            case "Pending": return 3;
+            case "Picked Up": return 3;
+            case "Delivered": return 2;
+            case "Failed": return 1;
             default: return 0;
         }
     }
     
     private void refreshData() {
-        // Reload driver data
         currentDriver = driverStorage.findDriver(currentDriver.id);
         if (currentDriver == null) return;
         
-        // Reload orders
         loadMyOrders();
-        
-        // Refresh delivery table
         refreshDeliveriesTable();
-        
-        // Refresh complete delivery order list
         refreshOrderSelectCombo();
-        
-        // Update sidebar
         updateUserProfile();
         
-        // Update profile panel if visible
         if (profilePanel != null) {
             profilePanel.refreshProfile(currentDriver);
         }
@@ -171,24 +142,77 @@ public class CourierDashboard extends JFrame {
     private void refreshOrderSelectCombo() {
         if (orderSelectCombo != null) {
             orderSelectCombo.removeAllItems();
-            List<Order> inTransitOrders = myOrders.stream()
-                .filter(o -> "In Transit".equals(o.status))
+            // Exclude delivered and failed from being updated
+            List<Order> activeOrders = myOrders.stream()
+                .filter(o -> !"Delivered".equals(o.status) && !"Failed".equals(o.status))
                 .collect(Collectors.toList());
             
-            if (inTransitOrders.isEmpty()) {
-                orderSelectCombo.addItem("No orders available");
+            if (activeOrders.isEmpty()) {
+                orderSelectCombo.addItem("No active orders");
+                if (statusCombo != null) statusCombo.setEnabled(false);
             } else {
-                for (Order o : inTransitOrders) {
-                    orderSelectCombo.addItem(o.id + " - " + o.recipientName);
+                for (Order o : activeOrders) {
+                    orderSelectCombo.addItem(o.id + " - " + o.recipientName + " (" + o.status + ")");
+                }
+                if (statusCombo != null) {
+                    statusCombo.setEnabled(true);
+                    updateStatusOptionsForSelectedOrder();
                 }
             }
         }
     }
     
+    private void updateStatusOptionsForSelectedOrder() {
+        String selected = (String) orderSelectCombo.getSelectedItem();
+        if (selected == null || selected.equals("No active orders")) {
+            if (statusCombo != null) statusCombo.setEnabled(false);
+            return;
+        }
+        
+        if (statusCombo != null) {
+            statusCombo.setEnabled(true);
+            String orderId = selected.split(" - ")[0];
+            Order order = orderStorage.findOrder(orderId);
+            
+            if (order != null) {
+                updateStatusOptions(order.status);
+            }
+        }
+    }
+    
+    private void updateStatusOptions(String currentStatus) {
+        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
+        
+        switch(currentStatus) {
+            case "Pending":
+            case "In Transit":
+                model.addElement("Picked Up");
+                model.addElement("Delayed");
+                model.addElement("Failed");
+                break;
+            case "Picked Up":
+                model.addElement("In Transit");
+                model.addElement("Delayed");
+                model.addElement("Failed");
+                break;
+            case "Delayed":
+                model.addElement("In Transit");
+                model.addElement("Delivered");
+                model.addElement("Failed");
+                break;
+            default:
+                model.addElement("Picked Up");
+                model.addElement("In Transit");
+                model.addElement("Delivered");
+                model.addElement("Delayed");
+                model.addElement("Failed");
+        }
+        
+        statusCombo.setModel(model);
+    }
+    
     private void startAutoRefresh() {
-        Timer timer = new Timer(30000, e -> {
-            SwingUtilities.invokeLater(this::refreshData);
-        });
+        Timer timer = new Timer(30000, e -> SwingUtilities.invokeLater(this::refreshData));
         timer.start();
     }
 
@@ -212,7 +236,6 @@ public class CourierDashboard extends JFrame {
                         if (comp1 instanceof JLabel && comp2 instanceof JLabel) {
                             JLabel nameLabel = (JLabel) comp1;
                             JLabel roleLabel = (JLabel) comp2;
-                            
                             nameLabel.setText(currentDriver.name);
                             roleLabel.setText("Courier #" + currentDriver.id + " | " + currentDriver.getCurrentOrderCount() + " active orders");
                             break;
@@ -323,24 +346,21 @@ public class CourierDashboard extends JFrame {
 
         sidebar.add(logoPanel, BorderLayout.NORTH);
 
-        JPanel menu = new JPanel(new GridLayout(5, 1, 0, 8));
+        JPanel menu = new JPanel(new GridLayout(4, 1, 0, 8));
         menu.setOpaque(false);
         menu.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
 
-        // Create buttons
-        JButton myDeliveriesBtn = createNavButton("📦 My Deliveries", "DELIVERIES", 
+        JButton myDeliveriesBtn = createNavButton("My Deliveries", "DELIVERIES", 
             currentDriver.getCurrentOrderCount() + " active orders", true);
         menu.add(myDeliveriesBtn);
         
-        JButton completeDeliveryBtn = createNavButton("✅ Complete Delivery", "COMPLETE", 
-            "Mark order as delivered", false);
-        menu.add(completeDeliveryBtn);
+        JButton updateStatusBtn = createNavButton("Update Status", "UPDATE", 
+            "Update order status", false);
+        menu.add(updateStatusBtn);
         
-        menu.add(createNavButton("🚗 Vehicle Report", "VEHICLE", 
+        menu.add(createNavButton("Vehicle Report", "VEHICLE", 
             "Report vehicle issues", false));
-        menu.add(createNavButton("📊 My Statistics", "STATS", 
-            "Performance metrics", false));
-        menu.add(createNavButton("👤 My Profile", "PROFILE", 
+        menu.add(createNavButton("My Profile", "PROFILE", 
             "Personal information", false));
 
         sidebar.add(menu, BorderLayout.CENTER);
@@ -354,7 +374,6 @@ public class CourierDashboard extends JFrame {
         btn.setLayout(new BorderLayout());
         
         String notificationColor = selected ? "#FFFFFF" : "#A0D0A0";
-        
         String displayText = "<html><div style='text-align: left;'>" +
                             "<b style='font-size: 13px;'>" + text + "</b><br>" +
                             "<span style='font-size: 11px; color: " + notificationColor + ";'>" + 
@@ -363,7 +382,6 @@ public class CourierDashboard extends JFrame {
         JLabel contentLabel = new JLabel(displayText);
         contentLabel.setForeground(Color.WHITE);
         contentLabel.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
-        
         btn.add(contentLabel, BorderLayout.CENTER);
         
         btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -416,14 +434,13 @@ public class CourierDashboard extends JFrame {
             btn.setBackground(BUTTON_SELECTED);
             activeButton = btn;
             
-            if (!card.equals("VEHICLE") && !card.equals("PROFILE") && !card.equals("COMPLETE")) {
+            if (!card.equals("VEHICLE") && !card.equals("PROFILE") && !card.equals("UPDATE")) {
                 refreshData();
             }
             
-            // Refresh order list when opening complete delivery page
-            if (card.equals("COMPLETE")) {
+            if (card.equals("UPDATE")) {
                 refreshOrderSelectCombo();
-                clearCompleteDeliveryForm();
+                clearUpdateStatusForm();
             }
             
             cardLayout.show(contentPanel, card);
@@ -486,7 +503,6 @@ public class CourierDashboard extends JFrame {
         userInfo.add(userStatus);
 
         profile.add(userInfo, BorderLayout.CENTER);
-
         return profile;
     }
     
@@ -507,13 +523,13 @@ public class CourierDashboard extends JFrame {
             if (imgURL != null) {
                 return new ImageIcon(imgURL);
             } else {
-                java.io.File file = new java.io.File(filename);
+                File file = new File(filename);
                 if (file.exists()) {
                     return new ImageIcon(file.getAbsolutePath());
                 }
             }
         } catch (Exception e) {
-            System.err.println("Could not load logo: " + filename);
+            // Silently fail
         }
         return null;
     }
@@ -524,34 +540,29 @@ public class CourierDashboard extends JFrame {
         contentPanel.setBackground(BG_LIGHT);
 
         contentPanel.add(createDeliveriesPanel(), "DELIVERIES");
-        contentPanel.add(createCompleteDeliveryPanel(), "COMPLETE");
+        contentPanel.add(createUpdateStatusPanel(), "UPDATE");
         contentPanel.add(vehicleReport.createVehicleReportPanel(), "VEHICLE");
-        contentPanel.add(createStatsPanel(), "STATS");
         
-        // Create profile panel
         profilePanel = new ProfilePanel(currentDriver);
         contentPanel.add(profilePanel, "PROFILE");
 
         return contentPanel;
     }
     
-    // ==================== COMPLETE DELIVERY PANEL ====================
-    
-    private JPanel createCompleteDeliveryPanel() {
+    private JPanel createUpdateStatusPanel() {
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(BG_LIGHT);
         mainPanel.setBorder(new EmptyBorder(25, 25, 25, 25));
         
-        // Header
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(BG_LIGHT);
         headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
-        JLabel titleLabel = new JLabel("✅ Complete Delivery");
+        JLabel titleLabel = new JLabel("Update Order Status");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
         titleLabel.setForeground(PRIMARY_GREEN);
         
-        JLabel subtitleLabel = new JLabel("Mark an order as delivered and record delivery details");
+        JLabel subtitleLabel = new JLabel("Update the status of your assigned orders");
         subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitleLabel.setForeground(TEXT_GRAY);
         
@@ -559,11 +570,9 @@ public class CourierDashboard extends JFrame {
         titlePanel.setBackground(BG_LIGHT);
         titlePanel.add(titleLabel, BorderLayout.NORTH);
         titlePanel.add(subtitleLabel, BorderLayout.SOUTH);
-        
         headerPanel.add(titlePanel, BorderLayout.WEST);
         mainPanel.add(headerPanel, BorderLayout.NORTH);
         
-        // Form Panel
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         formPanel.setBorder(BorderFactory.createCompoundBorder(
@@ -592,99 +601,94 @@ public class CourierDashboard extends JFrame {
             BorderFactory.createLineBorder(BORDER_COLOR),
             BorderFactory.createEmptyBorder(8, 12, 8, 12)));
         orderSelectCombo.setPreferredSize(new Dimension(400, 40));
-        orderSelectCombo.addActionListener(e -> updateOrderDetails());
+        orderSelectCombo.addActionListener(e -> updateOrderDetailsAndStatusOptions());
         formPanel.add(orderSelectCombo, gbc);
-        
         row++;
         
-        // Order Details Display
+        // Add some vertical space
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        gbc.insets = new Insets(5, 15, 5, 15);
+        formPanel.add(Box.createVerticalStrut(10), gbc);
+        row++;
+        
+        // Order Details Display - This will be in the middle
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        gbc.insets = new Insets(10, 15, 10, 15);
+        gbc.weighty = 0.5;
         orderDetailsLabel = new JLabel();
         orderDetailsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         orderDetailsLabel.setForeground(TEXT_GRAY);
         orderDetailsLabel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(232, 245, 233), 1),
-            BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+            BorderFactory.createEmptyBorder(15, 15, 15, 15)));
         orderDetailsLabel.setBackground(new Color(245, 250, 245));
         orderDetailsLabel.setOpaque(true);
+        orderDetailsLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        orderDetailsLabel.setVerticalAlignment(SwingConstants.CENTER);
+        orderDetailsLabel.setPreferredSize(new Dimension(500, 120));
         formPanel.add(orderDetailsLabel, gbc);
+        row++;
         
+        // Add some vertical space
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        gbc.insets = new Insets(5, 15, 5, 15);
+        formPanel.add(Box.createVerticalStrut(10), gbc);
         row++;
         
         // Separator
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        gbc.insets = new Insets(10, 15, 10, 15);
         JSeparator separator = new JSeparator();
         separator.setForeground(BORDER_COLOR);
         formPanel.add(separator, gbc);
         row++;
         
-        // Distance
+        // Status Selection
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
-        gbc.weightx = 0.3;
-        JLabel distanceLabel = new JLabel("Distance (km):*");
-        distanceLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        formPanel.add(distanceLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 0.7;
-        distanceField = new JTextField();
-        distanceField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        distanceField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(10, 12, 10, 12)));
-        distanceField.setToolTipText("Enter the distance traveled in kilometers");
-        formPanel.add(distanceField, gbc);
-        
-        row++;
-        
-        // Fuel Used
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel fuelLabel = new JLabel("Fuel Used (L):*");
-        fuelLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        formPanel.add(fuelLabel, gbc);
+        gbc.insets = new Insets(12, 15, 12, 15);
+        gbc.weighty = 0;
+        JLabel statusLabel = new JLabel("New Status:*");
+        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        formPanel.add(statusLabel, gbc);
         
         gbc.gridx = 1; gbc.gridwidth = 2;
-        fuelField = new JTextField();
-        fuelField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        fuelField.setBorder(BorderFactory.createCompoundBorder(
+        statusCombo = new JComboBox<>();
+        statusCombo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        statusCombo.setBackground(Color.WHITE);
+        statusCombo.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(10, 12, 10, 12)));
-        fuelField.setToolTipText("Enter the fuel used in liters");
-        formPanel.add(fuelField, gbc);
-        
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+        statusCombo.setPreferredSize(new Dimension(400, 40));
+        statusCombo.addActionListener(e -> togglePhotoPanel());
+        formPanel.add(statusCombo, gbc);
         row++;
         
-        // On Time Delivery
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
-        onTimeCheck = new JCheckBox("Delivered on time");
-        onTimeCheck.setSelected(true);
-        onTimeCheck.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        onTimeCheck.setBackground(Color.WHITE);
-        formPanel.add(onTimeCheck, gbc);
-        
-        row++;
-        
-        // Delivery Photo
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
-        JLabel photoLabel = new JLabel("Delivery Photo:*");
+        // Photo Panel
+        photoLabel = new JLabel("Delivery Photo:*");
         photoLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
         formPanel.add(photoLabel, gbc);
         
-        gbc.gridx = 1; gbc.gridwidth = 1;
-        JButton uploadPhotoBtn = new JButton("📷 Choose Photo");
+        photoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        photoPanel.setBackground(Color.WHITE);
+        
+        JButton uploadPhotoBtn = new JButton("Choose Photo");
         uploadPhotoBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         uploadPhotoBtn.setBackground(INFO);
         uploadPhotoBtn.setForeground(Color.WHITE);
         uploadPhotoBtn.setBorderPainted(false);
         uploadPhotoBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         uploadPhotoBtn.addActionListener(e -> selectDeliveryPhoto());
-        formPanel.add(uploadPhotoBtn, gbc);
         
-        gbc.gridx = 2; gbc.gridwidth = 1;
         photoFileNameLabel = new JLabel("No file selected");
         photoFileNameLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));
         photoFileNameLabel.setForeground(TEXT_GRAY);
-        formPanel.add(photoFileNameLabel, gbc);
         
+        photoPanel.add(uploadPhotoBtn);
+        photoPanel.add(photoFileNameLabel);
+        
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        formPanel.add(photoPanel, gbc);
         row++;
         
         // Signature
@@ -706,19 +710,17 @@ public class CourierDashboard extends JFrame {
         sigScroll.setBorder(null);
         sigScroll.setPreferredSize(new Dimension(300, 70));
         formPanel.add(sigScroll, gbc);
-        
         row++;
         
-        // Required fields note
+        // Note
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
-        JLabel noteLabel = new JLabel("* Required fields", SwingConstants.CENTER);
+        JLabel noteLabel = new JLabel("* Signature is required for all status updates. Photo is required only for 'Delivered' status.", SwingConstants.CENTER);
         noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         noteLabel.setForeground(TEXT_GRAY);
         formPanel.add(noteLabel, gbc);
-        
         row++;
         
-        // Button Panel
+        // Buttons
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
         gbc.insets = new Insets(20, 15, 10, 15);
         
@@ -731,33 +733,37 @@ public class CourierDashboard extends JFrame {
         clearBtn.setBackground(Color.WHITE);
         clearBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
         clearBtn.setPreferredSize(new Dimension(120, 40));
-        clearBtn.addActionListener(e -> clearCompleteDeliveryForm());
+        clearBtn.addActionListener(e -> clearUpdateStatusForm());
         
-        JButton completeBtn = new JButton("Complete Delivery");
-        completeBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        completeBtn.setForeground(Color.WHITE);
-        completeBtn.setBackground(SUCCESS);
-        completeBtn.setBorderPainted(false);
-        completeBtn.setPreferredSize(new Dimension(150, 40));
-        completeBtn.addActionListener(e -> completeDelivery());
+        JButton updateBtn = new JButton("Update Status");
+        updateBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        updateBtn.setForeground(Color.WHITE);
+        updateBtn.setBackground(SUCCESS);
+        updateBtn.setBorderPainted(false);
+        updateBtn.setPreferredSize(new Dimension(150, 40));
+        updateBtn.addActionListener(e -> processStatusUpdate());
         
         buttonPanel.add(clearBtn);
-        buttonPanel.add(completeBtn);
-        
+        buttonPanel.add(updateBtn);
         formPanel.add(buttonPanel, gbc);
         
         mainPanel.add(formPanel, BorderLayout.CENTER);
         
+        photoLabel.setVisible(false);
+        photoPanel.setVisible(false);
+        
         return mainPanel;
     }
     
-    private void updateOrderDetails() {
+    private void updateOrderDetailsAndStatusOptions() {
         String selected = (String) orderSelectCombo.getSelectedItem();
-        if (selected == null || selected.equals("No orders available")) {
-            orderDetailsLabel.setText("<html><b>No orders available for delivery</b><br>All orders are either delivered or pending pickup.</html>");
+        if (selected == null || selected.equals("No active orders")) {
+            orderDetailsLabel.setText("<html><b>No active orders available</b><br>All orders have been delivered.</html>");
+            if (statusCombo != null) statusCombo.setEnabled(false);
             return;
         }
         
+        if (statusCombo != null) statusCombo.setEnabled(true);
         String orderId = selected.split(" - ")[0];
         Order order = orderStorage.findOrder(orderId);
         
@@ -767,184 +773,350 @@ public class CourierDashboard extends JFrame {
                 "<b>Recipient:</b> %s<br>" +
                 "<b>Phone:</b> %s<br>" +
                 "<b>Address:</b> %s<br>" +
-                "<b>Weight:</b> %.1f kg<br>" +
-                "<b>Est. Delivery:</b> %s</html>",
-                order.id,
-                order.recipientName,
-                order.recipientPhone,
+                "<b>Current Status:</b> <span style='color: %s;'>%s</span></html>",
+                order.id, order.recipientName, order.recipientPhone,
                 order.recipientAddress.length() > 50 ? order.recipientAddress.substring(0, 47) + "..." : order.recipientAddress,
-                order.weight,
-                order.estimatedDelivery != null ? order.estimatedDelivery : "Not set"
-            );
+                getStatusHexColor(order.status), order.status);
             orderDetailsLabel.setText(details);
+            updateStatusOptions(order.status);
+        }
+    }
+    
+    private String getStatusHexColor(String status) {
+        switch(status) {
+            case "Pending": return "#E5A100";
+            case "Picked Up": return "#6F42C1";
+            case "In Transit": return "#17A2B8";
+            case "Delayed": return "#DC3545";
+            case "Delivered": return "#28A745";
+            case "Failed": return "#DC3545";
+            default: return "#6C757D";
+        }
+    }
+    
+    private void togglePhotoPanel() {
+        if (statusCombo == null) return;
+        String selectedStatus = (String) statusCombo.getSelectedItem();
+        boolean isDelivered = "Delivered".equals(selectedStatus);
+        
+        photoLabel.setVisible(isDelivered);
+        photoPanel.setVisible(isDelivered);
+        
+        if (!isDelivered) {
+            deliveryPhotoFile = null;
+            photoFileNameLabel.setText("No file selected");
+            photoFileNameLabel.setForeground(TEXT_GRAY);
         }
     }
     
     private void selectDeliveryPhoto() {
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Select Delivery Photo");
-        FileNameExtensionFilter filter = new FileNameExtensionFilter(
-            "Image Files (JPG, PNG)", "jpg", "jpeg", "png");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("Image Files (JPG, PNG)", "jpg", "jpeg", "png");
         fileChooser.setFileFilter(filter);
         
-        int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
+        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             deliveryPhotoFile = fileChooser.getSelectedFile();
             photoFileNameLabel.setText(deliveryPhotoFile.getName());
+            photoFileNameLabel.setForeground(SUCCESS);
         }
     }
     
-    private void clearCompleteDeliveryForm() {
-        orderSelectCombo.setSelectedIndex(0);
-        distanceField.setText("");
-        fuelField.setText("");
-        onTimeCheck.setSelected(true);
-        signatureArea.setText("");
-        photoFileNameLabel.setText("No file selected");
+    private void clearUpdateStatusForm() {
+        if (orderSelectCombo != null) orderSelectCombo.setSelectedIndex(0);
+        if (signatureArea != null) signatureArea.setText("");
         deliveryPhotoFile = null;
-        updateOrderDetails();
+        photoFileNameLabel.setText("No file selected");
+        photoFileNameLabel.setForeground(TEXT_GRAY);
+        photoLabel.setVisible(false);
+        photoPanel.setVisible(false);
+        updateOrderDetailsAndStatusOptions();
     }
     
-    private void completeDelivery() {
+    private void showFailedDeliveryDialog(Order order) {
+        JDialog dialog = new JDialog(this, "Mark Delivery as Failed - " + order.id, true);
+        dialog.setSize(500, 450);
+        dialog.setLocationRelativeTo(this);
+        
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        mainPanel.setBackground(Color.WHITE);
+        
+        JLabel titleLabel = new JLabel("Failed Delivery Report");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        titleLabel.setForeground(DANGER);
+        mainPanel.add(titleLabel, BorderLayout.NORTH);
+        
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBackground(Color.WHITE);
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.weightx = 1.0;
+        
+        int y = 0;
+        
+        gbc.gridx = 0; gbc.gridy = y; gbc.gridwidth = 2;
+        JLabel orderInfoLabel = new JLabel("<html><b>Order:</b> " + order.id + "<br><b>Recipient:</b> " + order.recipientName + "<br><b>Address:</b> " + order.recipientAddress + "</html>");
+        orderInfoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        orderInfoLabel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+        orderInfoLabel.setBackground(new Color(248, 249, 250));
+        orderInfoLabel.setOpaque(true);
+        formPanel.add(orderInfoLabel, gbc);
+        y++;
+        
+        gbc.gridx = 0; gbc.gridy = y; gbc.gridwidth = 1;
+        JLabel reasonLabel = new JLabel("Failure Reason:*");
+        reasonLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        formPanel.add(reasonLabel, gbc);
+        
+        gbc.gridx = 1;
+        JComboBox<String> reasonCombo = new JComboBox<>(new String[]{
+            "Select reason...",
+            "Recipient not available",
+            "Wrong address provided",
+            "Recipient refused delivery",
+            "Package damaged",
+            "Delivery area restricted",
+            "No one to receive",
+            "Other"
+        });
+        reasonCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        formPanel.add(reasonCombo, gbc);
+        y++;
+        
+        gbc.gridx = 0; gbc.gridy = y;
+        JLabel descLabel = new JLabel("Details:*");
+        descLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        formPanel.add(descLabel, gbc);
+        
+        gbc.gridx = 1;
+        JTextArea reasonArea = new JTextArea(4, 20);
+        reasonArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        reasonArea.setLineWrap(true);
+        reasonArea.setWrapStyleWord(true);
+        reasonArea.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        JScrollPane scrollPane = new JScrollPane(reasonArea);
+        scrollPane.setPreferredSize(new Dimension(250, 80));
+        formPanel.add(scrollPane, gbc);
+        y++;
+        
+        gbc.gridx = 0; gbc.gridy = y;
+        JLabel sigLabel = new JLabel("Signature:*");
+        sigLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        formPanel.add(sigLabel, gbc);
+        
+        gbc.gridx = 1;
+        JTextArea failedSignatureArea = new JTextArea(2, 20);
+        failedSignatureArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        failedSignatureArea.setLineWrap(true);
+        failedSignatureArea.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        JScrollPane sigScroll = new JScrollPane(failedSignatureArea);
+        sigScroll.setPreferredSize(new Dimension(250, 50));
+        formPanel.add(sigScroll, gbc);
+        y++;
+        
+        mainPanel.add(formPanel, BorderLayout.CENTER);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        
+        JButton cancelBtn = new JButton("Cancel");
+        cancelBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        cancelBtn.setForeground(TEXT_GRAY);
+        cancelBtn.setBackground(Color.WHITE);
+        cancelBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        cancelBtn.setPreferredSize(new Dimension(100, 35));
+        cancelBtn.addActionListener(e -> dialog.dispose());
+        
+        JButton confirmBtn = new JButton("Mark as Failed");
+        confirmBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        confirmBtn.setForeground(Color.WHITE);
+        confirmBtn.setBackground(DANGER);
+        confirmBtn.setBorderPainted(false);
+        confirmBtn.setPreferredSize(new Dimension(130, 35));
+        confirmBtn.addActionListener(e -> {
+            String selectedReason = (String) reasonCombo.getSelectedItem();
+            String details = reasonArea.getText().trim();
+            String signature = failedSignatureArea.getText().trim();
+            
+            if (selectedReason == null || selectedReason.equals("Select reason...")) {
+                showNotification("Please select a failure reason", WARNING);
+                return;
+            }
+            
+            if (details.isEmpty()) {
+                showNotification("Please provide failure details", WARNING);
+                return;
+            }
+            
+            if (signature.isEmpty()) {
+                showNotification("Signature is required", WARNING);
+                return;
+            }
+            
+            String fullReason = selectedReason + ": " + details;
+            
+            int confirm = JOptionPane.showConfirmDialog(dialog,
+                "Are you sure you want to mark this delivery as FAILED?\n\n" +
+                "Order: " + order.id + "\n" +
+                "Reason: " + fullReason + "\n\n" +
+                "This order will be marked as FAILED and will appear in your history.\n" +
+                "The admin will be notified for reassignment.\n" +
+                "This action cannot be undone.",
+                "Confirm Failed Delivery",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                order.markAsFailed(fullReason);
+                order.notes = (order.notes != null ? order.notes + "\n" : "") +
+                    "FAILED DELIVERY - Reason: " + fullReason + 
+                    " - Signature: " + signature +
+                    " on " + new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
+                
+                orderStorage.updateOrder(order);
+                showNotification("Delivery marked as FAILED. Order recorded in history.", WARNING);
+                refreshData();
+                clearUpdateStatusForm();
+                dialog.dispose();
+                
+                JOptionPane.showMessageDialog(this,
+                    "Delivery marked as Failed\n\n" +
+                    "Order ID: " + order.id + "\n" +
+                    "Reason: " + fullReason + "\n\n" +
+                    "This order has been recorded as FAILED in your history.\n" +
+                    "Admin will reassign it to another driver.",
+                    "Failed Delivery",
+                    JOptionPane.WARNING_MESSAGE);
+            }
+        });
+        
+        buttonPanel.add(cancelBtn);
+        buttonPanel.add(confirmBtn);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.add(mainPanel);
+        dialog.setVisible(true);
+    }
+    
+    private void processStatusUpdate() {
         String selected = (String) orderSelectCombo.getSelectedItem();
-        if (selected == null || selected.equals("No orders available")) {
-            showNotification("Please select an order to complete", WARNING);
+        if (selected == null || selected.equals("No active orders")) {
+            showNotification("Please select an order to update", WARNING);
             return;
         }
         
         String orderId = selected.split(" - ")[0];
-        String distanceText = distanceField.getText().trim();
-        String fuelText = fuelField.getText().trim();
+        String newStatus = (String) statusCombo.getSelectedItem();
+        
+        if ("Failed".equals(newStatus)) {
+            Order order = orderStorage.findOrder(orderId);
+            if (order != null) {
+                showFailedDeliveryDialog(order);
+            }
+            return;
+        }
+        
         String signature = signatureArea.getText().trim();
-        boolean onTime = onTimeCheck.isSelected();
-        
-        // Validation
-        if (distanceText.isEmpty()) {
-            showNotification("Please enter distance traveled", WARNING);
-            distanceField.requestFocus();
-            return;
-        }
-        
-        if (fuelText.isEmpty()) {
-            showNotification("Please enter fuel used", WARNING);
-            fuelField.requestFocus();
-            return;
-        }
         
         if (signature.isEmpty()) {
-            showNotification("Please enter recipient signature", WARNING);
+            showNotification("Recipient signature is required", WARNING);
             signatureArea.requestFocus();
             return;
         }
         
-        if (deliveryPhotoFile == null) {
-            showNotification("Please upload a delivery photo", WARNING);
+        if ("Delivered".equals(newStatus) && deliveryPhotoFile == null) {
+            showNotification("Photo proof is required for delivery completion", WARNING);
             return;
         }
         
-        try {
-            double distance = Double.parseDouble(distanceText);
-            double fuel = Double.parseDouble(fuelText);
+        Order order = orderStorage.findOrder(orderId);
+        if (order == null) {
+            showNotification("Order not found", DANGER);
+            return;
+        }
+        
+        if ("Delivered".equals(order.status)) {
+            showNotification("This order has already been delivered", WARNING);
+            return;
+        }
+        
+        if ("Failed".equals(order.status)) {
+            showNotification("This order has already been marked as failed. It will be reassigned by admin.", WARNING);
+            return;
+        }
+        
+        if (!isValidTransition(order.status, newStatus)) {
+            showNotification("Invalid status transition from '" + order.status + "' to '" + newStatus + "'", WARNING);
+            return;
+        }
+        
+        int confirm = JOptionPane.showConfirmDialog(this,
+            String.format("Update Order Status\n\nOrder: %s\nRecipient: %s\nCurrent Status: %s\nNew Status: %s\n\nSignature: %s",
+                orderId, order.recipientName, order.status, newStatus, signature),
+            "Confirm Status Update", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            boolean success;
             
-            if (distance <= 0) {
-                showNotification("Distance must be greater than 0", WARNING);
-                return;
+            if ("Delivered".equals(newStatus)) {
+                String notesWithSignature = (order.notes != null ? order.notes + "\n" : "") + 
+                    "Signature: " + signature + " (Delivered on " + new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date()) + ")";
+                success = orderStorage.completeOrder(orderId, 0, 0, 
+                    deliveryPhotoFile.getAbsolutePath(), notesWithSignature);
+            } else {
+                order.status = newStatus;
+                order.notes = (order.notes != null ? order.notes + "\n" : "") + 
+                    "Status updated to " + newStatus + " - Signature: " + signature + 
+                    " on " + new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
+                orderStorage.updateOrder(order);
+                success = true;
             }
             
-            if (fuel <= 0) {
-                showNotification("Fuel used must be greater than 0", WARNING);
-                return;
-            }
-            
-            Order order = orderStorage.findOrder(orderId);
-            if (order == null) {
-                showNotification("Order not found", DANGER);
-                return;
-            }
-            
-            if (!"In Transit".equals(order.status)) {
-                showNotification("Order status is '" + order.status + "'. Only 'In Transit' orders can be completed.", WARNING);
-                return;
-            }
-            
-            if (!currentDriver.id.equals(order.driverId)) {
-                showNotification("This order is assigned to another driver", DANGER);
-                return;
-            }
-            
-            // Confirm completion
-            int confirm = JOptionPane.showConfirmDialog(this,
-                String.format("Complete delivery for order %s?\n\n" +
-                    "📦 Recipient: %s\n" +
-                    "📍 Address: %s\n" +
-                    "🚚 Distance: %.1f km\n" +
-                    "⛽ Fuel: %.1f L\n" +
-                    "✅ On Time: %s\n\n" +
-                    "Signature: %s",
-                    orderId, order.recipientName, 
-                    order.recipientAddress.length() > 50 ? order.recipientAddress.substring(0, 47) + "..." : order.recipientAddress,
-                    distance, fuel, onTime ? "Yes" : "No", signature),
-                "Confirm Completion",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE);
-            
-            if (confirm == JOptionPane.YES_OPTION) {
-                // Complete the order
-                boolean success = orderStorage.completeOrder(
-                    orderId, distance, fuel, 
-                    deliveryPhotoFile.getAbsolutePath(), 
-                    signature);
+            if (success) {
+                String message = String.format("Order %s status updated to: %s\nSignature recorded", 
+                    orderId, newStatus);
+                showNotification(message, SUCCESS);
+                refreshData();
+                clearUpdateStatusForm();
                 
-                if (success) {
-                    // Update onTime flag
-                    order.onTime = onTime;
-                    orderStorage.updateOrder(order);
-                    
-                    // Update driver stats
-                    currentDriver.completeOrder(orderId, onTime, distance, fuel);
-                    driverStorage.updateDriver(currentDriver);
-                    
-                    showNotification("✓ Delivery completed successfully!", SUCCESS);
-                    
-                    // Clear the form
-                    clearCompleteDeliveryForm();
-                    
-                    // Refresh data
-                    refreshData();
-                    
-                    // Show success message with details
-                    JOptionPane.showMessageDialog(this,
-                        String.format("✅ Delivery Completed Successfully!\n\n" +
-                            "Order ID: %s\n" +
-                            "Recipient: %s\n" +
-                            "Distance: %.1f km\n" +
-                            "Fuel: %.1f L\n" +
-                            "Efficiency: %.2f km/L\n" +
-                            "On Time: %s\n\n" +
-                            "Your performance statistics have been updated.",
-                            orderId, order.recipientName, distance, fuel, 
-                            distance / fuel, onTime ? "Yes" : "No"),
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE);
-                        
-                } else {
-                    showNotification("Failed to complete delivery. Please try again.", DANGER);
-                }
+                JOptionPane.showMessageDialog(this,
+                    String.format("Status Updated Successfully!\n\nOrder ID: %s\nNew Status: %s\nRecipient: %s",
+                        orderId, newStatus, order.recipientName),
+                    "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                showNotification("Failed to update order status", DANGER);
             }
-            
-        } catch (NumberFormatException e) {
-            showNotification("Please enter valid numbers for distance and fuel", WARNING);
         }
     }
     
-    // ==================== DELIVERIES MANAGEMENT PANEL ====================
+    private boolean isValidTransition(String current, String next) {
+        if (current.equals(next)) return false;
+        
+        if ("Failed".equals(next)) {
+            return !"Delivered".equals(current);
+        }
+        
+        switch(current) {
+            case "Pending":
+            case "In Transit":
+                return next.equals("Picked Up") || next.equals("Delayed");
+            case "Picked Up":
+                return next.equals("In Transit") || next.equals("Delayed");
+            case "Delayed":
+                return next.equals("In Transit") || next.equals("Delivered");
+            default:
+                return false;
+        }
+    }
     
     private JPanel createDeliveriesPanel() {
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(BG_LIGHT);
         mainPanel.setBorder(new EmptyBorder(25, 25, 25, 25));
         
-        // Top container with header and stats cards
         JPanel topContainer = new JPanel(new BorderLayout(10, 10));
         topContainer.setBackground(BG_LIGHT);
         topContainer.add(createDeliveriesHeaderPanel(), BorderLayout.NORTH);
@@ -974,29 +1146,26 @@ public class CourierDashboard extends JFrame {
         titlePanel.setBackground(BG_LIGHT);
         titlePanel.add(title, BorderLayout.NORTH);
         titlePanel.add(subtitle, BorderLayout.SOUTH);
-        
         panel.add(titlePanel, BorderLayout.WEST);
         
         return panel;
     }
     
     private JPanel createDeliveriesStatsPanel() {
-        JPanel statsPanel = new JPanel(new GridLayout(1, 5, 15, 0));
+        JPanel statsPanel = new JPanel(new GridLayout(1, 6, 12, 0));
         statsPanel.setBackground(BG_LIGHT);
         statsPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
-        String[] titles = {"Total Orders", "In Transit", "Pending", "Delivered", "Delayed"};
-        String[] descriptions = {"All assigned", "Currently out", "Awaiting pickup", "Completed", "Late"};
-        Color[] colors = {PRIMARY_GREEN, INFO, WARNING, SUCCESS, DANGER};
-        Color[] bgColors = {
-            new Color(245, 250, 245),
-            new Color(227, 242, 253),
-            new Color(255, 243, 224),
-            new Color(232, 245, 233),
-            new Color(255, 235, 238)
-        };
+        String[] titles = {"Total Orders", "In Transit", "Pending", "Delivered", "Delayed", "Failed"};
+        String[] descriptions = {"All assigned", "Currently out", "Awaiting pickup", "Completed", "Late", "Failed"};
+        Color[] colors = {PRIMARY_GREEN, INFO, WARNING, SUCCESS, DANGER, DANGER};
+        Color[] bgColors = {new Color(245, 250, 245), new Color(227, 242, 253), 
+            new Color(255, 243, 224), new Color(232, 245, 233), new Color(255, 235, 238), new Color(255, 220, 220)};
         
-        for (int i = 0; i < 5; i++) {
+        statCards = new JPanel[6];
+        statValues = new JLabel[6];
+        
+        for (int i = 0; i < 6; i++) {
             JPanel card = createClickableStatCard(titles[i], descriptions[i], "0", colors[i], bgColors[i], i);
             statCards[i] = card;
             statsPanel.add(card);
@@ -1012,8 +1181,7 @@ public class CourierDashboard extends JFrame {
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
             new LineBorder(BORDER_COLOR, 1, true),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        ));
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)));
         
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -1038,7 +1206,7 @@ public class CourierDashboard extends JFrame {
         
         statValues[index] = valueLabel;
         
-        if (index >= 1 && index <= 4) {
+        if (index >= 1 && index <= 5) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             final String filterStatus = title;
             final int cardIndex = index;
@@ -1049,8 +1217,7 @@ public class CourierDashboard extends JFrame {
                         card.setBackground(bgColor);
                         card.setBorder(BorderFactory.createCompoundBorder(
                             new LineBorder(color, 1, true),
-                            BorderFactory.createEmptyBorder(7, 11, 7, 11)
-                        ));
+                            BorderFactory.createEmptyBorder(7, 11, 7, 11)));
                     }
                 }
                 
@@ -1059,8 +1226,7 @@ public class CourierDashboard extends JFrame {
                         card.setBackground(Color.WHITE);
                         card.setBorder(BorderFactory.createCompoundBorder(
                             new LineBorder(BORDER_COLOR, 1, true),
-                            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-                        ));
+                            BorderFactory.createEmptyBorder(8, 12, 8, 12)));
                     }
                 }
                 
@@ -1068,8 +1234,7 @@ public class CourierDashboard extends JFrame {
                     applyDeliveriesStatusFilter(filterStatus, cardIndex, color);
                 }
             });
-        } 
-        else if (index == 0) {
+        } else if (index == 0) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             card.addMouseListener(new MouseAdapter() {
                 public void mouseEntered(MouseEvent e) {
@@ -1092,14 +1257,11 @@ public class CourierDashboard extends JFrame {
     }
     
     private void resetDeliveriesCardBorders() {
-        if (statCards != null) {
-            for (int i = 0; i < statCards.length; i++) {
-                statCards[i].setBorder(BorderFactory.createCompoundBorder(
-                    new LineBorder(BORDER_COLOR, 1, true),
-                    BorderFactory.createEmptyBorder(8, 12, 8, 12)
-                ));
-                statCards[i].setBackground(Color.WHITE);
-            }
+        for (int i = 0; i < statCards.length; i++) {
+            statCards[i].setBorder(BorderFactory.createCompoundBorder(
+                new LineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+            statCards[i].setBackground(Color.WHITE);
         }
     }
     
@@ -1110,22 +1272,17 @@ public class CourierDashboard extends JFrame {
             currentStatusFilter = null;
             currentFilterIndex = -1;
             deliveriesRowSorter.setRowFilter(null);
-            
             statCards[cardIndex].setBorder(BorderFactory.createCompoundBorder(
                 new LineBorder(BORDER_COLOR, 1, true),
-                BorderFactory.createEmptyBorder(8, 12, 8, 12)
-            ));
+                BorderFactory.createEmptyBorder(8, 12, 8, 12)));
             statCards[cardIndex].setBackground(Color.WHITE);
         } else {
             currentStatusFilter = status;
             currentFilterIndex = cardIndex;
-            
             statCards[cardIndex].setBorder(BorderFactory.createCompoundBorder(
                 new LineBorder(ACTIVE_FILTER_BORDER, 2, true),
-                BorderFactory.createEmptyBorder(7, 11, 7, 11)
-            ));
+                BorderFactory.createEmptyBorder(7, 11, 7, 11)));
             statCards[cardIndex].setBackground(color.brighter());
-            
             deliveriesRowSorter.setRowFilter(RowFilter.regexFilter("^" + status + "$", 3));
         }
     }
@@ -1135,9 +1292,6 @@ public class CourierDashboard extends JFrame {
         currentStatusFilter = null;
         currentFilterIndex = -1;
         deliveriesRowSorter.setRowFilter(null);
-        if (searchField != null) {
-            searchField.setText("");
-        }
     }
     
     private JPanel createDeliveriesCenterPanel() {
@@ -1152,72 +1306,13 @@ public class CourierDashboard extends JFrame {
         panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
         
-        JPanel searchPanel = createDeliveriesSearchPanel();
-        panel.add(searchPanel, BorderLayout.NORTH);
-        
         JScrollPane scrollPane = new JScrollPane(createDeliveriesTable());
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getViewport().setBackground(Color.WHITE);
         scrollPane.setPreferredSize(new Dimension(1000, 450));
-        
         panel.add(scrollPane, BorderLayout.CENTER);
         
         return panel;
-    }
-    
-    private JPanel createDeliveriesSearchPanel() {
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        searchPanel.setBackground(Color.WHITE);
-        searchPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 5, 15));
-        
-        JLabel searchLabel = new JLabel("Search by:");
-        searchLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        
-        String[] columns = {"Order ID", "Recipient", "Phone", "Address"};
-        searchColumnCombo = new JComboBox<>(columns);
-        searchColumnCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        searchColumnCombo.setBackground(Color.WHITE);
-        searchColumnCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        searchColumnCombo.setPreferredSize(new Dimension(120, 32));
-        
-        searchField = new JTextField(20);
-        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        searchField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            BorderFactory.createEmptyBorder(5, 10, 5, 10)
-        ));
-        
-        JButton clearSearchBtn = new JButton("Clear");
-        clearSearchBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        clearSearchBtn.setBackground(Color.WHITE);
-        clearSearchBtn.setForeground(TEXT_GRAY);
-        clearSearchBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        clearSearchBtn.setPreferredSize(new Dimension(80, 32));
-        clearSearchBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        searchField.addKeyListener(new KeyAdapter() {
-            public void keyReleased(KeyEvent e) {
-                String text = searchField.getText().trim();
-                int columnIndex = searchColumnCombo.getSelectedIndex();
-                if (text.isEmpty()) {
-                    deliveriesRowSorter.setRowFilter(null);
-                } else {
-                    deliveriesRowSorter.setRowFilter(RowFilter.regexFilter("(?i)" + text, columnIndex));
-                }
-            }
-        });
-        
-        clearSearchBtn.addActionListener(e -> {
-            searchField.setText("");
-            deliveriesRowSorter.setRowFilter(null);
-        });
-        
-        searchPanel.add(searchLabel);
-        searchPanel.add(searchColumnCombo);
-        searchPanel.add(searchField);
-        searchPanel.add(clearSearchBtn);
-        
-        return searchPanel;
     }
     
     private JTable createDeliveriesTable() {
@@ -1230,17 +1325,12 @@ public class CourierDashboard extends JFrame {
             @Override
             public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
                 Component comp = super.prepareRenderer(renderer, row, column);
-                
                 if (!isRowSelected(row)) {
-                    if (row % 2 == 0) {
-                        comp.setBackground(new Color(252, 252, 253));
-                    } else {
-                        comp.setBackground(Color.WHITE);
-                    }
+                    comp.setBackground(row % 2 == 0 ? new Color(252, 252, 253) : Color.WHITE);
                 } else {
                     comp.setBackground(new Color(232, 245, 233));
+                    comp.setForeground(Color.BLACK);
                 }
-                
                 return comp;
             }
         };
@@ -1248,7 +1338,6 @@ public class CourierDashboard extends JFrame {
         deliveriesTable.setRowHeight(48);
         deliveriesTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         deliveriesTable.setSelectionBackground(new Color(232, 245, 233));
-        deliveriesTable.setSelectionForeground(new Color(33, 37, 41));
         deliveriesTable.setShowGrid(true);
         deliveriesTable.setGridColor(BORDER_COLOR);
         deliveriesTable.setIntercellSpacing(new Dimension(10, 5));
@@ -1318,40 +1407,54 @@ public class CourierDashboard extends JFrame {
                 
                 switch (status) {
                     case "In Transit":
-                        label.setForeground(INFO.darker());
+                        label.setForeground(new Color(13, 110, 130));
                         label.setBackground(new Color(227, 242, 253));
                         label.setBorder(BorderFactory.createCompoundBorder(
                             new LineBorder(INFO, 1, true),
-                            BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                        ));
+                            BorderFactory.createEmptyBorder(4, 12, 4, 12)));
                         break;
                     case "Pending":
-                        label.setForeground(WARNING.darker());
+                        label.setForeground(new Color(150, 100, 0));
                         label.setBackground(new Color(255, 243, 224));
                         label.setBorder(BorderFactory.createCompoundBorder(
                             new LineBorder(WARNING, 1, true),
-                            BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                        ));
+                            BorderFactory.createEmptyBorder(4, 12, 4, 12)));
                         break;
                     case "Delivered":
-                        label.setForeground(SUCCESS.darker());
+                        label.setForeground(new Color(0, 100, 0));
                         label.setBackground(new Color(232, 245, 233));
                         label.setBorder(BorderFactory.createCompoundBorder(
                             new LineBorder(SUCCESS, 1, true),
-                            BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                        ));
+                            BorderFactory.createEmptyBorder(4, 12, 4, 12)));
                         break;
                     case "Delayed":
-                        label.setForeground(DANGER.darker());
+                        label.setForeground(new Color(150, 20, 30));
                         label.setBackground(new Color(255, 235, 238));
                         label.setBorder(BorderFactory.createCompoundBorder(
                             new LineBorder(DANGER, 1, true),
-                            BorderFactory.createEmptyBorder(4, 12, 4, 12)
-                        ));
+                            BorderFactory.createEmptyBorder(4, 12, 4, 12)));
+                        break;
+                    case "Picked Up":
+                        label.setForeground(new Color(70, 40, 120));
+                        label.setBackground(new Color(240, 235, 255));
+                        label.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(PURPLE, 1, true),
+                            BorderFactory.createEmptyBorder(4, 12, 4, 12)));
+                        break;
+                    case "Failed":
+                        label.setForeground(new Color(150, 0, 0));
+                        label.setBackground(new Color(255, 220, 220));
+                        label.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(DANGER, 1, true),
+                            BorderFactory.createEmptyBorder(4, 12, 4, 12)));
+                        break;
+                    default:
+                        label.setForeground(Color.BLACK);
+                        label.setBackground(Color.WHITE);
+                        label.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
                         break;
                 }
             }
-            
             return panel;
         }
     }
@@ -1362,11 +1465,8 @@ public class CourierDashboard extends JFrame {
                 boolean isSelected, boolean hasFocus, int row, int column) {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             setHorizontalAlignment(CENTER);
-            
-            setOpaque(true);
             setBackground(isSelected ? new Color(232, 245, 233) : 
                          (row % 2 == 0 ? new Color(252, 252, 253) : Color.WHITE));
-            
             return this;
         }
     }
@@ -1397,12 +1497,12 @@ public class CourierDashboard extends JFrame {
             }
             
             deliveriesTableModel.addRow(new Object[]{
-                o.id,
+                o.id, 
                 o.recipientName != null ? o.recipientName : "-",
                 o.recipientPhone != null ? o.recipientPhone : "-",
-                o.status != null ? o.status : "-",
-                pickupTime,
-                estDelivery,
+                o.status != null ? o.status : "-", 
+                pickupTime, 
+                estDelivery, 
                 address,
                 String.format("%.1f kg", o.weight)
             });
@@ -1418,26 +1518,105 @@ public class CourierDashboard extends JFrame {
             int pending = (int) myOrders.stream().filter(o -> "Pending".equals(o.status)).count();
             int delivered = (int) myOrders.stream().filter(o -> "Delivered".equals(o.status)).count();
             int delayed = (int) myOrders.stream().filter(o -> "Delayed".equals(o.status)).count();
+            int failed = (int) myOrders.stream().filter(o -> "Failed".equals(o.status)).count();
             
             if (statValues[0] != null) statValues[0].setText(String.valueOf(total));
             if (statValues[1] != null) statValues[1].setText(String.valueOf(inTransit));
             if (statValues[2] != null) statValues[2].setText(String.valueOf(pending));
             if (statValues[3] != null) statValues[3].setText(String.valueOf(delivered));
             if (statValues[4] != null) statValues[4].setText(String.valueOf(delayed));
+            if (statValues[5] != null) statValues[5].setText(String.valueOf(failed));
         });
     }
     
     private JPanel createDeliveriesButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 10));
         panel.setBackground(BG_LIGHT);
         
         JButton viewDetailsBtn = createActionButton("View Details", INFO, this::viewSelectedOrderDetails);
+        JButton updateStatusBtn = createActionButton("Update Status", ORANGE, this::updateSelectedOrderStatus);
         JButton trackBtn = createActionButton("Track Order", PURPLE, this::trackSelectedOrder);
         
         panel.add(viewDetailsBtn);
+        panel.add(updateStatusBtn);
         panel.add(trackBtn);
         
         return panel;
+    }
+    
+    private void updateSelectedOrderStatus() {
+        int row = deliveriesTable.getSelectedRow();
+        if (row == -1) {
+            showNotification("Please select an order to update", WARNING);
+            return;
+        }
+        
+        int modelRow = deliveriesTable.convertRowIndexToModel(row);
+        if (modelRow >= 0 && modelRow < myOrders.size()) {
+            Order selectedOrder = myOrders.get(modelRow);
+            
+            if ("Delivered".equals(selectedOrder.status)) {
+                showNotification("This order has already been delivered. Cannot update status.", WARNING);
+                return;
+            }
+            
+            if ("Failed".equals(selectedOrder.status)) {
+                showNotification("This order has failed. Admin will reassign it to another driver.", WARNING);
+                return;
+            }
+            
+            cardLayout.show(contentPanel, "UPDATE");
+            updateSidebarButtonHighlight("Update Status");
+            
+            SwingUtilities.invokeLater(() -> {
+                Timer timer = new Timer(100, e -> {
+                    if (orderSelectCombo != null && orderSelectCombo.getItemCount() > 0) {
+                        for (int i = 0; i < orderSelectCombo.getItemCount(); i++) {
+                            String item = orderSelectCombo.getItemAt(i);
+                            if (item != null && item.startsWith(selectedOrder.id)) {
+                                orderSelectCombo.setSelectedIndex(i);
+                                break;
+                            }
+                        }
+                        showNotification("Order selected: " + selectedOrder.id, SUCCESS);
+                        ((Timer)e.getSource()).stop();
+                    }
+                });
+                timer.setRepeats(true);
+                timer.start();
+            });
+        }
+    }
+    
+    private void updateSidebarButtonHighlight(String buttonText) {
+        Component[] components = ((JPanel)getContentPane().getComponent(1)).getComponents();
+        for (Component comp : components) {
+            if (comp instanceof JPanel) {
+                JPanel sidebar = (JPanel) comp;
+                Component[] sidebarComponents = sidebar.getComponents();
+                for (Component sidebarComp : sidebarComponents) {
+                    if (sidebarComp instanceof JPanel) {
+                        JPanel menuPanel = (JPanel) sidebarComp;
+                        for (Component btnComp : menuPanel.getComponents()) {
+                            if (btnComp instanceof JButton) {
+                                JButton btn = (JButton) btnComp;
+                                if (btn.getText().contains(buttonText)) {
+                                    if (activeButton != null && activeButton != btn) {
+                                        activeButton.setOpaque(false);
+                                        activeButton.setBackground(BUTTON_NORMAL);
+                                        activeButton.repaint();
+                                    }
+                                    btn.setOpaque(true);
+                                    btn.setBackground(BUTTON_SELECTED);
+                                    activeButton = btn;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     
     private JButton createActionButton(String text, Color bgColor, Runnable action) {
@@ -1460,7 +1639,6 @@ public class CourierDashboard extends JFrame {
         });
         
         btn.addActionListener(e -> action.run());
-        
         return btn;
     }
     
@@ -1492,134 +1670,230 @@ public class CourierDashboard extends JFrame {
     
     private void showOrderTracking(Order order) {
         JDialog dialog = new JDialog(this, "Track Order - " + order.id, true);
-        dialog.setSize(500, 450);
+        dialog.setSize(500, 550);
         dialog.setLocationRelativeTo(this);
         
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setBackground(Color.WHITE);
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Color.WHITE);
         
-        JLabel titleLabel = new JLabel("Tracking Timeline");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(Color.WHITE);
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 15, 20));
+        
+        JLabel titleLabel = new JLabel("Order Tracking");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(PRIMARY_GREEN);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
+        headerPanel.add(titleLabel, BorderLayout.WEST);
         
-        JPanel timelinePanel = new JPanel();
-        timelinePanel.setLayout(new BoxLayout(timelinePanel, BoxLayout.Y_AXIS));
-        timelinePanel.setBackground(Color.WHITE);
+        JLabel orderIdLabel = new JLabel("Order #" + order.id);
+        orderIdLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        orderIdLabel.setForeground(TEXT_GRAY);
+        headerPanel.add(orderIdLabel, BorderLayout.EAST);
         
-        timelinePanel.add(createTimelineEvent("Order Created", 
-            "Order placed by " + order.customerName, order.orderDate, true));
-        timelinePanel.add(Box.createVerticalStrut(5));
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        
+        JPanel timelineContainer = new JPanel();
+        timelineContainer.setLayout(new BoxLayout(timelineContainer, BoxLayout.Y_AXIS));
+        timelineContainer.setBackground(Color.WHITE);
+        timelineContainer.setBorder(BorderFactory.createEmptyBorder(0, 30, 20, 30));
+        
+        List<TimelineStep> steps = new ArrayList<>();
+        
+        steps.add(new TimelineStep("Order Placed", "Order has been placed successfully", order.orderDate != null ? order.orderDate : "Date not available", true));
         
         boolean paymentCompleted = "Paid".equals(order.paymentStatus);
-        timelinePanel.add(createTimelineEvent("Payment", 
-            paymentCompleted ? "Payment completed" : "Payment pending",
-            order.paymentDate != null ? order.paymentDate : "Not paid", paymentCompleted));
-        timelinePanel.add(Box.createVerticalStrut(5));
+        steps.add(new TimelineStep("Payment Confirmed", paymentCompleted ? "Payment has been confirmed" : "Awaiting payment confirmation",
+            order.paymentDate != null ? order.paymentDate : (paymentCompleted ? "Confirmed" : "Pending"), paymentCompleted));
         
-        boolean pickedUp = order.pickupTime != null;
-        timelinePanel.add(createTimelineEvent("Pickup", 
-            pickedUp ? "Picked up by courier" : "Awaiting pickup",
-            pickedUp ? order.pickupTime : "Not picked up", pickedUp));
-        timelinePanel.add(Box.createVerticalStrut(5));
+        boolean processed = !"Pending".equals(order.status);
+        steps.add(new TimelineStep("Order Processed", processed ? "Order has been processed and prepared" : "Order is being processed",
+            processed ? "Processed" : "Processing", processed));
         
-        boolean inTransit = "In Transit".equals(order.status) || "Delayed".equals(order.status) || "Delivered".equals(order.status);
-        timelinePanel.add(createTimelineEvent("In Transit", 
-            inTransit ? "Package is on the way" : "Not in transit",
-            order.estimatedDelivery != null ? "Est: " + order.estimatedDelivery : "-", inTransit));
-        timelinePanel.add(Box.createVerticalStrut(5));
+        boolean pickedUp = "Picked Up".equals(order.status) || "In Transit".equals(order.status) || "Delivered".equals(order.status);
+        steps.add(new TimelineStep("Picked Up by Courier", pickedUp ? "Package has been picked up by courier" : "Awaiting pickup",
+            pickedUp ? "Picked up" : "Pending", pickedUp));
+        
+        boolean inTransit = "In Transit".equals(order.status) || "Delivered".equals(order.status);
+        steps.add(new TimelineStep("In Transit", inTransit ? "Package is on the way to destination" : "Awaiting dispatch",
+            inTransit ? "In transit" : "Not yet", inTransit));
         
         boolean delivered = "Delivered".equals(order.status);
-        String deliveryInfo = delivered ? (order.onTime ? "Delivered on time" : "Delivered late") : "Not delivered";
-        timelinePanel.add(createTimelineEvent("Delivered", deliveryInfo,
-            order.actualDelivery != null ? order.actualDelivery : "-", delivered));
+        String deliveryStatus = delivered ? (order.onTime ? "Successfully delivered on time" : "Delivered with delay") : "Delivery pending";
+        steps.add(new TimelineStep("Delivered", deliveryStatus, delivered ? "Completed" : "Pending", delivered));
         
-        JScrollPane scrollPane = new JScrollPane(timelinePanel);
+        for (int i = 0; i < steps.size(); i++) {
+            TimelineStep step = steps.get(i);
+            timelineContainer.add(createTimelineStep(step.title, step.description, step.time, step.completed));
+            if (i < steps.size() - 1) {
+                timelineContainer.add(createTimelineConnectorLine(step.completed && steps.get(i + 1).completed));
+            }
+        }
+        
+        JScrollPane scrollPane = new JScrollPane(timelineContainer);
         scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setBackground(Color.WHITE);
+        
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        
+        JPanel summaryPanel = new JPanel();
+        summaryPanel.setLayout(new BoxLayout(summaryPanel, BoxLayout.Y_AXIS));
+        summaryPanel.setBackground(new Color(248, 249, 250));
+        summaryPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR),
+            BorderFactory.createEmptyBorder(15, 20, 15, 20)));
+        
+        JLabel summaryTitle = new JLabel("Order Summary");
+        summaryTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        summaryTitle.setForeground(PRIMARY_GREEN);
+        summaryPanel.add(summaryTitle);
+        summaryPanel.add(Box.createVerticalStrut(10));
+        
+        JPanel detailsPanel = new JPanel(new GridLayout(4, 2, 10, 8));
+        detailsPanel.setOpaque(false);
+        
+        detailsPanel.add(createSummaryDetail("Recipient:", order.recipientName != null ? order.recipientName : "-"));
+        detailsPanel.add(createSummaryDetail("Status:", order.status != null ? order.status : "-"));
+        detailsPanel.add(createSummaryDetail("Weight:", String.format("%.1f kg", order.weight)));
+        detailsPanel.add(createSummaryDetail("Est. Cost:", extractCost(order.notes)));
+        
+        summaryPanel.add(detailsPanel);
+        mainPanel.add(summaryPanel, BorderLayout.SOUTH);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
         
         JButton closeBtn = new JButton("Close");
-        closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
         closeBtn.setForeground(Color.WHITE);
         closeBtn.setBackground(PRIMARY_GREEN);
         closeBtn.setBorderPainted(false);
-        closeBtn.setPreferredSize(new Dimension(100, 35));
+        closeBtn.setFocusPainted(false);
+        closeBtn.setPreferredSize(new Dimension(120, 38));
         closeBtn.addActionListener(e -> dialog.dispose());
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setBackground(Color.WHITE);
         buttonPanel.add(closeBtn);
         
-        panel.add(titleLabel, BorderLayout.NORTH);
-        panel.add(scrollPane, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
         
-        dialog.add(panel);
+        dialog.add(mainPanel);
         dialog.setVisible(true);
     }
     
-    private JPanel createTimelineEvent(String event, String description, String time, boolean completed) {
-        JPanel eventPanel = new JPanel(new BorderLayout(10, 0));
-        eventPanel.setBackground(Color.WHITE);
-        eventPanel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+    private class TimelineStep {
+        String title;
+        String description;
+        String time;
+        boolean completed;
         
-        JPanel leftPanel = new JPanel(new GridLayout(2, 1, 2, 2));
+        TimelineStep(String title, String description, String time, boolean completed) {
+            this.title = title;
+            this.description = description;
+            this.time = time;
+            this.completed = completed;
+        }
+    }
+    
+    private JPanel createTimelineStep(String title, String description, String time, boolean completed) {
+        JPanel stepPanel = new JPanel(new BorderLayout(12, 0));
+        stepPanel.setBackground(Color.WHITE);
+        stepPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
+        
+        JPanel leftPanel = new JPanel(new BorderLayout());
         leftPanel.setBackground(Color.WHITE);
+        leftPanel.setPreferredSize(new Dimension(30, 30));
         
-        String icon = completed ? "✅ " : "⏳ ";
-        JLabel eventLabel = new JLabel(icon + event);
-        eventLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        eventLabel.setForeground(completed ? SUCCESS : TEXT_GRAY);
-        leftPanel.add(eventLabel);
+        JPanel dotPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                if (completed) {
+                    g2d.setColor(SUCCESS);
+                    g2d.fillOval(4, 4, 12, 12);
+                } else {
+                    g2d.setColor(BORDER_COLOR);
+                    g2d.fillOval(4, 4, 12, 12);
+                }
+            }
+        };
+        dotPanel.setPreferredSize(new Dimension(20, 20));
+        dotPanel.setBackground(Color.WHITE);
+        leftPanel.add(dotPanel, BorderLayout.NORTH);
+        
+        stepPanel.add(leftPanel, BorderLayout.WEST);
+        
+        JPanel contentPanel = new JPanel(new GridLayout(2, 1, 0, 4));
+        contentPanel.setBackground(Color.WHITE);
+        
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        titleLabel.setForeground(completed ? SUCCESS : TEXT_GRAY);
+        contentPanel.add(titleLabel);
         
         JLabel descLabel = new JLabel(description);
-        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         descLabel.setForeground(TEXT_GRAY);
-        leftPanel.add(descLabel);
+        contentPanel.add(descLabel);
         
-        eventPanel.add(leftPanel, BorderLayout.WEST);
+        stepPanel.add(contentPanel, BorderLayout.CENTER);
         
         JLabel timeLabel = new JLabel(time);
-        timeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        timeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         timeLabel.setForeground(TEXT_GRAY);
-        eventPanel.add(timeLabel, BorderLayout.EAST);
+        stepPanel.add(timeLabel, BorderLayout.EAST);
         
-        return eventPanel;
+        return stepPanel;
     }
     
+    private JPanel createTimelineConnectorLine(boolean completed) {
+        JPanel connector = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(completed ? SUCCESS : BORDER_COLOR);
+                g2d.setStroke(new BasicStroke(2));
+                int x = 10;
+                g2d.drawLine(x, 0, x, getHeight());
+            }
+        };
+        connector.setPreferredSize(new Dimension(20, 25));
+        connector.setBackground(Color.WHITE);
+        return connector;
+    }
+    
+    private JLabel createSummaryDetail(String label, String value) {
+        JLabel lbl = new JLabel(label + " " + value);
+        lbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        if (label.contains("Status:")) {
+            lbl.setForeground(getStatusColorForBadge(value));
+            lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        } else {
+            lbl.setForeground(TEXT_GRAY);
+        }
+        return lbl;
+    }
+    
+    // UPDATED: Changed from bottom-right to CENTER of screen using JOptionPane
     private void showNotification(String message, Color color) {
-        JWindow notification = new JWindow();
-        notification.setAlwaysOnTop(true);
+        // Use JOptionPane for centered dialog
+        String title = "Notification";
+        if (color == SUCCESS) {
+            title = "Success";
+        } else if (color == WARNING) {
+            title = "Warning";
+        } else if (color == DANGER) {
+            title = "Error";
+        } else if (color == INFO) {
+            title = "Information";
+        }
         
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(color);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(color.darker(), 1),
-            BorderFactory.createEmptyBorder(12, 20, 12, 20)
-        ));
-        
-        JLabel label = new JLabel(message);
-        label.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        label.setForeground(Color.WHITE);
-        panel.add(label, BorderLayout.CENTER);
-        
-        notification.getContentPane().add(panel);
-        notification.pack();
-        
-        Point p = getLocationOnScreen();
-        notification.setLocation(
-            p.x + getWidth() - notification.getWidth() - 24,
-            p.y + getHeight() - notification.getHeight() - 24
-        );
-        
-        notification.setVisible(true);
-        
-        Timer timer = new Timer(3000, e -> notification.dispose());
-        timer.setRepeats(false);
-        timer.start();
+        JOptionPane.showMessageDialog(this, message, title, JOptionPane.INFORMATION_MESSAGE);
     }
-    
-    // ==================== ENHANCED ORDER DETAILS ====================
     
     private void showEnhancedOrderDetails(Order order) {
         JDialog dialog = new JDialog(this, "Complete Order Details - " + order.id, true);
@@ -1648,9 +1922,7 @@ public class CourierDashboard extends JFrame {
         statusBadge.setFont(new Font("Segoe UI", Font.BOLD, 12));
         statusBadge.setOpaque(true);
         statusBadge.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        
-        Color statusColor = getStatusColorForBadge(order.status);
-        statusBadge.setBackground(statusColor);
+        statusBadge.setBackground(getStatusColorForBadge(order.status));
         statusBadge.setForeground(Color.WHITE);
         statusBadgePanel.add(statusBadge);
         
@@ -1673,27 +1945,17 @@ public class CourierDashboard extends JFrame {
         
         headerPanel.add(titlePanel, BorderLayout.WEST);
         headerPanel.add(dateLabel, BorderLayout.EAST);
-        
         mainPanel.add(headerPanel, BorderLayout.NORTH);
         
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 13));
         tabbedPane.setBackground(Color.WHITE);
         
-        JPanel orderTab = createOrderInfoTab(order);
-        tabbedPane.addTab("📋 Order Info", orderTab);
-        
-        JPanel customerTab = createCustomerInfoTab(order);
-        tabbedPane.addTab("👥 Customer & Recipient", customerTab);
-        
-        JPanel packageTab = createPackageInfoTab(order);
-        tabbedPane.addTab("📦 Package Details", packageTab);
-        
-        JPanel deliveryTab = createDeliveryInfoTab(order);
-        tabbedPane.addTab("🚚 Delivery Info", deliveryTab);
-        
-        JPanel paymentTab = createPaymentInfoTab(order);
-        tabbedPane.addTab("💰 Payment", paymentTab);
+        tabbedPane.addTab("Order Info", createOrderInfoTab(order));
+        tabbedPane.addTab("Customer & Recipient", createCustomerInfoTab(order));
+        tabbedPane.addTab("Package Details", createPackageInfoTab(order));
+        tabbedPane.addTab("Delivery Info", createDeliveryInfoTab(order));
+        tabbedPane.addTab("Payment", createPaymentInfoTab(order));
         
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
         
@@ -1710,7 +1972,6 @@ public class CourierDashboard extends JFrame {
         buttonPanel.add(closeBtn);
         
         mainPanel.add(buttonPanel, BorderLayout.SOUTH);
-        
         dialog.add(mainPanel);
         dialog.setVisible(true);
     }
@@ -1727,7 +1988,7 @@ public class CourierDashboard extends JFrame {
         
         int row = 0;
         
-        JLabel basicTitle = new JLabel("📋 BASIC INFORMATION");
+        JLabel basicTitle = new JLabel("BASIC INFORMATION");
         basicTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         basicTitle.setForeground(PRIMARY_GREEN);
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
@@ -1741,11 +2002,18 @@ public class CourierDashboard extends JFrame {
         
         if ("Delivered".equals(order.status)) {
             addDetailRow(panel, "Actual Delivery:", order.actualDelivery != null ? order.actualDelivery : "-", gbc, row++);
-            addDetailRow(panel, "Delivery Time:", order.deliveryTime != null ? order.deliveryTime.substring(11, 16) : "-", gbc, row++);
+            if (order.deliveryTime != null) {
+                addDetailRow(panel, "Delivery Time:", order.deliveryTime.substring(11, 16), gbc, row++);
+            }
         }
         
-        if (order.reason != null && !order.reason.isEmpty()) {
-            addDetailRow(panel, "Delay/Cancel Reason:", order.reason, gbc, row++);
+        if ("Failed".equals(order.status)) {
+            addDetailRow(panel, "Failed Date:", order.deliveryTime != null ? order.deliveryTime : order.actualDelivery, gbc, row++);
+            addDetailRow(panel, "Failure Reason:", order.reason != null ? order.reason : "-", gbc, row++);
+        }
+        
+        if (order.reason != null && !order.reason.isEmpty() && !"Failed".equals(order.status)) {
+            addDetailRow(panel, "Reason:", order.reason, gbc, row++);
         }
         
         return panel;
@@ -1763,7 +2031,7 @@ public class CourierDashboard extends JFrame {
         
         int row = 0;
         
-        JLabel senderTitle = new JLabel("📤 SENDER INFORMATION");
+        JLabel senderTitle = new JLabel("SENDER INFORMATION");
         senderTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         senderTitle.setForeground(PRIMARY_GREEN);
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
@@ -1778,7 +2046,7 @@ public class CourierDashboard extends JFrame {
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         panel.add(new JSeparator(), gbc);
         
-        JLabel recipientTitle = new JLabel("📥 RECIPIENT INFORMATION");
+        JLabel recipientTitle = new JLabel("RECIPIENT INFORMATION");
         recipientTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         recipientTitle.setForeground(SUCCESS);
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
@@ -1804,7 +2072,7 @@ public class CourierDashboard extends JFrame {
         
         int row = 0;
         
-        JLabel packageTitle = new JLabel("📦 PACKAGE DETAILS");
+        JLabel packageTitle = new JLabel("PACKAGE DETAILS");
         packageTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         packageTitle.setForeground(PRIMARY_GREEN);
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
@@ -1813,12 +2081,10 @@ public class CourierDashboard extends JFrame {
         gbc.gridwidth = 1;
         addDetailRow(panel, "Weight:", String.format("%.2f kg", order.weight), gbc, row++);
         addDetailRow(panel, "Dimensions:", order.dimensions + " cm", gbc, row++);
-        
-        String cost = extractCost(order.notes);
-        addDetailRow(panel, "Estimated Cost:", cost, gbc, row++);
+        addDetailRow(panel, "Estimated Cost:", extractCost(order.notes), gbc, row++);
         
         if (order.notes != null && !order.notes.isEmpty()) {
-            addDetailRow(panel, "Full Notes:", order.notes, gbc, row++);
+            addDetailRow(panel, "Notes:", order.notes.length() > 100 ? order.notes.substring(0, 97) + "..." : order.notes, gbc, row++);
         }
         
         return panel;
@@ -1836,7 +2102,7 @@ public class CourierDashboard extends JFrame {
         
         int row = 0;
         
-        JLabel deliveryTitle = new JLabel("🚚 DELIVERY INFORMATION");
+        JLabel deliveryTitle = new JLabel("DELIVERY INFORMATION");
         deliveryTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         deliveryTitle.setForeground(INFO);
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
@@ -1847,11 +2113,12 @@ public class CourierDashboard extends JFrame {
         addDetailRow(panel, "Delivery Time:", order.deliveryTime != null ? order.deliveryTime : "-", gbc, row++);
         
         if ("Delivered".equals(order.status)) {
-            addDetailRow(panel, "Distance Traveled:", String.format("%.1f km", order.distance), gbc, row++);
-            addDetailRow(panel, "Fuel Used:", String.format("%.1f L", order.fuelUsed), gbc, row++);
-            addDetailRow(panel, "Fuel Efficiency:", order.fuelUsed > 0 ? 
-                        String.format("%.2f km/L", order.distance / order.fuelUsed) : "-", gbc, row++);
-            addDetailRow(panel, "On Time Delivery:", order.onTime ? "✅ Yes" : "❌ No", gbc, row++);
+            addDetailRow(panel, "On Time Delivery:", order.onTime ? "Yes" : "No", gbc, row++);
+        }
+        
+        if ("Failed".equals(order.status)) {
+            addDetailRow(panel, "Delivery Status:", "FAILED", gbc, row++);
+            addDetailRow(panel, "Failure Reason:", order.reason != null ? order.reason : "-", gbc, row++);
         }
         
         addDetailRow(panel, "Driver ID:", order.driverId != null ? order.driverId : "-", gbc, row++);
@@ -1872,7 +2139,7 @@ public class CourierDashboard extends JFrame {
         
         int row = 0;
         
-        JLabel paymentTitle = new JLabel("💰 PAYMENT INFORMATION");
+        JLabel paymentTitle = new JLabel("PAYMENT INFORMATION");
         paymentTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         paymentTitle.setForeground(PURPLE);
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
@@ -1883,9 +2150,7 @@ public class CourierDashboard extends JFrame {
         addDetailRow(panel, "Payment Method:", order.paymentMethod != null ? order.paymentMethod : "-", gbc, row++);
         addDetailRow(panel, "Transaction ID:", order.transactionId != null ? order.transactionId : "-", gbc, row++);
         addDetailRow(panel, "Payment Date:", order.paymentDate != null ? order.paymentDate : "-", gbc, row++);
-        
-        String cost = extractCost(order.notes);
-        addDetailRow(panel, "Order Cost:", cost, gbc, row++);
+        addDetailRow(panel, "Order Cost:", extractCost(order.notes), gbc, row++);
         
         return panel;
     }
@@ -1908,7 +2173,6 @@ public class CourierDashboard extends JFrame {
     
     private String extractCost(String notes) {
         if (notes == null) return "RM --.--";
-        
         if (notes.contains("Estimated Cost:")) {
             String[] parts = notes.split("Estimated Cost: ");
             if (parts.length > 1) {
@@ -1922,145 +2186,14 @@ public class CourierDashboard extends JFrame {
     private Color getStatusColorForBadge(String status) {
         switch (status) {
             case "Pending": return WARNING;
+            case "Picked Up": return PURPLE;
             case "In Transit": return INFO;
             case "Delayed": return DANGER;
             case "Delivered": return SUCCESS;
+            case "Failed": return DANGER;
             case "Cancelled": return TEXT_GRAY;
             default: return PRIMARY_GREEN;
         }
-    }
-    
-    // ==================== STATS PANEL ====================
-    
-    private JPanel createStatsPanel() {
-        JPanel panel = new JPanel(new BorderLayout(15, 15));
-        panel.setBackground(BG_LIGHT);
-        panel.setBorder(new EmptyBorder(25, 25, 25, 25));
-        
-        JLabel titleLabel = new JLabel("📊 Performance Statistics");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        titleLabel.setForeground(PRIMARY_GREEN);
-        panel.add(titleLabel, BorderLayout.NORTH);
-        
-        JPanel statsContainer = new JPanel(new GridBagLayout());
-        statsContainer.setBackground(BG_LIGHT);
-        
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(10, 10, 10, 10);
-        gbc.weightx = 1.0;
-        
-        int row = 0;
-        
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
-        JPanel summaryPanel = new JPanel(new GridLayout(2, 4, 15, 15));
-        summaryPanel.setBackground(BG_LIGHT);
-        
-        summaryPanel.add(createDetailedStatCard("Total Deliveries", String.valueOf(currentDriver.totalDeliveries), "All time", PRIMARY_GREEN));
-        summaryPanel.add(createDetailedStatCard("Rating", String.format("%.1f ⭐", currentDriver.rating), "Average", new Color(255, 193, 7)));
-        summaryPanel.add(createDetailedStatCard("On-Time", String.format("%.0f%%", currentDriver.getOnTimeRate() * 100), "Rate", SUCCESS));
-        summaryPanel.add(createDetailedStatCard("Late", String.valueOf(currentDriver.lateDeliveries), "Deliveries", DANGER));
-        summaryPanel.add(createDetailedStatCard("Distance", String.format("%.1f km", currentDriver.totalDistance), "Total driven", INFO));
-        summaryPanel.add(createDetailedStatCard("Fuel", String.format("%.1f L", currentDriver.totalFuelUsed), "Total used", PURPLE));
-        summaryPanel.add(createDetailedStatCard("Efficiency", String.format("%.2f km/L", 
-            currentDriver.totalFuelUsed > 0 ? currentDriver.totalDistance / currentDriver.totalFuelUsed : 0), "Average", new Color(0, 150, 136)));
-        summaryPanel.add(createDetailedStatCard("Active Orders", String.valueOf(currentDriver.getCurrentOrderCount()), "Current", ORANGE));
-        
-        statsContainer.add(summaryPanel, gbc);
-        
-        row++;
-        
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
-        gbc.insets = new Insets(20, 10, 10, 10);
-        
-        JPanel statusPanel = new JPanel();
-        statusPanel.setLayout(new BoxLayout(statusPanel, BoxLayout.Y_AXIS));
-        statusPanel.setBackground(Color.WHITE);
-        statusPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR),
-            new EmptyBorder(20, 20, 20, 20)));
-        
-        JLabel statusTitle = new JLabel("Order Status Breakdown");
-        statusTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        statusTitle.setForeground(PRIMARY_GREEN);
-        statusTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
-        statusPanel.add(statusTitle);
-        statusPanel.add(Box.createVerticalStrut(15));
-        
-        int inTransit = (int) myOrders.stream().filter(o -> "In Transit".equals(o.status)).count();
-        int pending = (int) myOrders.stream().filter(o -> "Pending".equals(o.status)).count();
-        int delayed = (int) myOrders.stream().filter(o -> "Delayed".equals(o.status)).count();
-        int delivered = (int) myOrders.stream().filter(o -> "Delivered".equals(o.status)).count();
-        
-        statusPanel.add(createStatusBar("In Transit", inTransit, INFO));
-        statusPanel.add(Box.createVerticalStrut(8));
-        statusPanel.add(createStatusBar("Pending", pending, WARNING));
-        statusPanel.add(Box.createVerticalStrut(8));
-        statusPanel.add(createStatusBar("Delayed", delayed, DANGER));
-        statusPanel.add(Box.createVerticalStrut(8));
-        statusPanel.add(createStatusBar("Delivered", delivered, SUCCESS));
-        
-        statsContainer.add(statusPanel, gbc);
-        
-        JScrollPane scrollPane = new JScrollPane(statsContainer);
-        scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        
-        panel.add(scrollPane, BorderLayout.CENTER);
-        
-        return panel;
-    }
-    
-    private JPanel createDetailedStatCard(String title, String value, String subtitle, Color color) {
-        JPanel card = new JPanel();
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
-            new EmptyBorder(15, 15, 15, 15)));
-        
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        titleLabel.setForeground(TEXT_GRAY);
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        valueLabel.setForeground(color);
-        valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
-        JLabel subLabel = new JLabel(subtitle);
-        subLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-        subLabel.setForeground(TEXT_GRAY);
-        subLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
-        card.add(titleLabel);
-        card.add(Box.createVerticalStrut(3));
-        card.add(valueLabel);
-        card.add(Box.createVerticalStrut(2));
-        card.add(subLabel);
-        
-        return card;
-    }
-    
-    private JPanel createStatusBar(String label, int count, Color color) {
-        JPanel panel = new JPanel(new BorderLayout(10, 0));
-        panel.setBackground(Color.WHITE);
-        
-        JLabel labelComp = new JLabel(label + ":");
-        labelComp.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        labelComp.setForeground(TEXT_GRAY);
-        labelComp.setPreferredSize(new Dimension(100, 25));
-        
-        JLabel countComp = new JLabel(String.valueOf(count));
-        countComp.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        countComp.setForeground(color);
-        countComp.setPreferredSize(new Dimension(50, 25));
-        
-        panel.add(labelComp, BorderLayout.WEST);
-        panel.add(countComp, BorderLayout.CENTER);
-        
-        return panel;
     }
     
     private JPanel createStatusBar() {
@@ -2069,36 +2202,23 @@ public class CourierDashboard extends JFrame {
         bar.setPreferredSize(new Dimension(getWidth(), 35));
         bar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR));
         
-        String status = currentDriver != null ? 
-            "Status: " + currentDriver.workStatus : "Status: Unknown";
-        
+        String status = currentDriver != null ? "Status: " + currentDriver.workStatus : "Status: Unknown";
         JLabel leftStatus = new JLabel("  " + status + " | Session: " + currentDriver.id);
         leftStatus.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         leftStatus.setForeground(TEXT_GRAY);
         bar.add(leftStatus, BorderLayout.WEST);
         
-        String orderStatus = currentDriver.getCurrentOrderCount() + " active · " + 
-            myOrders.size() + " total";
-        
+        long activeCount = myOrders.stream().filter(o -> !"Delivered".equals(o.status) && !"Failed".equals(o.status)).count();
+        String orderStatus = activeCount + " active · " + myOrders.size() + " total";
         JLabel rightStatus = new JLabel(orderStatus + "  ");
         rightStatus.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         rightStatus.setForeground(PRIMARY_GREEN);
         bar.add(rightStatus, BorderLayout.EAST);
+
+        if (currentStatusFilter != null) {
+            orderStatus += " · Filtered: " + currentStatusFilter;
+        }
         
         return bar;
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            logistics.driver.DriverStorage storage = new logistics.driver.DriverStorage();
-            Driver testDriver = storage.findDriver("DRV001");
-            if (testDriver != null) {
-                new CourierDashboard(testDriver).setVisible(true);
-            } else {
-                JOptionPane.showMessageDialog(null, 
-                    "No test driver found. Please run the application normally.", 
-                    "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        });
     }
 }

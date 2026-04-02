@@ -1,3 +1,4 @@
+// VehicleReport.java
 package courier;
 
 import logistics.driver.Driver;
@@ -20,13 +21,11 @@ public class VehicleReport {
     private static final Color TEXT_GRAY = new Color(108, 117, 125);
     private static final Color BG_LIGHT = new Color(245, 247, 250);
     
-    // Severity colors
     private static final Color CRITICAL_COLOR = new Color(220, 53, 69);
     private static final Color HIGH_COLOR = new Color(255, 140, 0);
     private static final Color MEDIUM_COLOR = new Color(255, 193, 7);
     private static final Color LOW_COLOR = new Color(40, 167, 69);
     
-    // Status colors
     private static final Color STATUS_ACTIVE = new Color(40, 167, 69);
     private static final Color STATUS_MAINTENANCE = new Color(255, 140, 0);
     private static final Color STATUS_INACTIVE = new Color(220, 53, 69);
@@ -37,7 +36,6 @@ public class VehicleReport {
     private static final String REPORT_FILENAME = "vehicleReports.txt";
     private static final String VEHICLE_FILE = "vehicles.txt";
     
-    // Vehicle data storage
     private Map<String, VehicleInfo> assignedVehicles = new HashMap<>();
     private Map<String, VehicleInfo> allVehicles = new HashMap<>();
     
@@ -47,44 +45,16 @@ public class VehicleReport {
         createVehiclesDirectory();
         loadAllVehicles();
         loadAssignedVehicles();
-        
-        // Debug output
-        System.out.println("\n========== DEBUG INFO ==========");
-        System.out.println("Driver Name: '" + currentDriver.name + "'");
-        System.out.println("Driver ID: '" + currentDriver.id + "'");
-        System.out.println("================================\n");
-        
-        displayAllAssignments();
-        
-        // Check specific driver
-        VehicleInfo myVehicle = getVehicleDetailsForCourier(currentDriver.id);
-        if (myVehicle != null) {
-            System.out.println("✓ SUCCESS! Found vehicle for " + currentDriver.name + 
-                ": " + myVehicle.vehicleType + " - " + myVehicle.licensePlate);
-        } else {
-            System.out.println("✗ FAILED! No vehicle found for driver: " + currentDriver.name);
-            System.out.println("Make sure the name in vehicles.txt matches exactly: '" + currentDriver.name + "'");
-        }
     }
     
     private void createReportsDirectory() {
         File directory = new File(reportsDirectory);
-        if (!directory.exists()) {
-            boolean created = directory.mkdirs();
-            if (created) {
-                System.out.println("Created reports directory: " + directory.getAbsolutePath());
-            }
-        }
+        if (!directory.exists()) directory.mkdirs();
     }
     
     private void createVehiclesDirectory() {
         File directory = new File(vehiclesDirectory);
-        if (!directory.exists()) {
-            boolean created = directory.mkdirs();
-            if (created) {
-                System.out.println("Created vehicles directory: " + directory.getAbsolutePath());
-            }
-        }
+        if (!directory.exists()) directory.mkdirs();
     }
     
     private void loadAllVehicles() {
@@ -92,20 +62,15 @@ public class VehicleReport {
         File vehicleFile = new File(filePath);
         
         if (!vehicleFile.exists()) {
-            System.out.println("Vehicles file not found: " + filePath);
-            System.out.println("Creating sample vehicles.txt file...");
             createSampleVehiclesFile();
             return;
         }
         
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
-            String header = reader.readLine();
-            System.out.println("Vehicles file header: " + header);
+            reader.readLine(); 
             
-            int lineCount = 0;
             while ((line = reader.readLine()) != null) {
-                lineCount++;
                 if (line.trim().isEmpty()) continue;
                 
                 String[] parts = line.split("\\|");
@@ -122,32 +87,14 @@ public class VehicleReport {
                     String currentMileage = "0";
                     
                     VehicleInfo vehicle = new VehicleInfo(
-                        vehicleType, 
-                        licensePlate, 
-                        vehicleModel, 
-                        currentMileage,
-                        roadTaxExpiry,
-                        status,
-                        assignedTo,
-                        fuelType
+                        vehicleType, licensePlate, vehicleModel, currentMileage,
+                        roadTaxExpiry, status, assignedTo, fuelType
                     );
                     allVehicles.put(vehicleId, vehicle);
-                } else {
-                    System.out.println("Warning: Line " + lineCount + " has " + parts.length + " columns (expected 8): " + line);
                 }
             }
-            
-            System.out.println("\n=== Vehicles Loaded from vehicles.txt ===");
-            System.out.println("Total vehicles: " + allVehicles.size());
-            for (Map.Entry<String, VehicleInfo> entry : allVehicles.entrySet()) {
-                VehicleInfo v = entry.getValue();
-                System.out.println("  " + entry.getKey() + ": " + v.vehicleType + 
-                    " - " + v.licensePlate + " [" + v.status + "] -> Assigned to: '" + v.assignedTo + "'");
-            }
-            
         } catch (IOException e) {
-            System.err.println("Error loading vehicles: " + e.getMessage());
-            e.printStackTrace();
+            // Silent fail
         }
     }
     
@@ -160,117 +107,46 @@ public class VehicleReport {
             writer.println("TRK003|Truck|AJM9876|Kenworth T680|1754006400000|Active|Unassigned|Diesel");
             writer.println("VAN001|Van|NGA7890|Ford Transit 350 HD|1756684800000|Active|Unassigned|Diesel");
             writer.println("VAN003|Van|CJ6789|Mercedes-Benz Sprinter 2500|1759276800000|Active|Chong Wei Ming|Diesel");
-            System.out.println("Created sample vehicles.txt file: " + filePath);
         } catch (IOException e) {
-            System.err.println("Error creating sample vehicles.txt: " + e.getMessage());
+            // Silent fail
         }
     }
     
     private void loadAssignedVehicles() {
         assignedVehicles.clear();
         
-        System.out.println("\n=== Loading Vehicle Assignments ===");
-        
         for (Map.Entry<String, VehicleInfo> entry : allVehicles.entrySet()) {
             VehicleInfo vehicle = entry.getValue();
             String assignedTo = vehicle.assignedTo;
             
             if (assignedTo != null && !assignedTo.equalsIgnoreCase("Unassigned") && !assignedTo.isEmpty()) {
-                // Store with original name
                 assignedVehicles.put(assignedTo, vehicle);
-                System.out.println("  Assigned: '" + assignedTo + "' -> " + vehicle.vehicleType);
-                
-                // Check if matches current driver (case-insensitive)
-                if (currentDriver != null && currentDriver.name != null) {
-                    if (assignedTo.equalsIgnoreCase(currentDriver.name.trim())) {
-                        System.out.println("  ✓ MATCH FOUND! This vehicle belongs to current driver!");
-                    }
-                }
             }
         }
-        
-        System.out.println("\n=== Vehicle Assignments Summary ===");
-        System.out.println("Total assigned vehicles: " + assignedVehicles.size());
-        System.out.println("Current Driver: '" + (currentDriver != null ? currentDriver.name : "null") + "'");
-        
-        if (currentDriver != null) {
-            boolean found = false;
-            for (Map.Entry<String, VehicleInfo> entry : assignedVehicles.entrySet()) {
-                if (entry.getKey().equalsIgnoreCase(currentDriver.name.trim())) {
-                    VehicleInfo v = entry.getValue();
-                    System.out.println("✓ VEHICLE FOUND for " + currentDriver.name + ":");
-                    System.out.println("  Type: " + v.vehicleType);
-                    System.out.println("  Plate: " + v.licensePlate);
-                    System.out.println("  Model: " + v.vehicleModel);
-                    System.out.println("  Status: " + v.status);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                System.out.println("✗ No vehicle assigned to: '" + currentDriver.name + "'");
-                System.out.println("  Available assignments: " + assignedVehicles.keySet());
-            }
-        }
-        System.out.println("====================================\n");
     }
     
-    // FIXED: Better matching for driver name
     public VehicleInfo getVehicleDetailsForCourier(String courierId) {
-        if (currentDriver == null) {
-            System.out.println("Current driver is null");
-            return null;
-        }
+        if (currentDriver == null) return null;
         
         String driverName = currentDriver.name != null ? currentDriver.name.trim() : "";
-        String driverId = currentDriver.id != null ? currentDriver.id.trim() : "";
         
-        System.out.println("Looking for vehicle for: Name='" + driverName + "', ID='" + driverId + "'");
-        
-        // Method 1: Try exact match by name
         for (Map.Entry<String, VehicleInfo> entry : assignedVehicles.entrySet()) {
             String assignedName = entry.getKey();
-            if (assignedName.equalsIgnoreCase(driverName)) {
-                System.out.println("✓ Found by exact name match: " + assignedName);
-                return entry.getValue();
-            }
+            if (assignedName.equalsIgnoreCase(driverName)) return entry.getValue();
         }
         
-        // Method 2: Search through all vehicles directly
         for (Map.Entry<String, VehicleInfo> entry : allVehicles.entrySet()) {
             VehicleInfo vehicle = entry.getValue();
             String assignedTo = vehicle.assignedTo;
             
             if (assignedTo != null && !assignedTo.equalsIgnoreCase("Unassigned")) {
-                // Case-insensitive comparison
                 if (assignedTo.equalsIgnoreCase(driverName)) {
-                    System.out.println("✓ Found by searching all vehicles: " + assignedTo);
                     assignedVehicles.put(assignedTo, vehicle);
                     return vehicle;
                 }
             }
         }
         
-        // Method 3: Try partial match (if names have extra spaces)
-        for (Map.Entry<String, VehicleInfo> entry : allVehicles.entrySet()) {
-            VehicleInfo vehicle = entry.getValue();
-            String assignedTo = vehicle.assignedTo;
-            
-            if (assignedTo != null) {
-                String normalizedAssigned = assignedTo.trim().toLowerCase();
-                String normalizedDriver = driverName.toLowerCase();
-                
-                if (normalizedAssigned.equals(normalizedDriver) || 
-                    normalizedAssigned.contains(normalizedDriver) ||
-                    normalizedDriver.contains(normalizedAssigned)) {
-                    System.out.println("✓ Found by partial match: '" + assignedTo + "' matches '" + driverName + "'");
-                    assignedVehicles.put(assignedTo, vehicle);
-                    return vehicle;
-                }
-            }
-        }
-        
-        System.out.println("✗ No vehicle found for driver: " + driverName);
         return null;
     }
     
@@ -281,21 +157,6 @@ public class VehicleReport {
         loadAssignedVehicles();
     }
     
-    public void displayAllAssignments() {
-        System.out.println("\n=== ALL VEHICLE ASSIGNMENTS ===");
-        if (assignedVehicles.isEmpty()) {
-            System.out.println("No vehicles assigned yet.");
-        } else {
-            for (Map.Entry<String, VehicleInfo> entry : assignedVehicles.entrySet()) {
-                String driverName = entry.getKey();
-                VehicleInfo vehicle = entry.getValue();
-                System.out.printf("  '%s' -> %s (%s) [%s]%n",
-                    driverName, vehicle.vehicleType, vehicle.licensePlate, vehicle.status);
-            }
-        }
-        System.out.println("===============================\n");
-    }
-    
     public static boolean updateVehicleAssignment(String vehicleId, String assignedTo) {
         String filePath = "vehicle_data/" + VEHICLE_FILE;
         List<String> lines = new ArrayList<>();
@@ -303,10 +164,7 @@ public class VehicleReport {
         
         try {
             File file = new File(filePath);
-            if (!file.exists()) {
-                System.err.println("vehicles.txt file not found!");
-                return false;
-            }
+            if (!file.exists()) return false;
             
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                 String line;
@@ -329,16 +187,11 @@ public class VehicleReport {
             
             if (updated) {
                 try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-                    for (String line : lines) {
-                        writer.println(line);
-                    }
+                    for (String line : lines) writer.println(line);
                 }
-                System.out.println("Updated vehicle " + vehicleId + " assignment to: " + assignedTo);
             }
             return updated;
-            
         } catch (IOException e) {
-            e.printStackTrace();
             return false;
         }
     }
@@ -379,7 +232,6 @@ public class VehicleReport {
             BorderFactory.createMatteBorder(1, 1, 3, 3, new Color(0, 0, 0, 20)),
             new EmptyBorder(30, 30, 30, 30)));
         
-        // Header
         JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
         headerPanel.setBackground(Color.WHITE);
         
@@ -388,12 +240,11 @@ public class VehicleReport {
         headerLabel.setForeground(PRIMARY_GREEN);
         headerPanel.add(headerLabel);
         
-        // Info banner
         JPanel infoBanner = new JPanel(new FlowLayout(FlowLayout.LEFT));
         infoBanner.setBackground(new Color(255, 243, 224));
         infoBanner.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
         
-        JLabel infoLabel = new JLabel("⚠️ Report any vehicle issues to the maintenance team. Critical issues will be prioritized.");
+        JLabel infoLabel = new JLabel("Report any vehicle issues to the maintenance team. Critical issues will be prioritized.");
         infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         infoLabel.setForeground(new Color(255, 140, 0));
         infoBanner.add(infoLabel);
@@ -403,7 +254,6 @@ public class VehicleReport {
         northPanel.add(headerPanel, BorderLayout.NORTH);
         northPanel.add(infoBanner, BorderLayout.SOUTH);
         
-        // Content panel with scroll
         JPanel contentPanel = new JPanel(new GridBagLayout());
         contentPanel.setBackground(Color.WHITE);
         
@@ -419,12 +269,12 @@ public class VehicleReport {
         gbc.weightx = 1.0;
         
         Dimension fieldSize = new Dimension(400, 35);
+        Dimension shortFieldSize = new Dimension(200, 35);
         Dimension comboBoxSize = new Dimension(400, 35);
         Dimension labelSize = new Dimension(150, 30);
         
         int row = 0;
         
-        // ===== PERSONAL INFORMATION SECTION =====
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JLabel personalSectionLabel = new JLabel("PERSONAL INFORMATION");
         personalSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -432,7 +282,6 @@ public class VehicleReport {
         contentPanel.add(personalSectionLabel, gbc);
         gbc.gridwidth = 1;
         
-        // Full Name
         gbc.gridx = 0; gbc.gridy = row;
         JLabel nameLabel = new JLabel("Full Name:");
         nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -447,7 +296,6 @@ public class VehicleReport {
         nameField.setBackground(new Color(240, 240, 240));
         contentPanel.add(nameField, gbc);
         
-        // Courier ID
         gbc.gridx = 0; gbc.gridy = row;
         JLabel courierIdLabel = new JLabel("Courier ID:");
         courierIdLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -462,7 +310,6 @@ public class VehicleReport {
         courierIdField.setBackground(new Color(240, 240, 240));
         contentPanel.add(courierIdField, gbc);
         
-        // Phone
         gbc.gridx = 0; gbc.gridy = row;
         JLabel phoneLabel = new JLabel("Phone Number:");
         phoneLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -477,7 +324,6 @@ public class VehicleReport {
         phoneField.setBackground(new Color(240, 240, 240));
         contentPanel.add(phoneField, gbc);
         
-        // Email
         gbc.gridx = 0; gbc.gridy = row;
         JLabel emailLabel = new JLabel("Email Address:");
         emailLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -492,12 +338,10 @@ public class VehicleReport {
         emailField.setBackground(new Color(240, 240, 240));
         contentPanel.add(emailField, gbc);
         
-        // Spacing
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         contentPanel.add(Box.createVerticalStrut(15), gbc);
         gbc.gridwidth = 1;
         
-        // ===== VEHICLE DETAILS SECTION =====
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JLabel vehicleSectionLabel = new JLabel("VEHICLE DETAILS");
         vehicleSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -505,11 +349,9 @@ public class VehicleReport {
         contentPanel.add(vehicleSectionLabel, gbc);
         gbc.gridwidth = 1;
         
-        // Get assigned vehicle for current courier
         VehicleInfo assignedVehicle = getVehicleDetailsForCourier(currentDriver.id);
         boolean hasVehicle = (assignedVehicle != null);
         
-        // Vehicle Type
         gbc.gridx = 0; gbc.gridy = row;
         JLabel vehicleTypeLabel = new JLabel("Vehicle Type:");
         vehicleTypeLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -533,7 +375,6 @@ public class VehicleReport {
         }
         contentPanel.add(vehicleTypeField, gbc);
         
-        // Vehicle Model
         gbc.gridx = 0; gbc.gridy = row;
         JLabel modelLabel = new JLabel("Vehicle Model:");
         modelLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -555,7 +396,6 @@ public class VehicleReport {
         }
         contentPanel.add(modelField, gbc);
         
-        // License Plate
         gbc.gridx = 0; gbc.gridy = row;
         JLabel plateLabel = new JLabel("License Plate:");
         plateLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -578,7 +418,6 @@ public class VehicleReport {
         }
         contentPanel.add(plateField, gbc);
         
-        // Vehicle Status
         gbc.gridx = 0; gbc.gridy = row;
         JLabel statusLabel = new JLabel("Vehicle Status:");
         statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -604,7 +443,6 @@ public class VehicleReport {
         }
         contentPanel.add(statusField, gbc);
         
-        // Fuel Type
         gbc.gridx = 0; gbc.gridy = row;
         JLabel fuelLabel = new JLabel("Fuel Type:");
         fuelLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -626,7 +464,6 @@ public class VehicleReport {
         }
         contentPanel.add(fuelField, gbc);
         
-        // Road Tax Expiry
         gbc.gridx = 0; gbc.gridy = row;
         JLabel taxLabel = new JLabel("Road Tax Expiry:");
         taxLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -648,7 +485,6 @@ public class VehicleReport {
         }
         contentPanel.add(taxField, gbc);
         
-        // Current Mileage
         gbc.gridx = 0; gbc.gridy = row;
         JLabel mileageLabel = new JLabel("Current Mileage (km):");
         mileageLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -659,10 +495,10 @@ public class VehicleReport {
         gbc.gridx = 1; gbc.gridy = row++;
         JPanel mileagePanel = new JPanel(new BorderLayout());
         mileagePanel.setBackground(Color.WHITE);
-        mileagePanel.setPreferredSize(fieldSize);
+        mileagePanel.setPreferredSize(shortFieldSize);
         
         JTextField mileageField = new JTextField();
-        styleTextField(mileageField, fieldSize);
+        styleTextField(mileageField, shortFieldSize);
         mileageField.setEditable(true);
         mileageField.setBackground(Color.WHITE);
         mileageField.setHorizontalAlignment(JTextField.RIGHT);
@@ -683,12 +519,10 @@ public class VehicleReport {
         mileagePanel.add(kmLabel, BorderLayout.EAST);
         contentPanel.add(mileagePanel, gbc);
         
-        // Spacing
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         contentPanel.add(Box.createVerticalStrut(15), gbc);
         gbc.gridwidth = 1;
         
-        // ===== REPORT ISSUE SECTION =====
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JLabel reportSectionLabel = new JLabel("REPORT VEHICLE ISSUE");
         reportSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -696,7 +530,6 @@ public class VehicleReport {
         contentPanel.add(reportSectionLabel, gbc);
         gbc.gridwidth = 1;
         
-        // Issue Type
         gbc.gridx = 0; gbc.gridy = row;
         JLabel issueLabel = new JLabel("Issue Type:");
         issueLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -704,7 +537,7 @@ public class VehicleReport {
         issueLabel.setPreferredSize(labelSize);
         contentPanel.add(issueLabel, gbc);
         
-        gbc.gridx = 1; gbc.gridy = row++;
+        gbc.gridx = 1; gbc.gridy = row;
         JComboBox<String> issueCombo = new JComboBox<>(new String[]{
             "Select Issue Type...",
             "No Issues - Routine Check",
@@ -741,7 +574,33 @@ public class VehicleReport {
         issueCombo.setEnabled(hasVehicle);
         contentPanel.add(issueCombo, gbc);
         
-        // Priority Level
+        gbc.gridx = 1; gbc.gridy = row + 1;
+        JTextField otherIssueField = new JTextField();
+        styleTextField(otherIssueField, fieldSize);
+        otherIssueField.setToolTipText("Please specify the issue");
+        otherIssueField.setVisible(false);
+        otherIssueField.setEnabled(false);
+        contentPanel.add(otherIssueField, gbc);
+        
+        row++;
+        
+        issueCombo.addActionListener(e -> {
+            String selected = (String) issueCombo.getSelectedItem();
+            if (selected != null && selected.equals("Other - Please Specify")) {
+                otherIssueField.setVisible(true);
+                otherIssueField.setEnabled(true);
+                otherIssueField.requestFocus();
+            } else {
+                otherIssueField.setVisible(false);
+                otherIssueField.setEnabled(false);
+                otherIssueField.setText("");
+            }
+            contentPanel.revalidate();
+            contentPanel.repaint();
+        });
+        
+        row++;
+        
         gbc.gridx = 0; gbc.gridy = row;
         JLabel priorityLabel = new JLabel("Priority Level:");
         priorityLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -762,7 +621,6 @@ public class VehicleReport {
         priorityCombo.setEnabled(hasVehicle);
         contentPanel.add(priorityCombo, gbc);
         
-        // Current Location
         gbc.gridx = 0; gbc.gridy = row;
         JLabel locationLabel = new JLabel("Current Location:");
         locationLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -803,7 +661,6 @@ public class VehicleReport {
         locationCombo.setEnabled(hasVehicle);
         contentPanel.add(locationCombo, gbc);
         
-        // Detailed Description
         gbc.gridx = 0; gbc.gridy = row;
         JLabel descLabel = new JLabel("Description:");
         descLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -833,7 +690,6 @@ public class VehicleReport {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weighty = 0;
         
-        // Severity Guide Panel
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JPanel severityGuidePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 5));
         severityGuidePanel.setBackground(Color.WHITE);
@@ -852,7 +708,6 @@ public class VehicleReport {
         
         contentPanel.add(severityGuidePanel, gbc);
         
-        // Warning if vehicle is in maintenance
         if (hasVehicle && assignedVehicle.status.equalsIgnoreCase("Maintenance")) {
             gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
             JPanel warningPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
@@ -861,27 +716,26 @@ public class VehicleReport {
                 BorderFactory.createLineBorder(new Color(255, 140, 0)),
                 new EmptyBorder(10, 15, 10, 15)));
             
-            JLabel warningLabel = new JLabel("⚠️ VEHICLE IS CURRENTLY UNDER MAINTENANCE - Please contact fleet manager ⚠️");
+            JLabel warningLabel = new JLabel("VEHICLE IS CURRENTLY UNDER MAINTENANCE - Please contact fleet manager");
             warningLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
             warningLabel.setForeground(HIGH_COLOR);
             warningPanel.add(warningLabel);
             contentPanel.add(warningPanel, gbc);
         }
         
-        // Button Panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 15));
         buttonPanel.setBackground(Color.WHITE);
         
-        JButton cancelBtn = createCancelButton(issueCombo, priorityCombo, locationCombo, descArea);
+        JButton cancelBtn = createCancelButton(issueCombo, priorityCombo, locationCombo, descArea, otherIssueField);
         JButton submitBtn = createSubmitButton(nameField, courierIdField, phoneField, emailField,
                                                vehicleTypeField, plateField, mileageField,
-                                               issueCombo, priorityCombo, locationCombo, descArea, hasVehicle);
+                                               issueCombo, priorityCombo, locationCombo, descArea, 
+                                               otherIssueField, hasVehicle);
         
         buttonPanel.add(cancelBtn);
         buttonPanel.add(Box.createHorizontalStrut(10));
         buttonPanel.add(submitBtn);
         
-        // Assemble
         vehicleCard.add(northPanel, BorderLayout.NORTH);
         vehicleCard.add(scrollPane, BorderLayout.CENTER);
         vehicleCard.add(buttonPanel, BorderLayout.SOUTH);
@@ -894,7 +748,7 @@ public class VehicleReport {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         panel.setBackground(Color.WHITE);
         
-        JLabel colorBox = new JLabel("⬤");
+        JLabel colorBox = new JLabel("●");
         colorBox.setForeground(color);
         colorBox.setFont(new Font("Segoe UI", Font.BOLD, 12));
         
@@ -933,7 +787,8 @@ public class VehicleReport {
     private JButton createCancelButton(JComboBox<String> issueCombo,
                                        JComboBox<String> priorityCombo, 
                                        JComboBox<String> locationCombo,
-                                       JTextArea descArea) {
+                                       JTextArea descArea,
+                                       JTextField otherIssueField) {
         JButton cancelBtn = new JButton("Cancel");
         cancelBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         cancelBtn.setForeground(TEXT_GRAY);
@@ -949,6 +804,9 @@ public class VehicleReport {
             priorityCombo.setSelectedIndex(0);
             locationCombo.setSelectedIndex(0);
             descArea.setText("");
+            otherIssueField.setText("");
+            otherIssueField.setVisible(false);
+            otherIssueField.setEnabled(false);
         });
         
         return cancelBtn;
@@ -959,7 +817,7 @@ public class VehicleReport {
                                        JTextField vehicleTypeField, JTextField plateField,
                                        JTextField mileageField, JComboBox<String> issueCombo,
                                        JComboBox<String> priorityCombo, JComboBox<String> locationCombo,
-                                       JTextArea descArea, boolean hasVehicle) {
+                                       JTextArea descArea, JTextField otherIssueField, boolean hasVehicle) {
         JButton submitBtn = new JButton("Submit Report");
         submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         submitBtn.setForeground(Color.WHITE);
@@ -991,8 +849,18 @@ public class VehicleReport {
             }
             
             if (!validateInputs(vehicleTypeField, plateField, mileageField,
-                                issueCombo, priorityCombo, locationCombo)) {
+                                issueCombo, priorityCombo, locationCombo, otherIssueField)) {
                 return;
+            }
+            
+            String issueText = (String) issueCombo.getSelectedItem();
+            if (issueText != null && issueText.equals("Other - Please Specify")) {
+                String otherText = otherIssueField.getText().trim();
+                if (otherText.isEmpty()) {
+                    showStyledMessage("Please specify the issue in the text field.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                issueText = "Other: " + otherText;
             }
             
             boolean saved = saveReportToFile(
@@ -1005,7 +873,7 @@ public class VehicleReport {
                 mileageField.getText().trim().replace(",", ""),
                 (String) priorityCombo.getSelectedItem(),
                 (String) locationCombo.getSelectedItem(),
-                (String) issueCombo.getSelectedItem(),
+                issueText,
                 descArea.getText().trim()
             );
             
@@ -1016,6 +884,9 @@ public class VehicleReport {
                 priorityCombo.setSelectedIndex(0);
                 locationCombo.setSelectedIndex(0);
                 descArea.setText("");
+                otherIssueField.setText("");
+                otherIssueField.setVisible(false);
+                otherIssueField.setEnabled(false);
             } else {
                 showStyledMessage("Failed to save report. Please try again.", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -1026,7 +897,8 @@ public class VehicleReport {
     
     private boolean validateInputs(JTextField vehicleTypeField, JTextField plateField,
                                    JTextField mileageField, JComboBox<String> issueCombo,
-                                   JComboBox<String> priorityCombo, JComboBox<String> locationCombo) {
+                                   JComboBox<String> priorityCombo, JComboBox<String> locationCombo,
+                                   JTextField otherIssueField) {
         
         if (vehicleTypeField.getText().trim().isEmpty() || 
             vehicleTypeField.getText().trim().equals("No vehicle assigned - Contact Admin")) {
@@ -1065,6 +937,14 @@ public class VehicleReport {
             return false;
         }
         
+        String selectedIssue = (String) issueCombo.getSelectedItem();
+        if (selectedIssue != null && selectedIssue.equals("Other - Please Specify")) {
+            if (otherIssueField.getText().trim().isEmpty()) {
+                showStyledMessage("Please specify the issue in the text field.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
+        }
+        
         if (priorityCombo.getSelectedIndex() == 0) {
             showStyledMessage("Please select priority level.", "Validation Error", JOptionPane.WARNING_MESSAGE);
             return false;
@@ -1087,8 +967,6 @@ public class VehicleReport {
             File reportFile = new File(filePath);
             
             createReportsDirectory();
-            
-            System.out.println("Saving report to: " + reportFile.getAbsolutePath());
             
             try (PrintWriter writer = new PrintWriter(new FileWriter(reportFile, true))) {
                 if (!reportFile.exists() || reportFile.length() == 0) {
@@ -1117,12 +995,9 @@ public class VehicleReport {
                 writer.println(formattedLine);
                 writer.flush();
                 
-                System.out.println("Report saved successfully!");
                 return true;
             }
         } catch (IOException e) {
-            System.err.println("Error saving report: " + e.getMessage());
-            e.printStackTrace();
             return false;
         }
     }
@@ -1208,7 +1083,6 @@ public class VehicleReport {
         dialog.setVisible(true);
     }
     
-    // Inner class to store vehicle information
     public class VehicleInfo {
         public String vehicleType;
         public String licensePlate;
@@ -1233,7 +1107,6 @@ public class VehicleReport {
         }
     }
     
-    // Custom renderer for priority combo box
     private class PriorityListCellRenderer extends DefaultListCellRenderer {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, 
