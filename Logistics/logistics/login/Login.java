@@ -35,7 +35,7 @@ public class Login extends JFrame {
         private static final long serialVersionUID = 1L;
         String username, email, passwordHash;
         
-        public AdminAccount(String username, String email, String password) {
+        AdminAccount(String username, String email, String password) {
             this.username = username;
             this.email = email;
             this.passwordHash = hashPassword(password);
@@ -46,7 +46,7 @@ public class Login extends JFrame {
         private static final long serialVersionUID = 1L;
         String fullName, email, phone, username, passwordHash, registrationDate, status;
         
-        public SenderAccount(String fullName, String email, String phone, String username, String password) {
+        SenderAccount(String fullName, String email, String phone, String username, String password) {
             this.fullName = fullName;
             this.email = email;
             this.phone = phone;
@@ -136,18 +136,89 @@ public class Login extends JFrame {
     }
     
     private static void addDefaultAccounts() {
-        // Add default admin
         if (!adminDatabase.containsKey("admin")) {
             adminDatabase.put("admin", new AdminAccount("admin", "admin@logixpress.com", "admin123"));
             saveAdminData();
         }
         
-        // Add default sender
         if (!senderDatabase.containsKey("sender")) {
             senderDatabase.put("sender", new SenderAccount(
                 "Demo Sender", "sender@example.com", "1234567890", "sender", "sender123"));
             saveSenderData();
         }
+    }
+    
+    // ========== REUSABLE VALIDATION METHODS ==========
+    
+    private boolean isNotEmpty(String... fields) {
+        for (String field : fields) {
+            if (field == null || field.trim().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    private boolean isValidEmail(String email) {
+        return email != null && email.matches("^[A-Za-z0-9+_.-]+@(.+)$");
+    }
+    
+    private boolean isValidPhone(String phone) {
+        return phone != null && phone.matches("^[0-9]{10,11}$");
+    }
+    
+    private boolean isValidIC(String ic) {
+        return ic != null && ic.matches("^[0-9]{12}$");
+    }
+    
+    private String getPasswordValidationMessage(String password) {
+        if (password == null || password.length() < 8) return "Password must be at least 8 characters!";
+        if (!password.matches(".*[A-Z].*")) return "Password must contain at least one uppercase letter!";
+        if (!password.matches(".*[a-z].*")) return "Password must contain at least one lowercase letter!";
+        if (!password.matches(".*[0-9].*")) return "Password must contain at least one number!";
+        if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) return "Password must contain at least one special character!";
+        return null;
+    }
+    
+    private void clearSenderRegisterFields() {
+        senderRegNameField.setText("");
+        senderRegEmailField.setText("");
+        senderRegPhoneField.setText("");
+        senderRegUsernameField.setText("");
+        senderRegPasswordField.setText("");
+        senderRegConfirmPwdField.setText("");
+        passwordStrengthBar.setValue(0);
+        passwordStrengthBar.setString("Password Strength");
+        passwordStrengthBar.setForeground(Color.GRAY);
+    }
+    
+    private void clearCourierApplyFields() {
+        courierRegNameField.setText("");
+        courierRegEmailField.setText("");
+        courierRegPhoneField.setText("");
+        courierRegIcField.setText("");
+        licensePhotoPath = null;
+        icPhotoPath = null;
+        licenseFileNameLabel.setText("No file");
+        icFileNameLabel.setText("No file");
+    }
+    
+    // ========== LOGO LOADING METHOD ==========
+    private ImageIcon loadLogo(String filename) {
+        try {
+            java.net.URL imgURL = getClass().getResource(filename);
+            if (imgURL != null) {
+                return new ImageIcon(imgURL);
+            } else {
+                File file = new File(filename);
+                if (file.exists()) {
+                    return new ImageIcon(file.getAbsolutePath());
+                }
+            }
+        } catch (Exception e) {
+            // Silent fail
+        }
+        return null;
     }
     
     // ========== UI Components ==========
@@ -165,7 +236,6 @@ public class Login extends JFrame {
     private JTextField senderRegUsernameField;
     private JPasswordField senderRegPasswordField;
     private JPasswordField senderRegConfirmPwdField;
-    private JLabel passwordStrengthLabel;
     private JProgressBar passwordStrengthBar;
     
     private JTextField courierUserIdField;
@@ -237,29 +307,20 @@ public class Login extends JFrame {
         JPanel logoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 30, 10));
         logoPanel.setBackground(ADMIN_COLOR);
         
-        try {
-            String logoPath = "logo.png";
-            File logoFile = new File(logoPath);
-            
-            if (logoFile.exists()) {
-                ImageIcon logoIcon = new ImageIcon(logoPath);
-                int logoHeight = 50;
-                int logoWidth = (int)((double)logoIcon.getIconWidth() / logoIcon.getIconHeight() * logoHeight);
-                Image scaledImage = logoIcon.getImage().getScaledInstance(logoWidth, logoHeight, Image.SCALE_SMOOTH);
-                JLabel logoLabel = new JLabel(new ImageIcon(scaledImage));
-                logoPanel.add(logoLabel);
-            } else {
-                JLabel fallbackLabel = new JLabel("LogiXpress");
-                fallbackLabel.setFont(new Font("Arial", Font.BOLD, 24));
-                fallbackLabel.setForeground(Color.WHITE);
-                logoPanel.add(fallbackLabel);
-            }
-        } catch (Exception e) {
-            JLabel fallbackLabel = new JLabel("LogiXpress");
-            fallbackLabel.setFont(new Font("Arial", Font.BOLD, 24));
-            fallbackLabel.setForeground(Color.WHITE);
-            logoPanel.add(fallbackLabel);
+        ImageIcon logoIcon = loadLogo("logo.jpeg");
+        if (logoIcon != null) {
+            Image img = logoIcon.getImage();
+            int logoHeight = 45;
+            int logoWidth = (int)((double)logoIcon.getIconWidth() / logoIcon.getIconHeight() * logoHeight);
+            Image scaledImage = img.getScaledInstance(logoWidth, logoHeight, Image.SCALE_SMOOTH);
+            JLabel logoLabel = new JLabel(new ImageIcon(scaledImage));
+            logoPanel.add(logoLabel);
         }
+        
+        JLabel companyName = new JLabel("LogiXpress");
+        companyName.setFont(new Font("Arial", Font.BOLD, 24));
+        companyName.setForeground(Color.WHITE);
+        logoPanel.add(companyName);
         
         topBar.add(logoPanel, BorderLayout.WEST);
         
@@ -294,7 +355,7 @@ public class Login extends JFrame {
         JPanel bottomBar = new JPanel();
         bottomBar.setBackground(ORANGE_WHITE);
         bottomBar.setPreferredSize(new Dimension(getWidth(), 25));
-        JLabel copyrightLabel = new JLabel("© 2024 LogiXpress Logistics Solutions. All rights reserved.");
+        JLabel copyrightLabel = new JLabel("(c) 2024 LogiXpress Logistics Solutions. All rights reserved.");
         copyrightLabel.setFont(new Font("Arial", Font.PLAIN, 11));
         copyrightLabel.setForeground(Color.DARK_GRAY);
         bottomBar.add(copyrightLabel);
@@ -431,14 +492,14 @@ public class Login extends JFrame {
         passwordField = new JPasswordField(15);
         passwordField.setFont(FIELD_FONT);
         passwordField.setPreferredSize(new Dimension(180, 35));
-        passwordField.setEchoChar('•');
+        passwordField.setEchoChar('*');
         
         showPasswordCheckBox = new JCheckBox("Show");
         showPasswordCheckBox.setFont(SMALL_FONT);
         showPasswordCheckBox.setBackground(Color.WHITE);
         showPasswordCheckBox.setPreferredSize(new Dimension(70, 35));
         showPasswordCheckBox.addActionListener(e -> 
-            passwordField.setEchoChar(showPasswordCheckBox.isSelected() ? (char)0 : '•'));
+            passwordField.setEchoChar(showPasswordCheckBox.isSelected() ? (char)0 : '*'));
         
         pwdPanel.add(passwordField, BorderLayout.CENTER);
         pwdPanel.add(showPasswordCheckBox, BorderLayout.EAST);
@@ -516,14 +577,14 @@ public class Login extends JFrame {
         senderPasswordField = new JPasswordField(15);
         senderPasswordField.setFont(FIELD_FONT);
         senderPasswordField.setPreferredSize(new Dimension(180, 35));
-        senderPasswordField.setEchoChar('•');
+        senderPasswordField.setEchoChar('*');
         
         senderShowPasswordCheckBox = new JCheckBox("Show");
         senderShowPasswordCheckBox.setFont(SMALL_FONT);
         senderShowPasswordCheckBox.setBackground(Color.WHITE);
         senderShowPasswordCheckBox.setPreferredSize(new Dimension(70, 35));
         senderShowPasswordCheckBox.addActionListener(e -> 
-            senderPasswordField.setEchoChar(senderShowPasswordCheckBox.isSelected() ? (char)0 : '•'));
+            senderPasswordField.setEchoChar(senderShowPasswordCheckBox.isSelected() ? (char)0 : '*'));
         
         pwdPanel.add(senderPasswordField, BorderLayout.CENTER);
         pwdPanel.add(senderShowPasswordCheckBox, BorderLayout.EAST);
@@ -598,7 +659,7 @@ public class Login extends JFrame {
         passwordStrengthBar.setForeground(Color.GRAY);
         passwordStrengthBar.setPreferredSize(new Dimension(220, 20));
         
-        passwordStrengthLabel = new JLabel("Minimum: 8+ chars, uppercase, lowercase, number, special");
+        JLabel passwordStrengthLabel = new JLabel("Minimum: 8+ chars, uppercase, lowercase, number, special");
         passwordStrengthLabel.setFont(new Font("Arial", Font.PLAIN, 10));
         passwordStrengthLabel.setForeground(Color.DARK_GRAY);
         
@@ -760,14 +821,14 @@ public class Login extends JFrame {
         courierPasswordField = new JPasswordField(15);
         courierPasswordField.setFont(FIELD_FONT);
         courierPasswordField.setPreferredSize(new Dimension(180, 35));
-        courierPasswordField.setEchoChar('•');
+        courierPasswordField.setEchoChar('*');
         
         courierShowPasswordCheckBox = new JCheckBox("Show");
         courierShowPasswordCheckBox.setFont(SMALL_FONT);
         courierShowPasswordCheckBox.setBackground(Color.WHITE);
         courierShowPasswordCheckBox.setPreferredSize(new Dimension(70, 35));
         courierShowPasswordCheckBox.addActionListener(e -> 
-            courierPasswordField.setEchoChar(courierShowPasswordCheckBox.isSelected() ? (char)0 : '•'));
+            courierPasswordField.setEchoChar(courierShowPasswordCheckBox.isSelected() ? (char)0 : '*'));
         
         pwdPanel.add(courierPasswordField, BorderLayout.CENTER);
         pwdPanel.add(courierShowPasswordCheckBox, BorderLayout.EAST);
@@ -932,6 +993,9 @@ public class Login extends JFrame {
         gbc.gridy = 8; gbc.gridx = 0; gbc.gridwidth = 2;
         gbc.insets = new Insets(15, 4, 4, 4);
         
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
+        buttonPanel.setBackground(Color.WHITE);
+        
         JButton submitBtn = new JButton("SUBMIT APPLICATION");
         submitBtn.setFont(BUTTON_FONT);
         submitBtn.setForeground(Color.WHITE);
@@ -939,7 +1003,21 @@ public class Login extends JFrame {
         submitBtn.setPreferredSize(new Dimension(220, 45));
         submitBtn.setBorderPainted(false);
         submitBtn.addActionListener(e -> processCourierApplication());
-        panel.add(submitBtn, gbc);
+        
+        JButton cancelBtn = new JButton("CANCEL");
+        cancelBtn.setFont(BUTTON_FONT);
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setBackground(Color.GRAY);
+        cancelBtn.setPreferredSize(new Dimension(220, 45));
+        cancelBtn.setBorderPainted(false);
+        cancelBtn.addActionListener(e -> {
+            clearCourierApplyFields();
+            JOptionPane.showMessageDialog(Login.this, "Application form has been cleared.", "Cancelled", JOptionPane.INFORMATION_MESSAGE);
+        });
+        
+        buttonPanel.add(submitBtn);
+        buttonPanel.add(cancelBtn);
+        panel.add(buttonPanel, gbc);
         
         return panel;
     }
@@ -991,10 +1069,6 @@ public class Login extends JFrame {
             BorderFactory.createLineBorder(Color.GRAY, 1),
             BorderFactory.createEmptyBorder(20, 20, 20, 20)));
         
-        JLabel iconLabel = new JLabel("", SwingConstants.CENTER);
-        iconLabel.setFont(new Font("Arial", Font.PLAIN, 45));
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
         JLabel statusLabel = new JLabel("Enter ID", SwingConstants.CENTER);
         statusLabel.setFont(new Font("Arial", Font.BOLD, 18));
         statusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -1008,10 +1082,8 @@ public class Login extends JFrame {
         remarkLabel.setForeground(Color.RED);
         remarkLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        resultPanel.add(iconLabel);
-        resultPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         resultPanel.add(statusLabel);
-        resultPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        resultPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         resultPanel.add(detailLabel);
         resultPanel.add(Box.createRigidArea(new Dimension(0, 5)));
         resultPanel.add(remarkLabel);
@@ -1031,24 +1103,18 @@ public class Login extends JFrame {
             if (driver != null) {
                 switch (driver.approvalStatus) {
                     case "APPROVED":
-                        iconLabel.setText("✓");
-                        iconLabel.setForeground(GREEN_SUCCESS);
                         statusLabel.setText("STATUS: APPROVED");
                         statusLabel.setForeground(GREEN_SUCCESS);
                         detailLabel.setText("Your application has been approved!");
                         remarkLabel.setText("");
                         break;
                     case "REJECTED":
-                        iconLabel.setText("✗");
-                        iconLabel.setForeground(RED_ERROR);
                         statusLabel.setText("STATUS: REJECTED");
                         statusLabel.setForeground(RED_ERROR);
                         detailLabel.setText("Application rejected.");
                         remarkLabel.setText("Reason: " + (driver.remarks != null ? driver.remarks : "No reason provided"));
                         break;
                     default:
-                        iconLabel.setText("⏳");
-                        iconLabel.setForeground(YELLOW_PENDING);
                         statusLabel.setText("STATUS: PENDING");
                         statusLabel.setForeground(YELLOW_PENDING);
                         detailLabel.setText("Under review.");
@@ -1331,7 +1397,7 @@ public class Login extends JFrame {
         showCheck.setFont(new Font("Arial", Font.PLAIN, 11));
         showCheck.setBackground(Color.WHITE);
         showCheck.addActionListener(e -> {
-            char c = showCheck.isSelected() ? (char)0 : '•';
+            char c = showCheck.isSelected() ? (char)0 : '*';
             pwdField.setEchoChar(c);
             confirmField.setEchoChar(c);
         });
@@ -1384,33 +1450,9 @@ public class Login extends JFrame {
                 return;
             }
             
-            if (pwd.length() < 8) {
-                JOptionPane.showMessageDialog(dialog, "Password must be at least 8 characters!", 
-                    "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            if (!pwd.matches(".*[A-Z].*")) {
-                JOptionPane.showMessageDialog(dialog, "Password must contain at least one uppercase letter!", 
-                    "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            if (!pwd.matches(".*[a-z].*")) {
-                JOptionPane.showMessageDialog(dialog, "Password must contain at least one lowercase letter!", 
-                    "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            if (!pwd.matches(".*[0-9].*")) {
-                JOptionPane.showMessageDialog(dialog, "Password must contain at least one number!", 
-                    "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            if (!pwd.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) {
-                JOptionPane.showMessageDialog(dialog, "Password must contain at least one special character!", 
-                    "Error", JOptionPane.ERROR_MESSAGE);
+            String validationError = getPasswordValidationMessage(pwd);
+            if (validationError != null) {
+                JOptionPane.showMessageDialog(dialog, validationError, "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             
@@ -1440,7 +1482,7 @@ public class Login extends JFrame {
         String username = userIdField.getText().trim();
         String password = new String(passwordField.getPassword());
         
-        if (username.isEmpty() || password.isEmpty()) {
+        if (!isNotEmpty(username, password)) {
             JOptionPane.showMessageDialog(this, "Please enter username and password!");
             return;
         }
@@ -1460,7 +1502,7 @@ public class Login extends JFrame {
         String username = senderUsernameField.getText().trim();
         String password = new String(senderPasswordField.getPassword());
         
-        if (username.isEmpty() || password.isEmpty()) {
+        if (!isNotEmpty(username, password)) {
             JOptionPane.showMessageDialog(this, "Please enter username and password!");
             return;
         }
@@ -1485,34 +1527,22 @@ public class Login extends JFrame {
         String userId = courierUserIdField.getText().trim();
         String password = new String(courierPasswordField.getPassword());
         
-        if (userId.isEmpty() || password.isEmpty()) {
+        if (!isNotEmpty(userId, password)) {
             JOptionPane.showMessageDialog(this, "Please enter Courier ID and password!");
             return;
         }
         
-        // 每次都重新创建 storage 以确保获取最新数据
         DriverStorage freshStorage = new DriverStorage();
         Driver driver = freshStorage.findDriver(userId);
         
         if (driver != null) {
-            // 检查密码
             if (freshStorage.verifyPassword(userId, password)) {
-                // 检查 approval 状态
                 if ("APPROVED".equals(driver.approvalStatus)) {
                     JOptionPane.showMessageDialog(this, "Login successful! Welcome, " + driver.name + "!");
-                    
-                    // 先隐藏登录窗口
                     setVisible(false);
-                    
-                    // 创建新的 CourierDashboard
                     CourierDashboard dashboard = new CourierDashboard(driver);
-                    
-                    // 确保窗口显示
                     dashboard.setVisible(true);
-                    
-                    // 关闭登录窗口
                     dispose();
-                    
                 } else if ("PENDING".equals(driver.approvalStatus)) {
                     JOptionPane.showMessageDialog(this, 
                         "Your account is pending admin approval.\nPlease check back later.",
@@ -1543,8 +1573,18 @@ public class Login extends JFrame {
         String password = new String(senderRegPasswordField.getPassword());
         String confirm = new String(senderRegConfirmPwdField.getPassword());
         
-        if (name.isEmpty() || email.isEmpty() || phone.isEmpty() || username.isEmpty() || password.isEmpty()) {
+        if (!isNotEmpty(name, email, phone, username, password)) {
             JOptionPane.showMessageDialog(this, "Please fill all fields!");
+            return;
+        }
+        
+        if (!isValidEmail(email)) {
+            JOptionPane.showMessageDialog(this, "Invalid email format!");
+            return;
+        }
+        
+        if (!isValidPhone(phone)) {
+            JOptionPane.showMessageDialog(this, "Invalid phone number! Only digits allowed (10-11 digits)");
             return;
         }
         
@@ -1553,33 +1593,9 @@ public class Login extends JFrame {
             return;
         }
         
-        if (password.length() < 8) {
-            JOptionPane.showMessageDialog(this, "Password must be at least 8 characters long!", 
-                "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        
-        if (!password.matches(".*[A-Z].*")) {
-            JOptionPane.showMessageDialog(this, "Password must contain at least one uppercase letter!", 
-                "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        
-        if (!password.matches(".*[a-z].*")) {
-            JOptionPane.showMessageDialog(this, "Password must contain at least one lowercase letter!", 
-                "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        
-        if (!password.matches(".*[0-9].*")) {
-            JOptionPane.showMessageDialog(this, "Password must contain at least one number!", 
-                "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        
-        if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) {
-            JOptionPane.showMessageDialog(this, "Password must contain at least one special character!", 
-                "Error", JOptionPane.ERROR_MESSAGE);
+        String validationError = getPasswordValidationMessage(password);
+        if (validationError != null) {
+            JOptionPane.showMessageDialog(this, validationError, "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         
@@ -1593,87 +1609,83 @@ public class Login extends JFrame {
         
         JOptionPane.showMessageDialog(this, "Registration successful! You can now login.");
         
-        senderRegNameField.setText("");
-        senderRegEmailField.setText("");
-        senderRegPhoneField.setText("");
-        senderRegUsernameField.setText("");
-        senderRegPasswordField.setText("");
-        senderRegConfirmPwdField.setText("");
-        passwordStrengthBar.setValue(0);
-        passwordStrengthBar.setString("Password Strength");
-        passwordStrengthBar.setForeground(Color.GRAY);
+        clearSenderRegisterFields();
         
         senderTabbedPane.setSelectedIndex(0);
         senderUsernameField.setText(username);
     }
     
     private void processCourierApplication() {
-        try {
-            System.out.println("=== Starting Courier Application Process ===");
-            
-            String name = courierRegNameField.getText().trim();
-            String email = courierRegEmailField.getText().trim();
-            String phone = courierRegPhoneField.getText().trim();
-            String ic = courierRegIcField.getText().trim();
-            String license = (String) courierRegLicenseCombo.getSelectedItem();
-            
-            System.out.println("Form data - Name: " + name + ", Email: " + email + ", Phone: " + phone);
-            
-            if (name.isEmpty() || email.isEmpty() || phone.isEmpty() || ic.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please fill all fields!");
-                System.out.println("Validation failed: Empty fields");
-                return;
-            }
-            
-            if (licensePhotoPath == null || icPhotoPath == null) {
-                JOptionPane.showMessageDialog(this, "Please upload both IC and License photos!");
-                System.out.println("Validation failed: Photos not uploaded");
-                return;
-            }
-            
-            String userId = driverStorage.generateDriverId();
-            String password = "courier" + (int)(Math.random() * 9000 + 1000);
-            
-            System.out.println("Generated UserId: " + userId);
-            
-            Driver driver = new Driver(userId, name, phone, email, license, "2025-12-31");
-            driver.icNumber = ic;
-            driver.licenseType = license;
-            driver.photoPath = licensePhotoPath;
-            driver.passwordHash = hashPassword(password);
-            driver.approvalStatus = "PENDING";
-            driver.workStatus = "Off Duty";
-            
-            driverStorage.addDriver(driver);
-            System.out.println("Saved to drivers.txt successfully");
-            
-            String msg = String.format(
-                "Application Submitted!\n\nUser ID: %s\nPassword: %s\n\nPlease save these credentials.\n\n" +
-                "Your application is pending admin approval.",
-                userId, password);
-            
-            JOptionPane.showMessageDialog(this, msg, "Application Submitted", JOptionPane.INFORMATION_MESSAGE);
-            System.out.println("Dialog shown successfully");
-            
-            courierRegNameField.setText("");
-            courierRegEmailField.setText("");
-            courierRegPhoneField.setText("");
-            courierRegIcField.setText("");
-            licensePhotoPath = null;
-            icPhotoPath = null;
-            licenseFileNameLabel.setText("No file");
-            icFileNameLabel.setText("No file");
-            
-            courierTabbedPane.setSelectedIndex(0);
-            courierUserIdField.setText(userId);
-            
-            System.out.println("=== Application Process Completed ===");
-            
-        } catch (Exception e) {
-            System.err.println("Unexpected error in processCourierApplication: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        String name = courierRegNameField.getText().trim();
+        String email = courierRegEmailField.getText().trim();
+        String phone = courierRegPhoneField.getText().trim();
+        String ic = courierRegIcField.getText().trim();
+        String license = (String) courierRegLicenseCombo.getSelectedItem();
+        
+        if (!isNotEmpty(name, email, phone, ic)) {
+            JOptionPane.showMessageDialog(this, "Please fill all fields!");
+            return;
         }
+        
+        if (!isValidEmail(email)) {
+            JOptionPane.showMessageDialog(this, "Invalid email format! Example: name@domain.com");
+            return;
+        }
+        
+        if (!isValidPhone(phone)) {
+            JOptionPane.showMessageDialog(this, "Invalid phone number! Only digits allowed (10-11 digits)");
+            return;
+        }
+        
+        if (!isValidIC(ic)) {
+            JOptionPane.showMessageDialog(this, "Invalid IC number! Only digits allowed (12 digits)");
+            return;
+        }
+        
+        if (driverStorage.isIcNumberExists(ic)) {
+            JOptionPane.showMessageDialog(this, "This IC number is already registered!");
+            return;
+        }
+        
+        if (driverStorage.isEmailExists(email)) {
+            JOptionPane.showMessageDialog(this, "This email is already registered!");
+            return;
+        }
+        
+        if (driverStorage.isPhoneExists(phone)) {
+            JOptionPane.showMessageDialog(this, "This phone number is already registered!");
+            return;
+        }
+        
+        if (licensePhotoPath == null || icPhotoPath == null) {
+            JOptionPane.showMessageDialog(this, "Please upload both IC and License photos!");
+            return;
+        }
+        
+        String userId = driverStorage.generateDriverId();
+        String password = "courier" + (int)(Math.random() * 9000 + 1000);
+        
+        Driver driver = new Driver(userId, name, phone, email, license, "2025-12-31");
+        driver.icNumber = ic;
+        driver.licenseType = license;
+        driver.photoPath = licensePhotoPath;
+        driver.passwordHash = hashPassword(password);
+        driver.approvalStatus = "PENDING";
+        driver.workStatus = "Off Duty";
+        
+        driverStorage.addDriver(driver);
+        
+        String msg = String.format(
+            "Application Submitted!\n\nUser ID: %s\nPassword: %s\n\nPlease save these credentials.\n\n" +
+            "Your application is pending admin approval.",
+            userId, password);
+        
+        JOptionPane.showMessageDialog(this, msg, "Application Submitted", JOptionPane.INFORMATION_MESSAGE);
+        
+        clearCourierApplyFields();
+        
+        courierTabbedPane.setSelectedIndex(0);
+        courierUserIdField.setText(userId);
     }
     
     public static void main(String[] args) {
