@@ -1,6 +1,5 @@
 package logistics.orders;
 
-import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -13,7 +12,7 @@ public class Order {
     public String recipientName;
     public String recipientPhone;
     public String recipientAddress;
-    public String status; // Pending, In Transit, Delivered, Delayed, Cancelled
+    public String status; // Pending, In Transit, Picked Up, Delivered, Delayed, Failed, Cancelled
     public String orderDate;
     public String estimatedDelivery;
     public String actualDelivery;
@@ -22,7 +21,7 @@ public class Order {
     public double weight;
     public String dimensions;
     public String notes;
-    public String reason; // Delay reason or cancellation reason
+    public String reason; // Delay reason or cancellation reason or failure reason
     
     // New fields for delivery tracking
     public String pickupTime;
@@ -248,20 +247,53 @@ public class Order {
         }
     }
     
-    public void assignDriver(String driverId) {
-        this.driverId = driverId;
-        if (!"Delivered".equals(status) && !"Cancelled".equals(status)) {
-            this.status = "In Transit";
+    /**
+     * Get the status that should be displayed to drivers
+     */
+    public String getDriverDisplayStatus() {
+        if ("Failed".equals(this.status)) {
+            return "Failed - Contact Admin";
         }
-        this.pickupTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        return this.status;
+    }
     
+    /**
+     * Mark order as failed delivery
+     * Keeps the original driver for record
+     */
+    public void markAsFailed(String failureReason) {
+        this.status = "Failed";
+        this.reason = failureReason;
+        this.onTime = false;
+        this.actualDelivery = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+        this.deliveryTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        // Keep driverId for record - do NOT clear
+    }
+    
+    /**
+     * Check if order can be assigned to a driver
+     */
+    public boolean isAssignable() {
+        return "Pending".equals(status) || "Delayed".equals(status);
+    }
+    
+    /**
+     * Assign driver to order
+     */
+    public void assignDriver(String driverId) {
+        if (("Pending".equals(status) || "Delayed".equals(status)) && !"Delivered".equals(status)) {
+            this.driverId = driverId;
+            this.status = "In Transit";
+            this.pickupTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        } else if (!"Delivered".equals(status) && !"Cancelled".equals(status)) {
+            this.driverId = driverId;
+            this.status = "In Transit";
+            this.pickupTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        }
+        
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.DAY_OF_MONTH, 3);
         this.estimatedDelivery = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-    }
-
-    public boolean isAssignable() {
-        return "Pending".equals(status) || "Delayed".equals(status);
     }
     
     public void markAsDelivered(double distance, double fuelUsed, String photoPath, String signature) {
@@ -273,7 +305,6 @@ public class Order {
         this.deliveryPhoto = photoPath;
         this.recipientSignature = signature;
         
-        // Check if delivery was on time
         try {
             Date estDate = new SimpleDateFormat("yyyy-MM-dd").parse(estimatedDelivery);
             Date actualDate = new SimpleDateFormat("yyyy-MM-dd").parse(actualDelivery);
@@ -292,6 +323,7 @@ public class Order {
     public String getDriverAssignmentStatus() {
         if (driverId == null) return "Unassigned";
         if ("Delivered".equals(status)) return "Completed";
+        if ("Failed".equals(status)) return "Failed - Contact Admin";
         if ("In Transit".equals(status)) return "Assigned - In Transit";
         return "Assigned";
     }
@@ -311,6 +343,7 @@ public class Order {
     
     public boolean isDelayed() {
         if ("Delayed".equals(status)) return true;
+        if ("Failed".equals(status)) return false;
         if (estimatedDelivery == null || "Delivered".equals(status) || "Cancelled".equals(status)) return false;
         
         try {
@@ -330,6 +363,8 @@ public class Order {
             );
         } else if ("In Transit".equals(status)) {
             return "In transit with driver " + driverId;
+        } else if ("Failed".equals(status)) {
+            return "Delivery failed - " + (reason != null ? reason : "Reason not specified");
         } else {
             return status;
         }

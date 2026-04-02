@@ -224,8 +224,6 @@ public class OrderStorage {
         orders.clear();
         
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-            Calendar cal = Calendar.getInstance();
             
             // Order 1 - In Transit with DRV001
             Order o1 = new Order(
