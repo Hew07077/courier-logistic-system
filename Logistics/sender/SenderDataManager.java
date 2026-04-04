@@ -1,4 +1,3 @@
-// SenderDataManager.java
 package sender;
 
 import java.io.*;
@@ -53,10 +52,16 @@ public class SenderDataManager {
                 if (order != null) {
                     orders.add(order);
                     orderCount++;
+                    // Debug: Print failed orders being loaded
+                    if ("Failed".equals(order.getStatus())) {
+                        System.out.println("Loaded FAILED order: " + order.getId() + " for email: " + order.getCustomerEmail());
+                    }
                 }
             }
             
             System.out.println("Loaded " + orderCount + " orders from " + lineCount + " lines");
+            long failedCount = orders.stream().filter(o -> "Failed".equals(o.getStatus())).count();
+            System.out.println("Failed orders in memory: " + failedCount);
             
         } catch (IOException e) {
             System.out.println("Error loading orders: " + e.getMessage());
@@ -66,16 +71,51 @@ public class SenderDataManager {
     
     /**
      * Parse order from the full 29-field format
+     * FIXED: Correct field index mapping for status at index 8
      */
     private SenderOrder parseOrderFromString(String line) {
         try {
             String[] parts = line.split("\\|", -1);
-            if (parts.length < 18) {
+            
+            // Need at least 17 fields for basic order info
+            if (parts.length < 17) {
                 System.out.println("Invalid order format (too few fields): " + parts.length);
                 return null;
             }
             
             SenderOrder order = new SenderOrder();
+            
+            // Field indices (0-based) based on Order.java toFileString():
+            // 0: id
+            // 1: customerName
+            // 2: customerPhone
+            // 3: customerEmail
+            // 4: customerAddress
+            // 5: recipientName
+            // 6: recipientPhone
+            // 7: recipientAddress
+            // 8: status ← CRITICAL FIX: Status is at index 8
+            // 9: orderDate
+            // 10: estimatedDelivery
+            // 11: actualDelivery (skip)
+            // 12: driverId
+            // 13: vehicleId
+            // 14: weight
+            // 15: dimensions
+            // 16: notes
+            // 17: reason (skip)
+            // 18: pickupTime (skip)
+            // 19: deliveryTime (skip)
+            // 20: distance (skip)
+            // 21: fuelUsed (skip)
+            // 22: deliveryPhoto (skip)
+            // 23: recipientSignature (skip)
+            // 24: onTime (skip)
+            // 25: paymentStatus
+            // 26: paymentMethod
+            // 27: transactionId
+            // 28: paymentDate
+            
             order.setId(parts[0]);
             order.setCustomerName(parts[1]);
             order.setCustomerPhone(parts[2]);
@@ -84,57 +124,59 @@ public class SenderDataManager {
             order.setRecipientName(parts[5]);
             order.setRecipientPhone(parts[6]);
             order.setRecipientAddress(parts[7]);
-            order.setStatus(parts[8]);
+            
+            // CRITICAL FIX: Status is at index 8
+            String status = parts[8];
+            order.setStatus(status);
+            
             order.setOrderDate(parts[9]);
             order.setEstimatedDelivery(parts[10].isEmpty() ? null : parts[10]);
             
-            // Field 12 = driverId (new)
+            // Driver ID at index 12
             if (parts.length > 12) {
                 order.setDriverId(parts[12].isEmpty() ? null : parts[12]);
             }
             
-            // Field 13 = vehicleId (new)
+            // Vehicle ID at index 13
             if (parts.length > 13) {
                 order.setVehicleId(parts[13].isEmpty() ? null : parts[13]);
             }
             
+            // Weight at index 14
             try {
-                order.setWeight(Double.parseDouble(parts[14]));
+                double weight = parts[14].isEmpty() ? 0.0 : Double.parseDouble(parts[14]);
+                order.setWeight(weight);
             } catch (NumberFormatException e) {
                 order.setWeight(0.0);
             }
             
+            // Dimensions at index 15
             order.setDimensions(parts[15]);
+            
+            // Notes at index 16
             order.setNotes(parts[16].isEmpty() ? null : parts[16]);
             
-            // Payment fields - now at positions 25-28
+            // Payment fields at indices 25-28
             if (parts.length > 25) {
                 order.setPaymentStatus(parts[25].isEmpty() ? "Pending" : parts[25]);
-            } else if (parts.length > 14) {
-                order.setPaymentStatus(parts[14].isEmpty() ? "Pending" : parts[14]);
             } else {
                 order.setPaymentStatus("Pending");
             }
             
             if (parts.length > 26) {
                 order.setPaymentMethod(parts[26].isEmpty() ? null : parts[26]);
-            } else if (parts.length > 15) {
-                order.setPaymentMethod(parts[15].isEmpty() ? null : parts[15]);
             }
             
             if (parts.length > 27) {
                 order.setTransactionId(parts[27].isEmpty() ? null : parts[27]);
-            } else if (parts.length > 16) {
-                order.setTransactionId(parts[16].isEmpty() ? null : parts[16]);
             }
             
             if (parts.length > 28) {
                 order.setPaymentDate(parts[28].isEmpty() ? null : parts[28]);
-            } else if (parts.length > 17) {
-                order.setPaymentDate(parts[17].isEmpty() ? null : parts[17]);
             }
             
             return order;
+            
         } catch (Exception e) {
             System.out.println("Error parsing order: " + e.getMessage());
             e.printStackTrace();
@@ -328,6 +370,18 @@ public class SenderDataManager {
             .collect(Collectors.toList());
         
         System.out.println("getOrdersByEmail(" + email + ") found " + result.size() + " orders");
+        
+        // Debug: Print failed orders for this email
+        long failedCount = result.stream().filter(o -> "Failed".equals(o.getStatus())).count();
+        if (failedCount > 0) {
+            System.out.println("  Includes " + failedCount + " failed orders");
+            for (SenderOrder o : result) {
+                if ("Failed".equals(o.getStatus())) {
+                    System.out.println("    - " + o.getId() + " (FAILED)");
+                }
+            }
+        }
+        
         return result;
     }
     
@@ -439,7 +493,7 @@ public class SenderDataManager {
     
     public int getActiveOrders(String email) {
         return (int) getOrdersByEmail(email).stream()
-            .filter(o -> !"Delivered".equals(o.getStatus()) && !"Cancelled".equals(o.getStatus()))
+            .filter(o -> !"Delivered".equals(o.getStatus()) && !"Cancelled".equals(o.getStatus()) && !"Failed".equals(o.getStatus()))
             .count();
     }
     
@@ -473,10 +527,6 @@ public class SenderDataManager {
         
         System.out.println("getTotalSpent(" + email + ") = RM " + total);
         return total;
-    }
-    
-    private double extractCostFromNotes(SenderOrder order) {
-        return order.getEstimatedCost();
     }
     
     public void refreshData() {
