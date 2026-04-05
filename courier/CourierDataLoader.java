@@ -1,9 +1,8 @@
+// CourierDataLoader.java
 package courier;
 
 import java.io.*;
 import java.util.*;
-
-import courier.CourierData;
 
 public class CourierDataLoader {
     private static final String DRIVER_FILE = "drivers.txt";
@@ -16,10 +15,7 @@ public class CourierDataLoader {
     
     private void loadCouriers() {
         File file = new File(DRIVER_FILE);
-        if (!file.exists()) {
-            System.out.println("Driver file not found: " + DRIVER_FILE);
-            return;
-        }
+        if (!file.exists()) return;
         
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
@@ -28,13 +24,10 @@ public class CourierDataLoader {
                 if (line.isEmpty() || line.startsWith("#")) continue;
                 
                 CourierData d = CourierData.fromFileString(line);
-                if (d != null) {
-                    couriers.add(d);
-                }
+                if (d != null) couriers.add(d);
             }
-            System.out.println("Loaded " + couriers.size() + " couriers from drivers.txt");
         } catch (IOException e) {
-            System.err.println("Error loading drivers: " + e.getMessage());
+            // Silent fail
         }
     }
     
