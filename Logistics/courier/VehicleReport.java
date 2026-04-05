@@ -1,4 +1,3 @@
-// VehicleReport.java
 package courier;
 
 import logistics.driver.Driver;
@@ -530,6 +529,7 @@ public class VehicleReport {
         contentPanel.add(reportSectionLabel, gbc);
         gbc.gridwidth = 1;
         
+        // Issue Type Section
         gbc.gridx = 0; gbc.gridy = row;
         JLabel issueLabel = new JLabel("Issue Type:");
         issueLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -539,7 +539,6 @@ public class VehicleReport {
         
         gbc.gridx = 1; gbc.gridy = row;
         JComboBox<String> issueCombo = new JComboBox<>(new String[]{
-            "Select Issue Type...",
             "No Issues - Routine Check",
             "Engine - Starting Problem",
             "Engine - Strange Noise",
@@ -572,8 +571,11 @@ public class VehicleReport {
         });
         styleComboBox(issueCombo, comboBoxSize);
         issueCombo.setEnabled(hasVehicle);
+        issueCombo.setSelectedIndex(-1);
+        issueCombo.setRenderer(new PlaceholderListCellRenderer("-- Select Issue Type --", TEXT_GRAY));
         contentPanel.add(issueCombo, gbc);
         
+        // Other issue text field
         gbc.gridx = 1; gbc.gridy = row + 1;
         JTextField otherIssueField = new JTextField();
         styleTextField(otherIssueField, fieldSize);
@@ -582,25 +584,24 @@ public class VehicleReport {
         otherIssueField.setEnabled(false);
         contentPanel.add(otherIssueField, gbc);
         
-        row++;
+        row += 2;
         
+        // Issue type listener
         issueCombo.addActionListener(e -> {
             String selected = (String) issueCombo.getSelectedItem();
-            if (selected != null && selected.equals("Other - Please Specify")) {
-                otherIssueField.setVisible(true);
-                otherIssueField.setEnabled(true);
-                otherIssueField.requestFocus();
-            } else {
-                otherIssueField.setVisible(false);
-                otherIssueField.setEnabled(false);
+            boolean isOther = selected != null && selected.equals("Other - Please Specify");
+            otherIssueField.setVisible(isOther);
+            otherIssueField.setEnabled(isOther);
+            if (!isOther) {
                 otherIssueField.setText("");
+            } else {
+                otherIssueField.requestFocus();
             }
             contentPanel.revalidate();
             contentPanel.repaint();
         });
         
-        row++;
-        
+        // Priority Level
         gbc.gridx = 0; gbc.gridy = row;
         JLabel priorityLabel = new JLabel("Priority Level:");
         priorityLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -610,17 +611,18 @@ public class VehicleReport {
         
         gbc.gridx = 1; gbc.gridy = row++;
         JComboBox<String> priorityCombo = new JComboBox<>(new String[]{
-            "Select Priority...",
             "Critical - Cannot continue driving - UNSAFE",
             "High - Need immediate attention today",
             "Medium - Should be checked within 3 days",
             "Low - Can continue driving, check when available"
         });
         styleComboBox(priorityCombo, comboBoxSize);
-        priorityCombo.setRenderer(new PriorityListCellRenderer());
         priorityCombo.setEnabled(hasVehicle);
+        priorityCombo.setSelectedIndex(-1);
+        priorityCombo.setRenderer(new PriorityListCellRenderer("-- Select Priority --", TEXT_GRAY));
         contentPanel.add(priorityCombo, gbc);
         
+        // Current Location Section
         gbc.gridx = 0; gbc.gridy = row;
         JLabel locationLabel = new JLabel("Current Location:");
         locationLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -628,9 +630,8 @@ public class VehicleReport {
         locationLabel.setPreferredSize(labelSize);
         contentPanel.add(locationLabel, gbc);
         
-        gbc.gridx = 1; gbc.gridy = row++;
+        gbc.gridx = 1; gbc.gridy = row;
         JComboBox<String> locationCombo = new JComboBox<>(new String[]{
-            "Select Location...",
             "Kuala Lumpur - City Center",
             "Kuala Lumpur - North",
             "Kuala Lumpur - South",
@@ -655,12 +656,42 @@ public class VehicleReport {
             "Sarawak - Miri",
             "Other - Highway/Roadside",
             "Other - Customer Location",
-            "Other - Warehouse/Depot"
+            "Other - Warehouse/Depot",
+            "Other - Please Specify"
         });
         styleComboBox(locationCombo, comboBoxSize);
         locationCombo.setEnabled(hasVehicle);
+        locationCombo.setSelectedIndex(-1);
+        locationCombo.setRenderer(new PlaceholderListCellRenderer("-- Select Location --", TEXT_GRAY));
         contentPanel.add(locationCombo, gbc);
         
+        // Other location text field
+        gbc.gridx = 1; gbc.gridy = row + 1;
+        JTextField otherLocationField = new JTextField();
+        styleTextField(otherLocationField, fieldSize);
+        otherLocationField.setToolTipText("Please specify the location");
+        otherLocationField.setVisible(false);
+        otherLocationField.setEnabled(false);
+        contentPanel.add(otherLocationField, gbc);
+        
+        row += 2;
+        
+        // Location listener
+        locationCombo.addActionListener(e -> {
+            String selected = (String) locationCombo.getSelectedItem();
+            boolean isOther = selected != null && selected.equals("Other - Please Specify");
+            otherLocationField.setVisible(isOther);
+            otherLocationField.setEnabled(isOther);
+            if (!isOther) {
+                otherLocationField.setText("");
+            } else {
+                otherLocationField.requestFocus();
+            }
+            contentPanel.revalidate();
+            contentPanel.repaint();
+        });
+        
+        // Description
         gbc.gridx = 0; gbc.gridy = row;
         JLabel descLabel = new JLabel("Description:");
         descLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -726,11 +757,11 @@ public class VehicleReport {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 15));
         buttonPanel.setBackground(Color.WHITE);
         
-        JButton cancelBtn = createCancelButton(issueCombo, priorityCombo, locationCombo, descArea, otherIssueField);
+        JButton cancelBtn = createCancelButton(issueCombo, priorityCombo, locationCombo, descArea, otherIssueField, otherLocationField);
         JButton submitBtn = createSubmitButton(nameField, courierIdField, phoneField, emailField,
                                                vehicleTypeField, plateField, mileageField,
                                                issueCombo, priorityCombo, locationCombo, descArea, 
-                                               otherIssueField, hasVehicle);
+                                               otherIssueField, otherLocationField, hasVehicle);
         
         buttonPanel.add(cancelBtn);
         buttonPanel.add(Box.createHorizontalStrut(10));
@@ -742,6 +773,34 @@ public class VehicleReport {
         mainPanel.add(vehicleCard, BorderLayout.CENTER);
         
         return mainPanel;
+    }
+    
+    // Custom renderer for placeholder text
+    private class PlaceholderListCellRenderer extends DefaultListCellRenderer {
+        private String placeholderText;
+        private Color placeholderColor;
+        
+        public PlaceholderListCellRenderer(String placeholderText, Color placeholderColor) {
+            this.placeholderText = placeholderText;
+            this.placeholderColor = placeholderColor;
+        }
+        
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, 
+                                                      boolean isSelected, boolean cellHasFocus) {
+            if (index == -1 && value == null) {
+                setText(placeholderText);
+                setForeground(placeholderColor);
+                setFont(getFont().deriveFont(Font.ITALIC));
+            } else {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value != null) {
+                    setForeground(Color.BLACK);
+                    setFont(getFont().deriveFont(Font.PLAIN));
+                }
+            }
+            return this;
+        }
     }
     
     private JPanel createSeverityIndicator(String text, Color color) {
@@ -788,7 +847,8 @@ public class VehicleReport {
                                        JComboBox<String> priorityCombo, 
                                        JComboBox<String> locationCombo,
                                        JTextArea descArea,
-                                       JTextField otherIssueField) {
+                                       JTextField otherIssueField,
+                                       JTextField otherLocationField) {
         JButton cancelBtn = new JButton("Cancel");
         cancelBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         cancelBtn.setForeground(TEXT_GRAY);
@@ -800,13 +860,16 @@ public class VehicleReport {
         cancelBtn.setPreferredSize(new Dimension(120, 40));
         
         cancelBtn.addActionListener(e -> {
-            issueCombo.setSelectedIndex(0);
-            priorityCombo.setSelectedIndex(0);
-            locationCombo.setSelectedIndex(0);
+            issueCombo.setSelectedIndex(-1);
+            priorityCombo.setSelectedIndex(-1);
+            locationCombo.setSelectedIndex(-1);
             descArea.setText("");
             otherIssueField.setText("");
             otherIssueField.setVisible(false);
             otherIssueField.setEnabled(false);
+            otherLocationField.setText("");
+            otherLocationField.setVisible(false);
+            otherLocationField.setEnabled(false);
         });
         
         return cancelBtn;
@@ -817,7 +880,8 @@ public class VehicleReport {
                                        JTextField vehicleTypeField, JTextField plateField,
                                        JTextField mileageField, JComboBox<String> issueCombo,
                                        JComboBox<String> priorityCombo, JComboBox<String> locationCombo,
-                                       JTextArea descArea, JTextField otherIssueField, boolean hasVehicle) {
+                                       JTextArea descArea, JTextField otherIssueField, 
+                                       JTextField otherLocationField, boolean hasVehicle) {
         JButton submitBtn = new JButton("Submit Report");
         submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         submitBtn.setForeground(Color.WHITE);
@@ -849,7 +913,8 @@ public class VehicleReport {
             }
             
             if (!validateInputs(vehicleTypeField, plateField, mileageField,
-                                issueCombo, priorityCombo, locationCombo, otherIssueField)) {
+                                issueCombo, priorityCombo, locationCombo, 
+                                otherIssueField, otherLocationField)) {
                 return;
             }
             
@@ -863,6 +928,16 @@ public class VehicleReport {
                 issueText = "Other: " + otherText;
             }
             
+            String locationText = (String) locationCombo.getSelectedItem();
+            if (locationText != null && locationText.equals("Other - Please Specify")) {
+                String otherLocation = otherLocationField.getText().trim();
+                if (otherLocation.isEmpty()) {
+                    showStyledMessage("Please specify the location in the text field.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                locationText = "Other: " + otherLocation;
+            }
+            
             boolean saved = saveReportToFile(
                 nameField.getText().trim(),
                 courierIdField.getText().trim(),
@@ -872,7 +947,7 @@ public class VehicleReport {
                 plateField.getText().trim().toUpperCase(),
                 mileageField.getText().trim().replace(",", ""),
                 (String) priorityCombo.getSelectedItem(),
-                (String) locationCombo.getSelectedItem(),
+                locationText,
                 issueText,
                 descArea.getText().trim()
             );
@@ -880,13 +955,16 @@ public class VehicleReport {
             if (saved) {
                 showSuccessMessage("Report submitted successfully!\n\nThe maintenance team has been notified.\n\nReport saved to: " + reportsDirectory + "/" + REPORT_FILENAME, "Success");
                 
-                issueCombo.setSelectedIndex(0);
-                priorityCombo.setSelectedIndex(0);
-                locationCombo.setSelectedIndex(0);
+                issueCombo.setSelectedIndex(-1);
+                priorityCombo.setSelectedIndex(-1);
+                locationCombo.setSelectedIndex(-1);
                 descArea.setText("");
                 otherIssueField.setText("");
                 otherIssueField.setVisible(false);
                 otherIssueField.setEnabled(false);
+                otherLocationField.setText("");
+                otherLocationField.setVisible(false);
+                otherLocationField.setEnabled(false);
             } else {
                 showStyledMessage("Failed to save report. Please try again.", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -898,7 +976,7 @@ public class VehicleReport {
     private boolean validateInputs(JTextField vehicleTypeField, JTextField plateField,
                                    JTextField mileageField, JComboBox<String> issueCombo,
                                    JComboBox<String> priorityCombo, JComboBox<String> locationCombo,
-                                   JTextField otherIssueField) {
+                                   JTextField otherIssueField, JTextField otherLocationField) {
         
         if (vehicleTypeField.getText().trim().isEmpty() || 
             vehicleTypeField.getText().trim().equals("No vehicle assigned - Contact Admin")) {
@@ -932,7 +1010,7 @@ public class VehicleReport {
             return false;
         }
         
-        if (issueCombo.getSelectedIndex() == 0) {
+        if (issueCombo.getSelectedIndex() == -1) {
             showStyledMessage("Please select an issue type.", "Validation Error", JOptionPane.WARNING_MESSAGE);
             return false;
         }
@@ -945,14 +1023,22 @@ public class VehicleReport {
             }
         }
         
-        if (priorityCombo.getSelectedIndex() == 0) {
+        if (priorityCombo.getSelectedIndex() == -1) {
             showStyledMessage("Please select priority level.", "Validation Error", JOptionPane.WARNING_MESSAGE);
             return false;
         }
         
-        if (locationCombo.getSelectedIndex() == 0) {
+        if (locationCombo.getSelectedIndex() == -1) {
             showStyledMessage("Please select current location.", "Validation Error", JOptionPane.WARNING_MESSAGE);
             return false;
+        }
+        
+        String selectedLocation = (String) locationCombo.getSelectedItem();
+        if (selectedLocation != null && selectedLocation.equals("Other - Please Specify")) {
+            if (otherLocationField.getText().trim().isEmpty()) {
+                showStyledMessage("Please specify the location in the text field.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
         }
         
         return true;
@@ -1107,12 +1193,16 @@ public class VehicleReport {
         }
     }
     
-    private class PriorityListCellRenderer extends DefaultListCellRenderer {
+    private class PriorityListCellRenderer extends PlaceholderListCellRenderer {
+        public PriorityListCellRenderer(String placeholderText, Color placeholderColor) {
+            super(placeholderText, placeholderColor);
+        }
+        
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, 
                                                       boolean isSelected, boolean cellHasFocus) {
             Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            if (c instanceof JLabel && value != null) {
+            if (c instanceof JLabel && value != null && index >= 0) {
                 JLabel label = (JLabel) c;
                 label.setBorder(new EmptyBorder(5, 10, 5, 10));
                 String text = value.toString();
