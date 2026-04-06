@@ -12,7 +12,7 @@ public class Order {
     public String recipientName;
     public String recipientPhone;
     public String recipientAddress;
-    public String status; // Pending, In Transit, Picked Up, Delivered, Delayed, Failed, Cancelled
+    public String status; // 真实状态: Pending, In Transit, Picked Up, Out for Delivery, Delivered, Delayed, Failed, Cancelled
     public String orderDate;
     public String estimatedDelivery;
     public String actualDelivery;
@@ -21,20 +21,18 @@ public class Order {
     public double weight;
     public String dimensions;
     public String notes;
-    public String reason; // Delay reason or cancellation reason or failure reason
+    public String reason;
     
-    // New fields for delivery tracking
     public String pickupTime;
     public String deliveryTime;
-    public double distance; // Distance in km
-    public double fuelUsed; // Fuel used in liters
+    public double distance;
+    public double fuelUsed;
     public String deliveryPhoto;
     public String recipientSignature;
     public boolean onTime;
     
-    // Payment fields from SenderOrder
-    public String paymentStatus; // Pending, Paid, Failed
-    public String paymentMethod; // Credit Card, PayPal, Bank Transfer, etc.
+    public String paymentStatus;
+    public String paymentMethod;
     public String transactionId;
     public String paymentDate;
     
@@ -95,12 +93,8 @@ public class Order {
         this.onTime = true;
     }
 
-    /**
-     * Create an Order from a sender.SenderOrder object
-     */
     public static Order fromSenderOrder(Object senderOrder) {
         try {
-            // Use reflection to access SenderOrder methods
             Class<?> clazz = senderOrder.getClass();
             
             String id = (String) clazz.getMethod("getId").invoke(senderOrder);
@@ -144,9 +138,8 @@ public class Order {
         }
     }
 
-    // Save format: id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|actualDelivery|driverId|vehicleId|weight|dimensions|notes|reason|pickupTime|deliveryTime|distance|fuelUsed|deliveryPhoto|recipientSignature|onTime|paymentStatus|paymentMethod|transactionId|paymentDate
     public String toFileString() {
-        return String.join("|", 
+        return String.join("|",
             safeString(id),
             safeString(customerName),
             safeString(customerPhone),
@@ -163,7 +156,7 @@ public class Order {
             safeString(vehicleId),
             String.valueOf(weight),
             safeString(dimensions),
-            safeString(notes),
+            safeString(notes != null ? notes.replace("\n", " ").replace("\r", " ") : ""),
             safeString(reason),
             safeString(pickupTime),
             safeString(deliveryTime),
@@ -182,17 +175,12 @@ public class Order {
     private String safeString(String s) {
         return s != null && !s.isEmpty() ? s : "";
     }
-    
+
     public static Order fromFileString(String line) {
-        if (line == null || line.trim().isEmpty() || line.startsWith("#")) return null;
-        
-        String[] parts = line.split("\\|", -1);
-        if (parts.length < 25) {
-            System.out.println("Invalid order line format (expected at least 25 parts, got " + parts.length + "): " + line);
-            return null;
-        }
-        
         try {
+            String[] parts = line.split("\\|", -1);
+            if (parts.length < 17) return null;
+            
             Order o = new Order();
             o.id = parts[0];
             o.customerName = parts[1];
@@ -204,91 +192,142 @@ public class Order {
             o.recipientAddress = parts[7];
             o.status = parts[8];
             o.orderDate = parts[9];
-            o.estimatedDelivery = parts[10].isEmpty() ? null : parts[10];
-            o.actualDelivery = parts[11].isEmpty() ? null : parts[11];
-            o.driverId = parts[12].isEmpty() ? null : parts[12];
-            o.vehicleId = parts[13].isEmpty() ? null : parts[13];
-            o.weight = parts[14].isEmpty() ? 0 : Double.parseDouble(parts[14]);
-            o.dimensions = parts[15];
-            o.notes = parts[16].isEmpty() ? null : parts[16];
-            o.reason = parts[17].isEmpty() ? null : parts[17];
-            o.pickupTime = parts[18].isEmpty() ? null : parts[18];
-            o.deliveryTime = parts[19].isEmpty() ? null : parts[19];
-            o.distance = parts[20].isEmpty() ? 0 : Double.parseDouble(parts[20]);
-            o.fuelUsed = parts[21].isEmpty() ? 0 : Double.parseDouble(parts[21]);
-            o.deliveryPhoto = parts[22].isEmpty() ? null : parts[22];
-            o.recipientSignature = parts[23].isEmpty() ? null : parts[23];
-            o.onTime = parts[24].isEmpty() ? true : Boolean.parseBoolean(parts[24]);
+            o.estimatedDelivery = parts[10];
+            o.actualDelivery = parts.length > 11 ? parts[11] : "";
+            o.driverId = parts.length > 12 ? parts[12] : "";
+            o.vehicleId = parts.length > 13 ? parts[13] : "";
             
-            // Parse payment fields if available
-            if (parts.length > 25) {
-                o.paymentStatus = parts[25].isEmpty() ? "Pending" : parts[25];
-            } else {
-                o.paymentStatus = "Pending";
-            }
+            try {
+                o.weight = parts.length > 14 && !parts[14].isEmpty() ? Double.parseDouble(parts[14]) : 0.0;
+            } catch (NumberFormatException e) { o.weight = 0.0; }
             
-            if (parts.length > 26) {
-                o.paymentMethod = parts[26].isEmpty() ? null : parts[26];
-            }
+            o.dimensions = parts.length > 15 ? parts[15] : "";
+            o.notes = parts.length > 16 ? parts[16] : "";
+            o.reason = parts.length > 17 ? parts[17] : "";
+            o.pickupTime = parts.length > 18 ? parts[18] : "";
+            o.deliveryTime = parts.length > 19 ? parts[19] : "";
             
-            if (parts.length > 27) {
-                o.transactionId = parts[27].isEmpty() ? null : parts[27];
-            }
+            try {
+                o.distance = parts.length > 20 && !parts[20].isEmpty() ? Double.parseDouble(parts[20]) : 0.0;
+            } catch (NumberFormatException e) { o.distance = 0.0; }
             
-            if (parts.length > 28) {
-                o.paymentDate = parts[28].isEmpty() ? null : parts[28];
-            }
+            try {
+                o.fuelUsed = parts.length > 21 && !parts[21].isEmpty() ? Double.parseDouble(parts[21]) : 0.0;
+            } catch (NumberFormatException e) { o.fuelUsed = 0.0; }
+            
+            o.deliveryPhoto = parts.length > 22 ? parts[22] : "";
+            o.recipientSignature = parts.length > 23 ? parts[23] : "";
+            o.onTime = parts.length > 24 && !parts[24].isEmpty() ? Boolean.parseBoolean(parts[24]) : true;
+            o.paymentStatus = parts.length > 25 && !parts[25].isEmpty() ? parts[25] : "Pending";
+            o.paymentMethod = parts.length > 26 ? parts[26] : "";
+            o.transactionId = parts.length > 27 ? parts[27] : "";
+            o.paymentDate = parts.length > 28 ? parts[28] : "";
             
             return o;
         } catch (Exception e) {
-            System.out.println("Error parsing order: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Error parsing order line: " + e.getMessage());
             return null;
         }
     }
     
-    // ========== STATUS METHODS FOR DIFFERENT VIEWS ==========
+    // ========== STATUS METHODS ==========
     
     /**
-     * Get status for Admin view - Admin sees actual system status
+     * Admin sees actual system status
      */
     public String getAdminStatus() {
         return this.status;
     }
     
     /**
-     * Get status for Courier view
-     * When status is "In Transit", courier sees "Pending" (waiting for pickup)
+     * Courier sees simplified status
+     * 映射规则:
+     * - Pending (实际) -> Pending (Courier看到等待取件)
+     * - In Transit (实际) -> Pending (Courier看到等待取件)
+     * - Picked Up (实际) -> Picked Up
+     * - Out for Delivery (实际) -> Out for Delivery  
+     * - Delivered (实际) -> Delivered
+     * - Delayed (实际) -> Delayed
+     * - Failed (实际) -> Failed
      */
     public String getCourierStatus() {
-        if ("In Transit".equals(this.status)) {
-            return "Pending";
+        switch(this.status) {
+            case "Pending":
+                return "Pending";
+            case "In Transit":
+                return "Pending";  // 司机看到Pending，表示等待取件
+            case "Picked Up":
+                return "Picked Up";
+            case "Out for Delivery":
+                return "Out for Delivery";
+            case "Delivered":
+                return "Delivered";
+            case "Delayed":
+                return "Delayed";
+            case "Failed":
+                return "Failed";
+            default:
+                return this.status;
         }
-        if ("Failed".equals(this.status)) {
-            return "Failed";
+    }
+    
+    /**
+     * Get the actual system status that corresponds to a courier display status
+     */
+    public String getActualStatusFromCourierStatus(String courierStatus) {
+        switch(courierStatus) {
+            case "Pending":
+                return "In Transit";
+            case "Picked Up":
+                return "Picked Up";
+            case "In Transit":
+                return "In Transit";
+            case "Out for Delivery":
+                return "Out for Delivery";
+            case "Delivered":
+                return "Delivered";
+            case "Delayed":
+                return "Delayed";
+            case "Failed":
+                return "Failed";
+            default:
+                return courierStatus;
         }
+    }
+    
+    /**
+     * Update status from courier's selection
+     */
+    public void updateFromCourierStatus(String courierStatus) {
+        String actualStatus = getActualStatusFromCourierStatus(courierStatus);
+        this.status = actualStatus;
+        
+        if ("Picked Up".equals(courierStatus) && this.pickupTime == null) {
+            this.pickupTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        } else if ("Delivered".equals(courierStatus)) {
+            this.deliveryTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            this.actualDelivery = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+        }
+    }
+    
+    /**
+     * Get customer view status
+     */
+    public String getCustomerStatus() {
         return this.status;
     }
     
-    /**
-     * Get status for Sender/Customer view (same as Courier view)
-     */
-    public String getCustomerStatus() {
-        return getCourierStatus();
-    }
-    
-    /**
-     * Get status description for Customer view
-     */
     public String getCustomerStatusDescription() {
         String status = getCustomerStatus();
         switch(status) {
             case "Pending":
                 return "Your order is pending pickup by courier";
-            case "Picked Up":
-                return "Your package has been picked up and is with the courier";
             case "In Transit":
                 return "Your package is on the way to the recipient";
+            case "Picked Up":
+                return "Your package has been picked up and is with the courier";
+            case "Out for Delivery":
+                return "Your package is out for delivery today";
             case "Delayed":
                 return "Your delivery has been delayed";
             case "Delivered":
@@ -300,15 +339,13 @@ public class Order {
         }
     }
     
-    /**
-     * Get formatted status for display (with icon)
-     */
     public String getFormattedCustomerStatus() {
         String icon;
         switch(getCustomerStatus()) {
             case "Pending": icon = "⏳"; break;
             case "Picked Up": icon = "📦"; break;
             case "In Transit": icon = "🚚"; break;
+            case "Out for Delivery": icon = "🚛"; break;
             case "Delayed": icon = "⚠️"; break;
             case "Delivered": icon = "✅"; break;
             case "Failed": icon = "❌"; break;
@@ -317,42 +354,24 @@ public class Order {
         return icon + " " + getCustomerStatus();
     }
     
-    /**
-     * Get the status that should be displayed to drivers
-     */
     public String getDriverDisplayStatus() {
         return getCourierStatus();
     }
     
-    /**
-     * Mark order as failed delivery
-     * Keeps the original driver for record
-     */
     public void markAsFailed(String failureReason) {
         this.status = "Failed";
         this.reason = failureReason;
         this.onTime = false;
         this.actualDelivery = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
         this.deliveryTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-        // Keep driverId for record - do NOT clear
     }
     
-    /**
-     * Check if order can be assigned to a driver
-     */
     public boolean isAssignable() {
-        return "Pending".equals(status) || "Delayed".equals(status);
+        return "Pending".equals(status) || "In Transit".equals(status) || "Delayed".equals(status);
     }
     
-    /**
-     * Assign driver to order
-     */
     public void assignDriver(String driverId) {
-        if (("Pending".equals(status) || "Delayed".equals(status)) && !"Delivered".equals(status)) {
-            this.driverId = driverId;
-            this.status = "In Transit";
-            this.pickupTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-        } else if (!"Delivered".equals(status) && !"Cancelled".equals(status)) {
+        if (("Pending".equals(status) || "In Transit".equals(status) || "Delayed".equals(status)) && !"Delivered".equals(status)) {
             this.driverId = driverId;
             this.status = "In Transit";
             this.pickupTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
@@ -439,7 +458,7 @@ public class Order {
     
     @Override
     public String toString() {
-        return id + " - " + recipientName + " (" + status + ")" + 
+        return id + " - " + recipientName + " (" + getCourierStatus() + ")" + 
                (driverId != null ? " - Driver: " + driverId : "");
     }
 }

@@ -28,9 +28,9 @@ public class OrderStorage {
         }
     }
     
-    private void loadOrders() {
+    public void loadOrders() {
         File file = new File(ORDER_FILE);
-        System.out.println("Checking for orders file at: " + file.getAbsolutePath());
+        System.out.println("Loading orders from: " + file.getAbsolutePath());
         
         if (!file.exists()) {
             System.out.println("Orders file not found. Creating sample data...");
@@ -39,8 +39,9 @@ public class OrderStorage {
             return;
         }
         
+        List<Order> newOrders = new ArrayList<>();
+        
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            orders.clear();
             String line;
             int lineCount = 0;
             int orderCount = 0;
@@ -54,13 +55,22 @@ public class OrderStorage {
                 
                 Order o = Order.fromFileString(line);
                 if (o != null) {
-                    orders.add(o);
+                    newOrders.add(o);
                     orderCount++;
-                    updateDailyCounter(o.id);
                 }
             }
             
-            System.out.println("File reading complete. Processed " + lineCount + " lines, loaded " + orderCount + " orders");
+            System.out.println("Loaded " + orderCount + " orders from file");
+            
+            // Replace the orders list
+            orders.clear();
+            orders.addAll(newOrders);
+            
+            // Update daily counters
+            dailyCounters.clear();
+            for (Order o : orders) {
+                updateDailyCounter(o.id);
+            }
             
             if (orders.isEmpty()) {
                 System.out.println("No orders loaded from file. Creating sample data...");
@@ -71,7 +81,18 @@ public class OrderStorage {
         } catch (IOException e) {
             System.out.println("Error loading orders: " + e.getMessage());
             e.printStackTrace();
-            createSampleData();
+            if (orders.isEmpty()) {
+                createSampleData();
+            }
+        }
+    }
+    
+    public void forceReload() {
+        System.out.println("Force reloading orders from file...");
+        loadOrders();
+        System.out.println("Reloaded " + orders.size() + " orders");
+        for (Order o : orders) {
+            System.out.println("  - " + o.id + ": " + o.status);
         }
     }
     
@@ -224,7 +245,6 @@ public class OrderStorage {
         orders.clear();
         
         try {
-            
             // Order 1 - In Transit with DRV001
             Order o1 = new Order(
                 "20240301001", 
@@ -312,13 +332,32 @@ public class OrderStorage {
         saveOrders();
     }
     
-    public void updateOrder(Order updatedOrder) {
+    public synchronized void updateOrder(Order updatedOrder) {
+        // 先同步最新的数据
+        loadOrders();
+        
+        boolean found = false;
         for (int i = 0; i < orders.size(); i++) {
             if (orders.get(i).id.equals(updatedOrder.id)) {
                 orders.set(i, updatedOrder);
-                saveOrders();
-                return;
+                found = true;
+                break;
             }
+        }
+        
+        if (!found) {
+            orders.add(updatedOrder);
+        }
+        
+        // 立即保存
+        saveOrders();
+        
+        // 验证保存成功
+        Order verify = findOrder(updatedOrder.id);
+        if (verify != null && verify.status.equals(updatedOrder.status)) {
+            System.out.println("Order " + updatedOrder.id + " saved successfully with status: " + updatedOrder.status);
+        } else {
+            System.err.println("ERROR: Order " + updatedOrder.id + " may not have been saved correctly!");
         }
     }
     
