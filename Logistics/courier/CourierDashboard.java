@@ -104,6 +104,9 @@ public class CourierDashboard extends JFrame {
     }
     
     public void refreshData() {
+        // Force reload from file
+        orderStorage.forceReload();
+        
         currentDriver = driverStorage.findDriver(currentDriver.id);
         if (currentDriver == null) return;
         
@@ -115,6 +118,7 @@ public class CourierDashboard extends JFrame {
         }
         if (completeDeliveryPanel != null) {
             completeDeliveryPanel.refreshData(myOrders);
+            completeDeliveryPanel.clearForm();
         }
         
         updateUserProfile();
@@ -122,6 +126,10 @@ public class CourierDashboard extends JFrame {
         if (profilePanel != null) {
             profilePanel.refreshProfile(currentDriver);
         }
+        
+        // Refresh status bar
+        revalidate();
+        repaint();
     }
     
     private void startAutoRefresh() {

@@ -460,8 +460,8 @@ public class DeliveriesPanel extends JPanel {
             int failed = (int) myOrders.stream().filter(o -> "Failed".equals(o.status)).count();
             
             if (statValues[0] != null) statValues[0].setText(String.valueOf(total));
-            if (statValues[1] != null) statValues[1].setText(String.valueOf(pending));
-            if (statValues[2] != null) statValues[2].setText(String.valueOf(inTransit));
+            if (statValues[1] != null) statValues[1].setText(String.valueOf(inTransit));
+            if (statValues[2] != null) statValues[2].setText(String.valueOf(pending));
             if (statValues[3] != null) statValues[3].setText(String.valueOf(pickedUp));
             if (statValues[4] != null) statValues[4].setText(String.valueOf(outForDelivery));
             if (statValues[5] != null) statValues[5].setText(String.valueOf(delivered));
