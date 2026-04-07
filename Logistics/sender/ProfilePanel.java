@@ -176,13 +176,22 @@ public class ProfilePanel extends JPanel {
         notificationPanel = new NotificationPanel(dashboard);
         statisticsPanel = new StatisticsPanel(dashboard);
         
-        // Add tabs (Security tab removed)
+        // Add tabs
         tabbedPane.addTab("Personal Info", createPersonalInfoPanel());
         tabbedPane.addTab("Address Book", addressPanel);
         tabbedPane.addTab("Notifications", notificationPanel);
         tabbedPane.addTab("Statistics", statisticsPanel);
         
         add(tabbedPane, BorderLayout.CENTER);
+    }
+    
+    /**
+     * Refresh statistics when tab is selected
+     */
+    public void refreshStatistics() {
+        if (statisticsPanel != null) {
+            statisticsPanel.refreshStats();
+        }
     }
     
     private JPanel createHeaderPanel() {
@@ -552,9 +561,16 @@ public class ProfilePanel extends JPanel {
             }
             return "";
         }
+        
+        /**
+         * Get full address string for display
+         */
+        public String getFullAddress() {
+            return street + ", " + city;
+        }
     }
     
-    // Inner class for Address Management - NO DEFAULT ADDRESSES
+    // Inner class for Address Management
     class AddressPanel extends JPanel {
         private SenderDashboard dashboard;
         private java.util.List<Address> addresses;
@@ -563,12 +579,44 @@ public class ProfilePanel extends JPanel {
         public AddressPanel(SenderDashboard dashboard) {
             this.dashboard = dashboard;
             this.addresses = new ArrayList<>();
-            loadSampleAddresses(); // This now loads empty list
+            loadAddressesFromStorage();
             initialize();
         }
         
-        private void loadSampleAddresses() {
-            // NO DEFAULT ADDRESSES - Empty address book
+        private void loadAddressesFromStorage() {
+            // Load addresses from file storage
+            try {
+                java.io.File file = new java.io.File("sender_addresses_" + dashboard.getSenderEmail().hashCode() + ".txt");
+                if (file.exists()) {
+                    java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file));
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.trim().isEmpty()) continue;
+                        String[] parts = line.split("\\|", -1);
+                        if (parts.length >= 4) {
+                            Address addr = new Address(parts[0], parts[1], parts[2], Boolean.parseBoolean(parts[3]));
+                            addresses.add(addr);
+                        }
+                    }
+                    reader.close();
+                }
+            } catch (Exception e) {
+                System.err.println("Error loading addresses: " + e.getMessage());
+            }
+        }
+        
+        private void saveAddressesToStorage() {
+            try {
+                java.io.File file = new java.io.File("sender_addresses_" + dashboard.getSenderEmail().hashCode() + ".txt");
+                java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(file));
+                for (Address addr : addresses) {
+                    writer.write(addr.getName() + "|" + addr.getStreet() + "|" + addr.getCity() + "|" + addr.isDefault());
+                    writer.newLine();
+                }
+                writer.close();
+            } catch (Exception e) {
+                System.err.println("Error saving addresses: " + e.getMessage());
+            }
         }
         
         // Get the default address
@@ -827,6 +875,7 @@ public class ProfilePanel extends JPanel {
                     JOptionPane.WARNING_MESSAGE);
                 if (confirm == JOptionPane.YES_OPTION) {
                     addresses.remove(address);
+                    saveAddressesToStorage();
                     refreshAddressList();
                     JOptionPane.showMessageDialog(card, "Address deleted successfully!", "Deleted", JOptionPane.INFORMATION_MESSAGE);
                 }
@@ -839,6 +888,7 @@ public class ProfilePanel extends JPanel {
                 defaultBtn.addActionListener(e -> {
                     for (Address a : addresses) a.setDefault(false);
                     address.setDefault(true);
+                    saveAddressesToStorage();
                     refreshAddressList();
                     JOptionPane.showMessageDialog(card, address.getName() + " is now your default address!", "Default Updated", JOptionPane.INFORMATION_MESSAGE);
                 });
@@ -1167,6 +1217,7 @@ public class ProfilePanel extends JPanel {
                     JOptionPane.showMessageDialog(dialog, "Address updated successfully!");
                 }
                 
+                saveAddressesToStorage();
                 refreshAddressList();
                 dialog.dispose();
             });
@@ -1186,6 +1237,7 @@ public class ProfilePanel extends JPanel {
     
     // Inner class for Notification Preferences
     class NotificationPanel extends JPanel {
+        @SuppressWarnings("unused")
         private SenderDashboard dashboard;
         private Map<String, JCheckBox> preferences;
         
@@ -1273,35 +1325,161 @@ public class ProfilePanel extends JPanel {
         }
     }
     
-    // Inner class for Enhanced Statistics
+    // Inner class for REAL Statistics - Calculates from actual order data
     class StatisticsPanel extends JPanel {
         private SenderDashboard dashboard;
+        private JPanel statsGridPanel;
+        private javax.swing.Timer refreshTimer;
         
         public StatisticsPanel(SenderDashboard dashboard) {
             this.dashboard = dashboard;
             initialize();
+            startAutoRefresh();
         }
         
         private void initialize() {
-            setLayout(new GridLayout(2, 2, 15, 15));
+            setLayout(new BorderLayout());
             setBackground(Color.WHITE);
             setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
             
-            int totalOrders = dashboard.getDeliveredOrders() + dashboard.getActiveOrders();
-            double totalSpent = dashboard.getTotalSpent();
+            statsGridPanel = new JPanel(new GridLayout(2, 2, 15, 15));
+            statsGridPanel.setBackground(Color.WHITE);
+            
+            refreshStats();
+            
+            add(statsGridPanel, BorderLayout.CENTER);
+        }
+        
+        /**
+         * Refresh all statistics with real data from orders
+         */
+        public void refreshStats() {
+            // Get fresh data from repository
+            SenderOrderRepository.getInstance().refreshData();
+            String userEmail = dashboard.getSenderEmail();
+            List<SenderOrder> userOrders = SenderOrderRepository.getInstance().getOrdersByEmail(userEmail);
+            
+            // Calculate real statistics
+            int totalOrders = userOrders.size();
+            int deliveredOrders = 0;
+            @SuppressWarnings("unused")
+            int pendingOrders = 0;
+            @SuppressWarnings("unused")
+            int inTransitOrders = 0;
+            double totalSpent = 0.0;
+            
+            for (SenderOrder order : userOrders) {
+                // Count by status
+                String status = order.getStatus();
+                if ("Delivered".equals(status)) {
+                    deliveredOrders++;
+                } else if ("Pending".equals(status)) {
+                    pendingOrders++;
+                } else if ("In Transit".equals(status) || "Out for Delivery".equals(status)) {
+                    inTransitOrders++;
+                }
+                
+                // Calculate total spent (only from delivered orders or all? Usually total spent includes all paid orders)
+                double orderCost = extractTotalCostFromOrder(order);
+                totalSpent += orderCost;
+            }
+            
+            int activeOrders = totalOrders - deliveredOrders;
             double avgOrderValue = totalOrders > 0 ? totalSpent / totalOrders : 0;
             
-            add(createStatCard("Total Orders", String.valueOf(totalOrders), 
-                "Lifetime orders placed", new Color(0, 123, 255), "📦"));
+            // Get earliest order date for "Member Since"
+            String memberSince = getMemberSinceDate(userOrders);
             
-            add(createStatCard("Total Spent", "RM " + String.format("%.2f", totalSpent),
-                "Lifetime spending", new Color(40, 167, 69), "💰"));
+            // Update the grid
+            statsGridPanel.removeAll();
             
-            add(createStatCard("Average Order", "RM " + String.format("%.2f", avgOrderValue),
-                "Average per order", new Color(255, 193, 7), "📊"));
+            statsGridPanel.add(createStatCard("Total Orders", String.valueOf(totalOrders), 
+                "Lifetime orders", new Color(0, 123, 255), "📦"));
             
-            add(createStatCard("Member Since", "2024",
-                "Customer since", new Color(111, 66, 193), "⭐"));
+            statsGridPanel.add(createStatCard("Delivered", String.valueOf(deliveredOrders),
+                "Completed deliveries", new Color(40, 167, 69), "✅"));
+            
+            statsGridPanel.add(createStatCard("Active Orders", String.valueOf(activeOrders),
+                "Pending & In Transit", new Color(255, 193, 7), "🚚"));
+            
+            statsGridPanel.add(createStatCard("Total Spent", "RM " + String.format("%.2f", totalSpent),
+                "Lifetime spending", new Color(111, 66, 193), "💰"));
+            
+            statsGridPanel.add(createStatCard("Average Order", "RM " + String.format("%.2f", avgOrderValue),
+                "Per order average", new Color(23, 162, 184), "📊"));
+            
+            statsGridPanel.add(createStatCard("Member Since", memberSince,
+                "Customer since", new Color(253, 126, 20), "⭐"));
+            
+            statsGridPanel.revalidate();
+            statsGridPanel.repaint();
+        }
+        
+        private double extractTotalCostFromOrder(SenderOrder order) {
+            // First try from notes field
+            String notes = order.getNotes();
+            if (notes != null && !notes.isEmpty()) {
+                // Look for Total Amount
+                if (notes.contains("Total Amount: RM")) {
+                    try {
+                        int start = notes.indexOf("Total Amount: RM") + 15;
+                        int end = notes.indexOf(";", start);
+                        if (end == -1) end = notes.indexOf("|", start);
+                        if (end == -1) end = notes.length();
+                        String costStr = notes.substring(start, end).trim();
+                        costStr = costStr.replaceAll("[^0-9.]", "");
+                        if (!costStr.isEmpty()) {
+                            return Double.parseDouble(costStr);
+                        }
+                    } catch (Exception e) {}
+                }
+                
+                // Look for Total Cost
+                if (notes.contains("Total Cost: RM")) {
+                    try {
+                        int start = notes.indexOf("Total Cost: RM") + 14;
+                        int end = notes.indexOf(";", start);
+                        if (end == -1) end = notes.indexOf("|", start);
+                        if (end == -1) end = notes.length();
+                        String costStr = notes.substring(start, end).trim();
+                        costStr = costStr.replaceAll("[^0-9.]", "");
+                        if (!costStr.isEmpty()) {
+                            return Double.parseDouble(costStr);
+                        }
+                    } catch (Exception e) {}
+                }
+            }
+            
+            // Fallback to estimated cost from SenderOrder
+            return order.getEstimatedCost();
+        }
+        
+        private String getMemberSinceDate(List<SenderOrder> orders) {
+            if (orders == null || orders.isEmpty()) {
+                return "2024";
+            }
+            
+            // Find earliest order date
+            String earliestDate = null;
+            for (SenderOrder order : orders) {
+                String orderDate = order.getOrderDate();
+                if (orderDate != null && !orderDate.isEmpty()) {
+                    if (earliestDate == null || orderDate.compareTo(earliestDate) < 0) {
+                        earliestDate = orderDate;
+                    }
+                }
+            }
+            
+            if (earliestDate != null && earliestDate.length() >= 10) {
+                // Extract year from YYYY-MM-DD format
+                if (earliestDate.contains("-")) {
+                    String year = earliestDate.substring(0, 4);
+                    return year;
+                }
+                return earliestDate.substring(0, 4);
+            }
+            
+            return "2024";
         }
         
         private JPanel createStatCard(String title, String value, String subtitle, Color color, String icon) {
@@ -1341,6 +1519,20 @@ public class ProfilePanel extends JPanel {
             card.add(textPanel, BorderLayout.CENTER);
             
             return card;
+        }
+        
+        private void startAutoRefresh() {
+            // Refresh statistics every 30 seconds
+            refreshTimer = new javax.swing.Timer(30000, e -> {
+                SwingUtilities.invokeLater(() -> refreshStats());
+            });
+            refreshTimer.start();
+        }
+        
+        public void stopAutoRefresh() {
+            if (refreshTimer != null) {
+                refreshTimer.stop();
+            }
         }
     }
 }

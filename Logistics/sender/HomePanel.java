@@ -15,17 +15,20 @@ public class HomePanel extends JPanel {
     private JLabel dateLabel;
     private JScrollPane mainScrollPane;
     
-    // Modern color scheme
+    // Blue-based color scheme
     private final Color BLUE_PRIMARY = new Color(0, 123, 255);
-    private final Color BG_LIGHT = new Color(248, 249, 250);
+    private final Color BLUE_DARK = new Color(0, 86, 179);
+    private final Color BLUE_PALE = new Color(227, 242, 253);
+    private final Color BLUE_ACCENT = new Color(25, 118, 210);
+    private final Color BLUE_MEDIUM = new Color(66, 165, 245);
+    private final Color BLUE_GRADIENT_START = new Color(13, 71, 161);
+    private final Color BLUE_GRADIENT_END = new Color(66, 165, 245);
+    private final Color BG_LIGHT = new Color(240, 242, 245);
     private final Color CARD_BG = Color.WHITE;
     private final Color TEXT_DARK = new Color(33, 37, 41);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
-    private final Color TEXT_MUTED = new Color(134, 142, 150);
     private final Color BORDER_COLOR = new Color(222, 226, 230);
     private final Color SUCCESS_GREEN = new Color(40, 167, 69);
-    private final Color GRADIENT_START = new Color(0, 86, 179);
-    private final Color GRADIENT_END = new Color(0, 160, 255);
 
     // Company statistics
     private final long TOTAL_DELIVERIES = 1250000;
@@ -105,9 +108,10 @@ public class HomePanel extends JPanel {
                 Graphics2D g2d = (Graphics2D) g;
                 g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 
+                // Blue gradient for header
                 GradientPaint gradient = new GradientPaint(
-                    0, 0, GRADIENT_START,
-                    getWidth(), 0, GRADIENT_END
+                    0, 0, BLUE_GRADIENT_START,
+                    getWidth(), 0, BLUE_GRADIENT_END
                 );
                 g2d.setPaint(gradient);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
@@ -119,15 +123,26 @@ public class HomePanel extends JPanel {
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
         leftPanel.setOpaque(false);
 
+        // Logo circle
+        JPanel logoCircle = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(new Color(255, 255, 255, 200));
+                g2d.fillOval(0, 0, 55, 55);
+                g2d.dispose();
+            }
+        };
+        logoCircle.setPreferredSize(new Dimension(55, 55));
+        logoCircle.setLayout(new GridBagLayout());
+        
         JLabel logoLabel = new JLabel("LX");
         logoLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        logoLabel.setForeground(Color.WHITE);
-        logoLabel.setBackground(new Color(255, 255, 255, 30));
-        logoLabel.setOpaque(true);
-        logoLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        logoLabel.setPreferredSize(new Dimension(55, 55));
-        logoLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        leftPanel.add(logoLabel);
+        logoLabel.setForeground(BLUE_PRIMARY);
+        logoCircle.add(logoLabel);
+        leftPanel.add(logoCircle);
 
         JPanel titleWrapper = new JPanel(new GridLayout(2, 1, 2, 2));
         titleWrapper.setOpaque(false);
@@ -137,7 +152,7 @@ public class HomePanel extends JPanel {
         titleLabel.setForeground(Color.WHITE);
         titleWrapper.add(titleLabel);
 
-        JLabel badgeLabel = new JLabel("✦ PREMIUM SENDER ACCOUNT ✦");
+        JLabel badgeLabel = new JLabel("PREMIUM SENDER ACCOUNT");
         badgeLabel.setFont(new Font("Segoe UI", Font.BOLD, 11));
         badgeLabel.setForeground(new Color(255, 255, 255, 200));
         badgeLabel.setBackground(new Color(0, 0, 0, 30));
@@ -167,10 +182,20 @@ public class HomePanel extends JPanel {
         JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         statusPanel.setOpaque(false);
         
-        JLabel statusDot = new JLabel("●");
-        statusDot.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        statusDot.setForeground(SUCCESS_GREEN);
-        statusPanel.add(statusDot);
+        // Green status circle
+        JPanel statusCircle = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(SUCCESS_GREEN);
+                g2d.fillOval(0, 0, 10, 10);
+                g2d.dispose();
+            }
+        };
+        statusCircle.setPreferredSize(new Dimension(10, 10));
+        statusPanel.add(statusCircle);
         
         JLabel statusText = new JLabel("System Online");
         statusText.setFont(new Font("Segoe UI", Font.PLAIN, 11));
@@ -200,7 +225,7 @@ public class HomePanel extends JPanel {
     // ==================== OUR STORY SECTION ====================
     
     private JPanel createOurStorySection() {
-        JPanel card = new JPanel(new BorderLayout());
+        JPanel card = new JPanel(new BorderLayout(20, 0));
         card.setBackground(CARD_BG);
         card.setBorder(BorderFactory.createCompoundBorder(
             new RoundedBorder(12, BORDER_COLOR),
@@ -212,21 +237,24 @@ public class HomePanel extends JPanel {
         textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
         textPanel.setOpaque(false);
         
-        // Title with icon
-        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        // Title with color bar
+        JPanel titlePanel = new JPanel(new BorderLayout());
         titlePanel.setOpaque(false);
-        
-        JLabel iconLabel = new JLabel("📖");
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 28));
-        titlePanel.add(iconLabel);
+        titlePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
         JLabel titleLabel = new JLabel("Our Story");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
         titleLabel.setForeground(BLUE_PRIMARY);
-        titlePanel.add(titleLabel);
+        titlePanel.add(titleLabel, BorderLayout.WEST);
+        
+        // Color bar under title
+        JPanel colorBar = new JPanel();
+        colorBar.setBackground(BLUE_PRIMARY);
+        colorBar.setPreferredSize(new Dimension(60, 3));
+        titlePanel.add(colorBar, BorderLayout.SOUTH);
         
         textPanel.add(titlePanel);
-        textPanel.add(Box.createVerticalStrut(15));
+        textPanel.add(Box.createVerticalStrut(10));
         
         // Story text
         JTextArea storyText = new JTextArea();
@@ -260,32 +288,38 @@ public class HomePanel extends JPanel {
         panel.setBorder(BorderFactory.createEmptyBorder(0, 30, 0, 0));
         
         // Milestone 1
-        panel.add(createMilestoneItem("2015", "Company Founded", "Started operations in Shah Alam"));
+        panel.add(createMilestoneItem("2015", "Company Founded", "Started operations in Shah Alam", BLUE_PRIMARY));
         panel.add(Box.createVerticalStrut(20));
         
         // Milestone 2
-        panel.add(createMilestoneItem("2018", "First Expansion", "Opened hubs in Penang & Johor"));
+        panel.add(createMilestoneItem("2018", "First Expansion", "Opened hubs in Penang & Johor", BLUE_ACCENT));
         panel.add(Box.createVerticalStrut(20));
         
         // Milestone 3
-        panel.add(createMilestoneItem("2021", "Tech Innovation", "Launched real-time tracking"));
+        panel.add(createMilestoneItem("2021", "Tech Innovation", "Launched real-time tracking", BLUE_MEDIUM));
         panel.add(Box.createVerticalStrut(20));
         
         // Milestone 4
-        panel.add(createMilestoneItem("2024", "Nationwide Coverage", "85 cities across Malaysia"));
+        panel.add(createMilestoneItem("2024", "Nationwide Coverage", "85 cities across Malaysia", BLUE_DARK));
         
         return panel;
     }
     
-    private JPanel createMilestoneItem(String year, String title, String description) {
+    private JPanel createMilestoneItem(String year, String title, String description, Color color) {
         JPanel item = new JPanel(new BorderLayout(12, 5));
         item.setOpaque(false);
         item.setMaximumSize(new Dimension(280, 70));
         
+        // Year with colored background
+        JPanel yearPanel = new JPanel(new BorderLayout());
+        yearPanel.setBackground(color);
+        yearPanel.setBorder(BorderFactory.createEmptyBorder(5, 12, 5, 12));
+        yearPanel.setPreferredSize(new Dimension(70, 35));
+        
         JLabel yearLabel = new JLabel(year);
-        yearLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        yearLabel.setForeground(BLUE_PRIMARY);
-        yearLabel.setPreferredSize(new Dimension(60, 30));
+        yearLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        yearLabel.setForeground(Color.WHITE);
+        yearPanel.add(yearLabel);
         
         JPanel textPanel = new JPanel();
         textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
@@ -302,7 +336,7 @@ public class HomePanel extends JPanel {
         textPanel.add(titleLabel);
         textPanel.add(descLabel);
         
-        item.add(yearLabel, BorderLayout.WEST);
+        item.add(yearPanel, BorderLayout.WEST);
         item.add(textPanel, BorderLayout.CENTER);
         
         return item;
@@ -319,18 +353,19 @@ public class HomePanel extends JPanel {
         ));
         
         // Section Title
-        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel titlePanel = new JPanel(new BorderLayout());
         titlePanel.setOpaque(false);
         titlePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0));
         
-        JLabel iconLabel = new JLabel("📊");
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 28));
-        titlePanel.add(iconLabel);
-        
         JLabel titleLabel = new JLabel("LogiXpress by the Numbers");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
         titleLabel.setForeground(BLUE_PRIMARY);
-        titlePanel.add(titleLabel);
+        titlePanel.add(titleLabel, BorderLayout.WEST);
+        
+        JPanel colorBar = new JPanel();
+        colorBar.setBackground(BLUE_PRIMARY);
+        colorBar.setPreferredSize(new Dimension(60, 3));
+        titlePanel.add(colorBar, BorderLayout.SOUTH);
         
         card.add(titlePanel, BorderLayout.NORTH);
         
@@ -338,39 +373,42 @@ public class HomePanel extends JPanel {
         JPanel statsGrid = new JPanel(new GridLayout(1, 4, 20, 0));
         statsGrid.setOpaque(false);
         
-        statsGrid.add(createStatNumberCard("🚚", formatNumber(TOTAL_DELIVERIES), "Successful Deliveries", "+25% vs last year"));
-        statsGrid.add(createStatNumberCard("👨‍✈️", String.valueOf(ACTIVE_DRIVERS), "Active Drivers", "Nationwide fleet"));
-        statsGrid.add(createStatNumberCard("⭐", String.format("%.1f%%", CUSTOMER_SATISFACTION), "Customer Satisfaction", "Based on 50K+ reviews"));
-        statsGrid.add(createStatNumberCard("🏙️", String.valueOf(COVERAGE_CITIES), "Cities Covered", "All 14 states"));
+        statsGrid.add(createStatNumberCard(formatNumber(TOTAL_DELIVERIES), "Successful Deliveries", "+25% vs last year", BLUE_PRIMARY));
+        statsGrid.add(createStatNumberCard(String.valueOf(ACTIVE_DRIVERS), "Active Drivers", "Nationwide fleet", BLUE_ACCENT));
+        statsGrid.add(createStatNumberCard(String.format("%.1f%%", CUSTOMER_SATISFACTION), "Customer Satisfaction", "Based on 50K+ reviews", BLUE_MEDIUM));
+        statsGrid.add(createStatNumberCard(String.valueOf(COVERAGE_CITIES), "Cities Covered", "All 14 states", BLUE_DARK));
         
         card.add(statsGrid, BorderLayout.CENTER);
         
         return card;
     }
     
-    private JPanel createStatNumberCard(String icon, String value, String label, String subtext) {
+    private JPanel createStatNumberCard(String value, String label, String subtext, Color color) {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(new Color(248, 249, 250));
+        card.setBackground(BLUE_PALE);
         card.setBorder(BorderFactory.createCompoundBorder(
             new RoundedBorder(10, BORDER_COLOR),
             BorderFactory.createEmptyBorder(20, 15, 20, 15)
         ));
         
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 32));
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        card.add(iconLabel);
+        // Colored top bar
+        JPanel topBar = new JPanel();
+        topBar.setBackground(color);
+        topBar.setPreferredSize(new Dimension(50, 4));
+        topBar.setMaximumSize(new Dimension(50, 4));
+        topBar.setAlignmentX(Component.CENTER_ALIGNMENT);
+        card.add(topBar);
         
-        card.add(Box.createVerticalStrut(10));
+        card.add(Box.createVerticalStrut(15));
         
         JLabel valueLabel = new JLabel(value);
         valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        valueLabel.setForeground(BLUE_PRIMARY);
+        valueLabel.setForeground(color);
         valueLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         card.add(valueLabel);
         
-        card.add(Box.createVerticalStrut(5));
+        card.add(Box.createVerticalStrut(8));
         
         JLabel labelLabel = new JLabel(label);
         labelLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -378,7 +416,7 @@ public class HomePanel extends JPanel {
         labelLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         card.add(labelLabel);
         
-        card.add(Box.createVerticalStrut(3));
+        card.add(Box.createVerticalStrut(5));
         
         JLabel subtextLabel = new JLabel(subtext);
         subtextLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
@@ -409,18 +447,19 @@ public class HomePanel extends JPanel {
         ));
         
         // Section Title
-        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel titlePanel = new JPanel(new BorderLayout());
         titlePanel.setOpaque(false);
         titlePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0));
         
-        JLabel iconLabel = new JLabel("✨");
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 28));
-        titlePanel.add(iconLabel);
-        
         JLabel titleLabel = new JLabel("Why Choose LogiXpress?");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
         titleLabel.setForeground(BLUE_PRIMARY);
-        titlePanel.add(titleLabel);
+        titlePanel.add(titleLabel, BorderLayout.WEST);
+        
+        JPanel colorBar = new JPanel();
+        colorBar.setBackground(BLUE_PRIMARY);
+        colorBar.setPreferredSize(new Dimension(60, 3));
+        titlePanel.add(colorBar, BorderLayout.SOUTH);
         
         card.add(titlePanel, BorderLayout.NORTH);
         
@@ -428,47 +467,60 @@ public class HomePanel extends JPanel {
         JPanel featuresGrid = new JPanel(new GridLayout(2, 3, 20, 20));
         featuresGrid.setOpaque(false);
         
-        featuresGrid.add(createFeatureCard("⚡", "Fast Delivery", 
-            "Express delivery within 1-2 business days. Real-time tracking available on all shipments."));
-        featuresGrid.add(createFeatureCard("🔒", "Secure Handling", 
-            "Your packages are handled with care. Insurance coverage up to RM 50,000 available."));
-        featuresGrid.add(createFeatureCard("💬", "24/7 Support", 
-            "Round-the-clock customer support via phone, email, and live chat."));
-        featuresGrid.add(createFeatureCard("📍", "Real-Time Tracking", 
-            "GPS-enabled tracking with SMS/Email notifications at every checkpoint."));
-        featuresGrid.add(createFeatureCard("💰", "Best Rates", 
-            "Competitive pricing with volume discounts for businesses. No hidden fees."));
-        featuresGrid.add(createFeatureCard("🌍", "Nationwide Coverage", 
-            "Serving all 85 major cities across 14 states and federal territories."));
+        featuresGrid.add(createFeatureCard("Fast Delivery", 
+            "Express delivery within 1-2 business days. Real-time tracking available on all shipments.", BLUE_PRIMARY));
+        featuresGrid.add(createFeatureCard("Secure Handling", 
+            "Your packages are handled with care. Insurance coverage up to RM 50,000 available.", BLUE_ACCENT));
+        featuresGrid.add(createFeatureCard("24/7 Support", 
+            "Round-the-clock customer support via phone, email, and live chat.", BLUE_MEDIUM));
+        featuresGrid.add(createFeatureCard("Real-Time Tracking", 
+            "GPS-enabled tracking with SMS/Email notifications at every checkpoint.", BLUE_DARK));
+        featuresGrid.add(createFeatureCard("Best Rates", 
+            "Competitive pricing with volume discounts for businesses. No hidden fees.", BLUE_PRIMARY));
+        featuresGrid.add(createFeatureCard("Nationwide Coverage", 
+            "Serving all 85 major cities across 14 states and federal territories.", BLUE_ACCENT));
         
         card.add(featuresGrid, BorderLayout.CENTER);
         
         return card;
     }
     
-    private JPanel createFeatureCard(String icon, String title, String description) {
+    private JPanel createFeatureCard(String title, String description, Color color) {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(new Color(248, 249, 250));
+        card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-            new RoundedBorder(10, BORDER_COLOR),
+            new RoundedBorder(10, color),
             BorderFactory.createEmptyBorder(18, 15, 18, 15)
         ));
         
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 32));
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        card.add(iconLabel);
+        // Colored top accent bar
+        JPanel topBar = new JPanel();
+        topBar.setBackground(color);
+        topBar.setPreferredSize(new Dimension(40, 4));
+        topBar.setMaximumSize(new Dimension(40, 4));
+        topBar.setAlignmentX(Component.CENTER_ALIGNMENT);
+        card.add(topBar);
         
-        card.add(Box.createVerticalStrut(10));
+        card.add(Box.createVerticalStrut(15));
         
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        titleLabel.setForeground(BLUE_PRIMARY);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        titleLabel.setForeground(color);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         card.add(titleLabel);
         
-        card.add(Box.createVerticalStrut(8));
+        card.add(Box.createVerticalStrut(12));
+        
+        // Colored divider line
+        JPanel divider = new JPanel();
+        divider.setBackground(new Color(color.getRed(), color.getGreen(), color.getBlue(), 100));
+        divider.setPreferredSize(new Dimension(30, 2));
+        divider.setMaximumSize(new Dimension(30, 2));
+        divider.setAlignmentX(Component.CENTER_ALIGNMENT);
+        card.add(divider);
+        
+        card.add(Box.createVerticalStrut(10));
         
         JTextArea descArea = new JTextArea(description);
         descArea.setFont(new Font("Segoe UI", Font.PLAIN, 11));
@@ -476,7 +528,7 @@ public class HomePanel extends JPanel {
         descArea.setEditable(false);
         descArea.setLineWrap(true);
         descArea.setWrapStyleWord(true);
-        descArea.setBackground(new Color(248, 249, 250));
+        descArea.setBackground(Color.WHITE);
         descArea.setAlignmentX(Component.CENTER_ALIGNMENT);
         descArea.setColumns(20);
         descArea.setRows(3);
@@ -497,18 +549,19 @@ public class HomePanel extends JPanel {
         ));
         
         // Section Title
-        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel titlePanel = new JPanel(new BorderLayout());
         titlePanel.setOpaque(false);
         titlePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 0));
         
-        JLabel iconLabel = new JLabel("⚡");
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 28));
-        titlePanel.add(iconLabel);
-        
         JLabel titleLabel = new JLabel("Quick Actions");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
         titleLabel.setForeground(BLUE_PRIMARY);
-        titlePanel.add(titleLabel);
+        titlePanel.add(titleLabel, BorderLayout.WEST);
+        
+        JPanel colorBar = new JPanel();
+        colorBar.setBackground(BLUE_PRIMARY);
+        colorBar.setPreferredSize(new Dimension(60, 3));
+        titlePanel.add(colorBar, BorderLayout.SOUTH);
         
         card.add(titlePanel, BorderLayout.NORTH);
         
@@ -516,12 +569,12 @@ public class HomePanel extends JPanel {
         JPanel actionsGrid = new JPanel(new GridLayout(1, 3, 20, 0));
         actionsGrid.setOpaque(false);
         
-        actionsGrid.add(createActionCard("📦", "Create New Order", 
-            "Start shipping now", "NEW_ORDER", "Get instant shipping rates"));
-        actionsGrid.add(createActionCard("🔍", "Track Order", 
-            "Enter tracking number", "TRACK", "Real-time package tracking"));
-        actionsGrid.add(createActionCard("💬", "Need Help?", 
-            "Contact support 24/7", "SUPPORT", "Live chat & email support"));
+        actionsGrid.add(createActionCard("Create New Order", 
+            "Start shipping now", "NEW_ORDER", "Get instant shipping rates", BLUE_PRIMARY, "1"));
+        actionsGrid.add(createActionCard("Track Order", 
+            "Enter tracking number", "TRACK", "Real-time package tracking", BLUE_ACCENT, "2"));
+        actionsGrid.add(createActionCard("Need Help?", 
+            "Contact support 24/7", "SUPPORT", "Live chat & email support", BLUE_DARK, "3"));
         
         card.add(actionsGrid, BorderLayout.CENTER);
         
@@ -532,26 +585,45 @@ public class HomePanel extends JPanel {
         return card;
     }
     
-    private JPanel createActionCard(String icon, String title, String subtitle, String targetCard, String hint) {
+    private JPanel createActionCard(String title, String subtitle, String targetCard, String hint, Color color, String number) {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(new Color(248, 249, 250));
+        card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-            new RoundedBorder(10, BORDER_COLOR),
+            new RoundedBorder(10, color),
             BorderFactory.createEmptyBorder(20, 15, 20, 15)
         ));
         card.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 36));
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        card.add(iconLabel);
+        // Colored circle with number
+        JPanel circlePanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(color);
+                g2d.fillOval(0, 0, 50, 50);
+                g2d.dispose();
+            }
+        };
+        circlePanel.setPreferredSize(new Dimension(50, 50));
+        circlePanel.setMaximumSize(new Dimension(50, 50));
+        circlePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        card.add(Box.createVerticalStrut(12));
+        JLabel numberLabel = new JLabel(number);
+        numberLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        numberLabel.setForeground(Color.WHITE);
+        circlePanel.setLayout(new GridBagLayout());
+        circlePanel.add(numberLabel);
+        
+        card.add(circlePanel);
+        
+        card.add(Box.createVerticalStrut(15));
         
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        titleLabel.setForeground(BLUE_PRIMARY);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLabel.setForeground(color);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         card.add(titleLabel);
         
@@ -563,13 +635,19 @@ public class HomePanel extends JPanel {
         subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         card.add(subtitleLabel);
         
-        card.add(Box.createVerticalStrut(3));
+        card.add(Box.createVerticalStrut(8));
+        
+        JPanel hintPanel = new JPanel();
+        hintPanel.setBackground(new Color(color.getRed(), color.getGreen(), color.getBlue(), 50));
+        hintPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        hintPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         JLabel hintLabel = new JLabel(hint);
         hintLabel.setFont(new Font("Segoe UI", Font.ITALIC, 10));
-        hintLabel.setForeground(TEXT_MUTED);
-        hintLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        card.add(hintLabel);
+        hintLabel.setForeground(color);
+        hintPanel.add(hintLabel);
+        
+        card.add(hintPanel);
         
         card.addMouseListener(new MouseAdapter() {
             @Override
@@ -579,18 +657,18 @@ public class HomePanel extends JPanel {
 
             @Override
             public void mouseEntered(MouseEvent e) {
-                card.setBackground(new Color(230, 240, 255));
+                card.setBackground(BLUE_PALE);
                 card.setBorder(BorderFactory.createCompoundBorder(
-                    new RoundedBorder(10, BLUE_PRIMARY),
+                    new RoundedBorder(10, color),
                     BorderFactory.createEmptyBorder(20, 15, 20, 15)
                 ));
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                card.setBackground(new Color(248, 249, 250));
+                card.setBackground(Color.WHITE);
                 card.setBorder(BorderFactory.createCompoundBorder(
-                    new RoundedBorder(10, BORDER_COLOR),
+                    new RoundedBorder(10, color),
                     BorderFactory.createEmptyBorder(20, 15, 20, 15)
                 ));
             }

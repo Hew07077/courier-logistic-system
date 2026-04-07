@@ -844,7 +844,6 @@ public class TrackOrderPanel extends JPanel {
             new Font("Segoe UI", Font.BOLD, 14),
             PRIMARY_BLUE
         ));
-        // INCREASED HEIGHT to show all text properly
         timelinePanel.setMaximumSize(new Dimension(700, 420));
         timelinePanel.setPreferredSize(new Dimension(650, 400));
         
@@ -863,7 +862,8 @@ public class TrackOrderPanel extends JPanel {
         for (int i = 0; i < stepTitles.length; i++) {
             boolean isCompleted = i < currentStep;
             boolean isCurrent = i == currentStep;
-            String timestamp = getTimestampForStep(order, i);
+            // FIXED: Get REAL timestamp from order data instead of fake calculated dates
+            String timestamp = getRealTimestampForStep(order, i);
             
             timelinePanel.add(createTimelineStep(
                 stepTitles[i], 
@@ -878,20 +878,22 @@ public class TrackOrderPanel extends JPanel {
         
         if ("Delayed".equals(currentStatus)) {
             String reason = extractReason(order.getNotes());
+            String delayTimestamp = extractDelayTimestamp(order);
             timelinePanel.add(createTimelineStep(
                 "Delayed",
                 reason != null ? "Delivery delayed: " + reason : "Delivery is experiencing delays",
-                order.getOrderDate(),
+                delayTimestamp != null ? delayTimestamp : order.getOrderDate(),
                 false,
                 true,
                 5,
                 5
             ));
         } else if ("Cancelled".equals(currentStatus)) {
+            String cancelTimestamp = extractCancelTimestamp(order);
             timelinePanel.add(createTimelineStep(
                 "Cancelled",
                 "Order has been cancelled",
-                order.getOrderDate(),
+                cancelTimestamp != null ? cancelTimestamp : order.getOrderDate(),
                 false,
                 true,
                 5,
@@ -902,6 +904,225 @@ public class TrackOrderPanel extends JPanel {
         return timelinePanel;
     }
     
+    /**
+     * FIXED: Returns REAL timestamp for each step from order data
+     * instead of generating fake dates
+     */
+    private String getRealTimestampForStep(SenderOrder order, int step) {
+        switch(step) {
+            case 0: // Order Placed
+                return order.getOrderDate();
+                
+            case 1: // Processing
+                return extractProcessingDate(order);
+                
+            case 2: // In Transit
+                return extractTransitDate(order);
+                
+            case 3: // Out for Delivery
+                return extractOutForDeliveryDate(order);
+                
+            case 4: // Delivered
+                return extractDeliveryDate(order);
+                
+            default:
+                return "Pending";
+        }
+    }
+    
+    /**
+     * Extract the actual processing start date from order data
+     * This should be stored in the order's tracking data
+     */
+    private String extractProcessingDate(SenderOrder order) {
+        String notes = order.getNotes();
+        if (notes != null && !notes.isEmpty()) {
+            // Look for processing date in notes
+            if (notes.contains("Processing Date:")) {
+                try {
+                    int start = notes.indexOf("Processing Date:") + 16;
+                    int end = notes.indexOf(";", start);
+                    if (end == -1) end = notes.indexOf("|", start);
+                    if (end == -1) end = notes.indexOf("\n", start);
+                    if (end == -1) end = notes.length();
+                    String date = notes.substring(start, end).trim();
+                    if (!date.isEmpty()) return date;
+                } catch (Exception e) {}
+            }
+        }
+        
+        // If status is Processing or beyond, use order date as fallback
+        int stepIndex = getStepIndex(order.getStatus());
+        if (stepIndex >= 1) {
+            return order.getOrderDate();
+        }
+        return "Pending";
+    }
+    
+    /**
+     * Extract the actual transit start date from order data
+     */
+    private String extractTransitDate(SenderOrder order) {
+        String notes = order.getNotes();
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("Transit Date:")) {
+                try {
+                    int start = notes.indexOf("Transit Date:") + 13;
+                    int end = notes.indexOf(";", start);
+                    if (end == -1) end = notes.indexOf("|", start);
+                    if (end == -1) end = notes.indexOf("\n", start);
+                    if (end == -1) end = notes.length();
+                    String date = notes.substring(start, end).trim();
+                    if (!date.isEmpty()) return date;
+                } catch (Exception e) {}
+            }
+        }
+        
+        // If status is In Transit or beyond, use appropriate fallback
+        int stepIndex = getStepIndex(order.getStatus());
+        if (stepIndex >= 2) {
+            if (stepIndex == 2) return getCurrentDateTime();
+            return order.getOrderDate();
+        }
+        return "Pending";
+    }
+    
+    /**
+     * Extract the actual out for delivery date from order data
+     */
+    private String extractOutForDeliveryDate(SenderOrder order) {
+        String notes = order.getNotes();
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("OutForDelivery Date:") || notes.contains("Out for Delivery Date:")) {
+                try {
+                    String searchKey = notes.contains("OutForDelivery Date:") ? "OutForDelivery Date:" : "Out for Delivery Date:";
+                    int start = notes.indexOf(searchKey) + searchKey.length();
+                    int end = notes.indexOf(";", start);
+                    if (end == -1) end = notes.indexOf("|", start);
+                    if (end == -1) end = notes.indexOf("\n", start);
+                    if (end == -1) end = notes.length();
+                    String date = notes.substring(start, end).trim();
+                    if (!date.isEmpty()) return date;
+                } catch (Exception e) {}
+            }
+        }
+        
+        // If status is Out for Delivery, show current time
+        if ("Out for Delivery".equals(order.getStatus())) {
+            return getCurrentDateTime();
+        }
+        
+        // If status is Delivered, try to get from delivery date or fallback
+        if ("Delivered".equals(order.getStatus())) {
+            String deliveryDate = extractDeliveryDate(order);
+            if (deliveryDate != null && !deliveryDate.equals("Pending")) {
+                return deliveryDate;
+            }
+        }
+        
+        return "Pending";
+    }
+    
+    /**
+     * Extract the actual delivery date from order data
+     */
+    private String extractDeliveryDate(SenderOrder order) {
+        // First check if order has estimated delivery date (could be actual delivery date)
+        if (order.getEstimatedDelivery() != null && !order.getEstimatedDelivery().isEmpty()) {
+            // If status is Delivered, this likely is the actual delivery date
+            if ("Delivered".equals(order.getStatus())) {
+                return order.getEstimatedDelivery();
+            }
+        }
+        
+        String notes = order.getNotes();
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("Delivery Date:")) {
+                try {
+                    int start = notes.indexOf("Delivery Date:") + 14;
+                    int end = notes.indexOf(";", start);
+                    if (end == -1) end = notes.indexOf("|", start);
+                    if (end == -1) end = notes.indexOf("\n", start);
+                    if (end == -1) end = notes.length();
+                    String date = notes.substring(start, end).trim();
+                    if (!date.isEmpty()) return date;
+                } catch (Exception e) {}
+            }
+            
+            if (notes.contains("Delivered Date:")) {
+                try {
+                    int start = notes.indexOf("Delivered Date:") + 15;
+                    int end = notes.indexOf(";", start);
+                    if (end == -1) end = notes.indexOf("|", start);
+                    if (end == -1) end = notes.indexOf("\n", start);
+                    if (end == -1) end = notes.length();
+                    String date = notes.substring(start, end).trim();
+                    if (!date.isEmpty()) return date;
+                } catch (Exception e) {}
+            }
+        }
+        
+        // If delivered, use estimated delivery as fallback
+        if ("Delivered".equals(order.getStatus())) {
+            if (order.getEstimatedDelivery() != null && !order.getEstimatedDelivery().isEmpty()) {
+                return order.getEstimatedDelivery();
+            }
+            return getCurrentDateTime();
+        }
+        
+        return "Pending";
+    }
+    
+    /**
+     * Extract delay timestamp from order data
+     */
+    private String extractDelayTimestamp(SenderOrder order) {
+        String notes = order.getNotes();
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("Delay Date:")) {
+                try {
+                    int start = notes.indexOf("Delay Date:") + 11;
+                    int end = notes.indexOf(";", start);
+                    if (end == -1) end = notes.indexOf("|", start);
+                    if (end == -1) end = notes.indexOf("\n", start);
+                    if (end == -1) end = notes.length();
+                    String date = notes.substring(start, end).trim();
+                    if (!date.isEmpty()) return date;
+                } catch (Exception e) {}
+            }
+        }
+        return getCurrentDateTime();
+    }
+    
+    /**
+     * Extract cancellation timestamp from order data
+     */
+    private String extractCancelTimestamp(SenderOrder order) {
+        String notes = order.getNotes();
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("Cancelled Date:")) {
+                try {
+                    int start = notes.indexOf("Cancelled Date:") + 15;
+                    int end = notes.indexOf(";", start);
+                    if (end == -1) end = notes.indexOf("|", start);
+                    if (end == -1) end = notes.indexOf("\n", start);
+                    if (end == -1) end = notes.length();
+                    String date = notes.substring(start, end).trim();
+                    if (!date.isEmpty()) return date;
+                } catch (Exception e) {}
+            }
+        }
+        return getCurrentDateTime();
+    }
+    
+    /**
+     * Get current date and time in the same format as order dates
+     */
+    private String getCurrentDateTime() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+        return sdf.format(new Date());
+    }
+    
     private int getStepIndex(String status) {
         switch(status) {
             case "Delivered": return 4;
@@ -910,17 +1131,6 @@ public class TrackOrderPanel extends JPanel {
             case "Processing": return 1;
             case "Pending": return 0;
             default: return 0;
-        }
-    }
-    
-    private String getTimestampForStep(SenderOrder order, int step) {
-        switch(step) {
-            case 0: return order.getOrderDate();
-            case 1: return addDaysToDate(order.getOrderDate(), 1);
-            case 2: return addDaysToDate(order.getOrderDate(), 2);
-            case 3: return addDaysToDate(order.getOrderDate(), 3);
-            case 4: return order.getEstimatedDelivery() != null ? order.getEstimatedDelivery() : addDaysToDate(order.getOrderDate(), 5);
-            default: return "Pending";
         }
     }
     
@@ -983,9 +1193,9 @@ public class TrackOrderPanel extends JPanel {
         
         stepPanel.add(centerPanel, BorderLayout.CENTER);
         
-        JLabel timeLabel = new JLabel(timestamp);
+        JLabel timeLabel = new JLabel(timestamp != null && !timestamp.isEmpty() && !"Pending".equals(timestamp) ? timestamp : "-");
         timeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        timeLabel.setForeground(completed ? TIMELINE_COMPLETED : TEXT_GRAY);
+        timeLabel.setForeground(completed ? TIMELINE_COMPLETED : (current ? TIMELINE_CURRENT : TEXT_GRAY));
         stepPanel.add(timeLabel, BorderLayout.EAST);
         
         return stepPanel;
@@ -1192,10 +1402,8 @@ public class TrackOrderPanel extends JPanel {
             BorderFactory.createLineBorder(BORDER_COLOR),
             "Address Information",
             TitledBorder.LEFT,
-            TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 13),
-            PRIMARY_BLUE
-        ));
+            TitledBorder.TOP, new Font("Segoe UI", Font.BOLD, 13), PRIMARY_BLUE));
+
         panel.setMaximumSize(new Dimension(700, 160));
         panel.setPreferredSize(new Dimension(650, 150));
 
@@ -1208,7 +1416,8 @@ public class TrackOrderPanel extends JPanel {
         fromLabel.setForeground(PRIMARY_LIGHT);
         fromPanel.add(fromLabel, BorderLayout.NORTH);
         
-        JLabel fromAddress = new JLabel("<html><div style='width: 100%; font-size: 12px;'>" + 
+        // Updated HTML string to include 'Segoe UI' font family
+        JLabel fromAddress = new JLabel("<html><div style='width: 100%; font-family: Segoe UI; font-size: 10px;'>" + 
             order.getCustomerAddress() + "</div></html>");
         fromPanel.add(fromAddress, BorderLayout.CENTER);
         panel.add(fromPanel);
@@ -1222,7 +1431,8 @@ public class TrackOrderPanel extends JPanel {
         toLabel.setForeground(SUCCESS_GREEN);
         toPanel.add(toLabel, BorderLayout.NORTH);
         
-        JLabel toAddress = new JLabel("<html><div style='width: 100%; font-size: 12px;'>" + 
+        // Updated HTML string to include 'Segoe UI' font family
+        JLabel toAddress = new JLabel("<html><div style='width: 100%; font-family: Segoe UI; font-size: 10px;'>" + 
             order.getRecipientAddress() + "</div></html>");
         toPanel.add(toAddress, BorderLayout.CENTER);
         panel.add(toPanel);
@@ -1461,18 +1671,7 @@ public class TrackOrderPanel extends JPanel {
         }
     }
     
-    private String addDaysToDate(String dateStr, int days) {
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-            Date date = sdf.parse(dateStr);
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(date);
-            cal.add(Calendar.DAY_OF_MONTH, days);
-            return sdf.format(cal.getTime());
-        } catch (Exception e) {
-            return "Estimated: +" + days + " days";
-        }
-    }
+    // Removed addDaysToDate method - no longer needed since we use real timestamps
 
     private String extractReason(String notes) {
         if (notes != null && !notes.isEmpty()) {
