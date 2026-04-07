@@ -1,4 +1,3 @@
-// SenderOrder.java
 package sender;
 
 import java.text.SimpleDateFormat;
@@ -283,10 +282,6 @@ public class SenderOrder {
     
     public boolean isDeletable() {
         return "Pending".equals(status);
-    }
-
-    public boolean isDemoOrder() {
-        return customerEmail != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(customerEmail);
     }
     
     @Override

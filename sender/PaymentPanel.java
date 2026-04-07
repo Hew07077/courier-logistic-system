@@ -1,4 +1,3 @@
-// PaymentPanel.java
 package sender;
 
 import javax.swing.*;
@@ -6,8 +5,6 @@ import javax.swing.border.LineBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -279,12 +276,11 @@ public class PaymentPanel extends JPanel {
         paymentRecords.clear();
         
         // Refresh data from main system
-        SenderDataManager.getInstance().refreshData();
+        SenderOrderRepository.getInstance().refreshData();
         
         String userEmail = dashboard.getSenderEmail();
-        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(userEmail);
+        List<SenderOrder> userOrders = SenderOrderRepository.getInstance().getOrdersByEmail(userEmail);
         
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
         
         if (!userOrders.isEmpty()) {
             int paymentCounter = 1;
@@ -447,13 +443,13 @@ public class PaymentPanel extends JPanel {
                     record.date = paymentDate;
                     
                     // This now syncs with main system automatically
-                    SenderDataManager.getInstance().updateOrderPaymentStatus(
+                    SenderOrderRepository.getInstance().updateOrderPaymentStatus(
                         record.orderId, "Paid", paymentMethod, transactionId, paymentDate
                     );
                 }
                 
                 // Refresh data from main system
-                SenderDataManager.getInstance().refreshData();
+                SenderOrderRepository.getInstance().refreshData();
                 refreshData();
                 
                 JOptionPane.showMessageDialog(PaymentPanel.this,
