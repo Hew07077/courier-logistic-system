@@ -1,4 +1,3 @@
-// MyOrdersPanel.java
 package sender;
 
 import javax.swing.*;
@@ -256,14 +255,14 @@ public class MyOrdersPanel extends JPanel {
 
     public void refreshData() {
         // First, refresh data from main file
-        SenderDataManager.getInstance().refreshData();
+        SenderOrderRepository.getInstance().refreshData();
     
         tableModel.setRowCount(0);
     
         String filter = (String) statusFilter.getSelectedItem();
         String userEmail = dashboard.getSenderEmail();
         
-        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(userEmail);
+        List<SenderOrder> userOrders = SenderOrderRepository.getInstance().getOrdersByEmail(userEmail);
 
         if (!"All Orders".equals(filter)) {
             userOrders.removeIf(order -> !filter.equals(order.getStatus()));
@@ -361,14 +360,6 @@ public class MyOrdersPanel extends JPanel {
                 return;
             }
             
-            String userEmail = dashboard.getSenderEmail();
-            if (DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(userEmail)) {
-                JOptionPane.showMessageDialog(this, 
-                    "Demo users cannot cancel orders. Please create a real account to cancel orders.", 
-                    "Demo Account Restriction", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            
             if (status.equals("Delivered") || status.equals("Cancelled")) {
                 JOptionPane.showMessageDialog(this, 
                     "Cannot cancel this order (Status: " + status + ")", 
@@ -381,7 +372,7 @@ public class MyOrdersPanel extends JPanel {
                 "Confirm Cancellation", JOptionPane.YES_NO_OPTION);
                 
             if (confirm == JOptionPane.YES_OPTION) {
-                boolean cancelled = SenderDataManager.getInstance().cancelOrder(orderId);
+                boolean cancelled = SenderOrderRepository.getInstance().cancelOrder(orderId);
                 if (cancelled) {
                     refreshData();
                     JOptionPane.showMessageDialog(this, 
@@ -405,7 +396,7 @@ public class MyOrdersPanel extends JPanel {
                 return;
             }
             
-            SenderOrder order = SenderDataManager.getInstance().getOrderById(orderId);
+            SenderOrder order = SenderOrderRepository.getInstance().getOrderById(orderId);
             
             if (order != null) {
                 showOrderDetailsDialog(order);

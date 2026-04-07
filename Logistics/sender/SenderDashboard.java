@@ -1,4 +1,3 @@
-// SenderDashboard.java
 package sender;
 
 import logistics.login.Login;
@@ -17,6 +16,7 @@ public class SenderDashboard extends JFrame {
 
     // Refined color palette
     private final Color BLUE_PRIMARY = new Color(0, 123, 255);
+    private final Color BLUE_DARK = new Color(0, 86, 179);
     private final Color BG_LIGHT = new Color(250, 250, 250);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
     private final Color BORDER_COLOR = new Color(230, 230, 230);
@@ -67,47 +67,6 @@ public class SenderDashboard extends JFrame {
         this.senderPhone = phone;
         this.username = username;
         
-        // Handle demo vs regular users
-        if (email != null && DemoDataManager.DEMO_EMAIL.equalsIgnoreCase(email)) {
-            System.out.println("======================================");
-            System.out.println("DEMO USER DETECTED: " + email);
-            System.out.println("======================================");
-            
-            // Get the data manager instance
-            SenderDataManager dataManager = SenderDataManager.getInstance();
-            
-            // Check if demo data already exists for this user
-            List<SenderOrder> existingOrders = dataManager.getOrdersByEmail(email);
-            System.out.println("Existing orders for demo user: " + existingOrders.size());
-            
-            if (existingOrders.isEmpty()) {
-                System.out.println("No existing demo orders found. Creating demo data...");
-                // Add demo orders to the system
-                DemoDataManager.getInstance().addDemoOrdersToSystem(dataManager);
-                
-                // Force save to ensure data is written to file
-                dataManager.saveOrders();
-                
-                // Verify orders were added
-                List<SenderOrder> updatedOrders = dataManager.getOrdersByEmail(email);
-                System.out.println("After adding: " + updatedOrders.size() + " demo orders");
-            } else {
-                System.out.println("Demo orders already exist: " + existingOrders.size() + " orders");
-            }
-            
-            this.senderAddress = "123 Jalan SS2, Petaling Jaya, Selangor 47300";
-            
-            // Print all demo orders for debugging
-            List<SenderOrder> finalOrders = dataManager.getOrdersByEmail(email);
-            System.out.println("Final demo orders count: " + finalOrders.size());
-            for (SenderOrder order : finalOrders) {
-                System.out.println("  - Order: " + order.getId() + ", Status: " + order.getStatus() + ", Payment: " + order.getPaymentStatus());
-            }
-            System.out.println("======================================");
-        } else {
-            System.out.println("REGULAR USER LOGGED IN: " + email);
-        }
-        
         initializeStats();
         fixPendingPayments(); // Fix any incorrect payment statuses
         initialize();
@@ -116,7 +75,7 @@ public class SenderDashboard extends JFrame {
     
     // Temporary fix - call this from constructor after initializeStats()
     private void fixPendingPayments() {
-        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(senderEmail);
+        List<SenderOrder> userOrders = SenderOrderRepository.getInstance().getOrdersByEmail(senderEmail);
         boolean fixed = false;
         
         for (SenderOrder order : userOrders) {
@@ -137,13 +96,13 @@ public class SenderDashboard extends JFrame {
         }
         
         if (fixed) {
-            SenderDataManager.getInstance().saveOrders();
+            SenderOrderRepository.getInstance().saveOrders();
             System.out.println("Fixed pending payments for orders");
         }
     }
 
     private void initializeStats() {
-        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(senderEmail);
+        List<SenderOrder> userOrders = SenderOrderRepository.getInstance().getOrdersByEmail(senderEmail);
         
         activeOrders = 0;
         deliveredOrders = 0;
@@ -187,17 +146,6 @@ public class SenderDashboard extends JFrame {
                            ", Total Spent: RM " + String.format("%.2f", totalSpent));
     }
 
-    private String extractCost(String notes) {
-        if (notes != null && notes.contains("Estimated Cost:")) {
-            String[] parts = notes.split("Estimated Cost: ");
-            if (parts.length > 1) {
-                String[] costParts = parts[1].split(" ");
-                return costParts[0].trim();
-            }
-        }
-        return "RM 0.00";
-    }
-
     private void initialize() {
         setTitle("LogiXpress Sender Portal - Welcome " + senderName);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -220,7 +168,7 @@ public class SenderDashboard extends JFrame {
     private void initializePanels() {
         homePanel = new HomePanel(this);
         newOrderPanel = new NewOrderPanel(this);
-        supportPanel = new SupportPanel(this);
+        supportPanel = new SupportPanel();
         profilePanel = new ProfilePanel(this);
         trackOrderPanel = new TrackOrderPanel(this);
         
@@ -253,14 +201,14 @@ public class SenderDashboard extends JFrame {
         leftPanel.setOpaque(false);
 
         // Load and display logo in top bar
-        ImageIcon logoIcon = loadLogo("logo.jpeg");
+        ImageIcon logoIcon = loadLogo("logos.png");
         if (logoIcon != null) {
             Image img = logoIcon.getImage();
             Image resizedImg = img.getScaledInstance(45, 45, Image.SCALE_SMOOTH);
             JLabel logoImage = new JLabel(new ImageIcon(resizedImg));
             leftPanel.add(logoImage);
         } else {
-            // Fallback text if logo not found (no emoji)
+            // Fallback text if logo not found
             JLabel logoLabel = new JLabel("LX");
             logoLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
             logoLabel.setForeground(Color.WHITE);
@@ -271,6 +219,14 @@ public class SenderDashboard extends JFrame {
         title.setFont(new Font("Segoe UI", Font.BOLD, 22));
         title.setForeground(Color.WHITE);
         leftPanel.add(title);
+
+        JLabel badge = new JLabel("SENDER");
+        badge.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        badge.setForeground(BLUE_DARK);
+        badge.setBackground(new Color(255, 255, 255, 200));
+        badge.setOpaque(true);
+        badge.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        leftPanel.add(badge);
 
         topBar.add(leftPanel, BorderLayout.WEST);
 
@@ -315,7 +271,7 @@ public class SenderDashboard extends JFrame {
         logoPanel.setBorder(BorderFactory.createEmptyBorder(30, 15, 25, 15));
 
         // Load and display logo in sidebar
-        ImageIcon logoIcon = loadLogo("logo.jpeg");
+        ImageIcon logoIcon = loadLogo("logos.png");
         if (logoIcon != null) {
             Image img = logoIcon.getImage();
             Image resizedImg = img.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
@@ -323,7 +279,7 @@ public class SenderDashboard extends JFrame {
             logoImage.setHorizontalAlignment(SwingConstants.CENTER);
             logoPanel.add(logoImage, BorderLayout.NORTH);
         } else {
-            // Fallback text if logo not found (no emoji)
+            // Fallback text if logo not found
             JLabel placeholderLogo = new JLabel("LX", SwingConstants.CENTER);
             placeholderLogo.setFont(new Font("Segoe UI", Font.BOLD, 48));
             placeholderLogo.setForeground(Color.WHITE);
@@ -343,92 +299,50 @@ public class SenderDashboard extends JFrame {
 
         sidebar.add(logoPanel, BorderLayout.NORTH);
 
-        // Menu items - 5 items (no emojis)
-        JPanel menu = new JPanel(new GridLayout(5, 1, 0, 5));
+        // Menu items
+        JPanel menu = new JPanel(new GridLayout(5, 1, 0, 8));
         menu.setOpaque(false);
         menu.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
 
-        menu.add(createNavButtonWithTooltip("Home", "HOME", "Dashboard overview with statistics and quick actions", true));
-        menu.add(createNavButtonWithTooltip("New Order", "NEW_ORDER", "Create a new shipment order", false));
-        menu.add(createNavButtonWithTooltip("Track Order", "TRACK", "Track your package by tracking number", false));
-        menu.add(createNavButtonWithTooltip("Support", "SUPPORT", "Get help and contact support", false));
-        menu.add(createNavButtonWithTooltip("Profile", "PROFILE", "Manage your account settings", false));
+        JButton homeBtn = createNavButton("Home", "HOME", 
+            "Dashboard overview", true);
+        menu.add(homeBtn);
+        
+        JButton newOrderBtn = createNavButton("New Order", "NEW_ORDER", 
+            "Create new shipment", false);
+        menu.add(newOrderBtn);
+        
+        JButton trackBtn = createNavButton("Track Order", "TRACK", 
+            "Track your packages", false);
+        menu.add(trackBtn);
+        
+        JButton supportBtn = createNavButton("Support", "SUPPORT", 
+            "Get help and support", false);
+        menu.add(supportBtn);
+        
+        JButton profileBtn = createNavButton("My Profile", "PROFILE", 
+            "Personal information", false);
+        menu.add(profileBtn);
 
         sidebar.add(menu, BorderLayout.CENTER);
-
-        // User profile (no emoji)
-        JPanel profile = new JPanel(new BorderLayout());
-        profile.setBackground(new Color(0, 0, 0, 30));
-        profile.setBorder(BorderFactory.createEmptyBorder(15, 15, 20, 15));
-
-        JPanel userInfo = new JPanel(new GridLayout(2, 1));
-        userInfo.setOpaque(false);
-
-        JLabel userName = new JLabel(senderName, SwingConstants.CENTER);
-        userName.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        userName.setForeground(Color.WHITE);
-        userInfo.add(userName);
-
-        JLabel userRole = new JLabel("Premium Sender", SwingConstants.CENTER);
-        userRole.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        userRole.setForeground(new Color(255, 255, 255, 200));
-        userInfo.add(userRole);
-
-        profile.add(userInfo, BorderLayout.CENTER);
-        sidebar.add(profile, BorderLayout.SOUTH);
+        sidebar.add(createUserProfile(), BorderLayout.SOUTH);
     }
 
-    /**
-     * Loads an image from file
-     * @param path The path to the image file
-     * @return ImageIcon if successful, null if failed
-     */
-    private ImageIcon loadLogo(String path) {
-        try {
-            // Try loading from classpath (same package)
-            java.net.URL imgURL = getClass().getResource(path);
-            if (imgURL != null) {
-                return new ImageIcon(imgURL);
-            } else {
-                // Try loading from file system
-                java.io.File file = new java.io.File(path);
-                if (file.exists()) {
-                    return new ImageIcon(file.getAbsolutePath());
-                }
-                
-                // Try loading from parent directory
-                file = new java.io.File("../" + path);
-                if (file.exists()) {
-                    return new ImageIcon(file.getAbsolutePath());
-                }
-                
-                // Try loading from resources folder
-                file = new java.io.File("resources/" + path);
-                if (file.exists()) {
-                    return new ImageIcon(file.getAbsolutePath());
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Could not load logo: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private JButton createNavButtonWithTooltip(String text, String card, String tooltip, boolean selected) {
+    private JButton createNavButton(String text, String card, String notification, boolean selected) {
         JButton btn = new JButton();
         btn.setLayout(new BorderLayout());
         
-        JPanel contentPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
-        contentPanel.setOpaque(false);
+        String notificationColor = selected ? "#FFFFFF" : "#A0C0FF";
+        String displayText = "<html><div style='text-align: left;'>" +
+                            "<b style='font-size: 13px;'>" + text + "</b><br>" +
+                            "<span style='font-size: 11px; color: " + notificationColor + ";'>" + 
+                            notification + "</span></div></html>";
         
-        // No icon, just text
-        JLabel textLabel = new JLabel(text);
-        textLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        textLabel.setForeground(Color.WHITE);
-        contentPanel.add(textLabel);
+        JLabel contentLabel = new JLabel(displayText);
+        contentLabel.setForeground(Color.WHITE);
+        contentLabel.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        btn.add(contentLabel, BorderLayout.CENTER);
         
-        btn.add(contentPanel, BorderLayout.CENTER);
-        btn.setToolTipText(tooltip);
         btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         btn.setForeground(Color.WHITE);
         
@@ -443,7 +357,7 @@ public class SenderDashboard extends JFrame {
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
         btn.setContentAreaFilled(true);
-        btn.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+        btn.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         if (selected) activeButton = btn;
@@ -485,6 +399,37 @@ public class SenderDashboard extends JFrame {
         return btn;
     }
 
+    private JPanel createUserProfile() {
+        JPanel profile = new JPanel(new BorderLayout());
+        profile.setBackground(new Color(0, 0, 0, 30));
+        profile.setBorder(BorderFactory.createEmptyBorder(15, 15, 20, 15));
+
+        JPanel userInfo = new JPanel(new GridLayout(3, 1));
+        userInfo.setOpaque(false);
+
+        String displayName = senderName != null ? senderName : "Loading...";
+        String displayId = "Premium Sender";
+        String displayOrders = activeOrders + " active orders";
+
+        JLabel userName = new JLabel(displayName, SwingConstants.CENTER);
+        userName.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        userName.setForeground(Color.WHITE);
+        userInfo.add(userName);
+
+        JLabel userIdLabel = new JLabel(displayId, SwingConstants.CENTER);
+        userIdLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        userIdLabel.setForeground(new Color(255, 255, 255, 200));
+        userInfo.add(userIdLabel);
+        
+        JLabel userOrders = new JLabel(displayOrders, SwingConstants.CENTER);
+        userOrders.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        userOrders.setForeground(new Color(255, 255, 255, 180));
+        userInfo.add(userOrders);
+
+        profile.add(userInfo, BorderLayout.CENTER);
+        return profile;
+    }
+
     private JButton createButton(String text, Color bgColor) {
         JButton btn = new JButton(text);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -509,6 +454,42 @@ public class SenderDashboard extends JFrame {
         });
 
         return btn;
+    }
+
+    /**
+     * Loads an image from file
+     * @param path The path to the image file
+     * @return ImageIcon if successful, null if failed
+     */
+    private ImageIcon loadLogo(String path) {
+        try {
+            // Try loading from classpath (same package)
+            java.net.URL imgURL = getClass().getResource(path);
+            if (imgURL != null) {
+                return new ImageIcon(imgURL);
+            } else {
+                // Try loading from file system
+                java.io.File file = new java.io.File(path);
+                if (file.exists()) {
+                    return new ImageIcon(file.getAbsolutePath());
+                }
+                
+                // Try loading from parent directory
+                file = new java.io.File("../" + path);
+                if (file.exists()) {
+                    return new ImageIcon(file.getAbsolutePath());
+                }
+                
+                // Try loading from resources folder
+                file = new java.io.File("resources/" + path);
+                if (file.exists()) {
+                    return new ImageIcon(file.getAbsolutePath());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load logo: " + e.getMessage());
+        }
+        return null;
     }
 
     private void createContentPanel() {
@@ -543,10 +524,11 @@ public class SenderDashboard extends JFrame {
         
         statusBar.add(status, BorderLayout.WEST);
 
-        JLabel version = new JLabel("LogiXpress Sender Portal v1.0.0  ");
-        version.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        version.setForeground(TEXT_GRAY);
-        statusBar.add(version, BorderLayout.EAST);
+        String orderStats = activeOrders + " active · " + deliveredOrders + " delivered";
+        JLabel rightStats = new JLabel(orderStats + "  ");
+        rightStats.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        rightStats.setForeground(BLUE_PRIMARY);
+        statusBar.add(rightStats, BorderLayout.EAST);
     }
 
     public void showPanel(String panelName) {
@@ -557,7 +539,18 @@ public class SenderDashboard extends JFrame {
                 if (homePanel != null) homePanel.refreshData();
                 break;
             case "TRACK":
-                if (trackOrderPanel != null) trackOrderPanel.refreshOrders();
+                if (trackOrderPanel != null) {
+                    trackOrderPanel.resetToWelcomeState();  // Reset to welcome screen
+                }
+                break;
+            case "PROFILE":
+                // No refresh needed
+                break;
+            case "NEW_ORDER":
+                // No refresh needed
+                break;
+            case "SUPPORT":
+                // No refresh needed
                 break;
         }
     }
@@ -602,7 +595,7 @@ public class SenderDashboard extends JFrame {
         System.out.println("Refreshing all sender data from main system...");
         
         // Refresh data manager
-        SenderDataManager.getInstance().refreshData();
+        SenderOrderRepository.getInstance().refreshData();
         
         // Update stats
         refreshStats();
@@ -615,20 +608,26 @@ public class SenderDashboard extends JFrame {
                     if (homePanel != null) homePanel.refreshData();
                     break;
                 case "TRACK":
-                    if (trackOrderPanel != null) trackOrderPanel.refreshOrders();
+                    if (trackOrderPanel != null) {
+                        // Don't auto-refresh track panel - just reset if needed
+                        // trackOrderPanel.refreshOrders() is disabled
+                    }
                     break;
             }
         }
         
-        // Update sidebar notification counts
-        updateSidebarNotifications();
+        // Update sidebar user info
+        updateSidebarUserInfo();
+        
+        // Update status bar
+        updateStatusBar();
     }
 
     /**
      * Refresh statistics from current data - FIXED VERSION
      */
     public void refreshStats() {
-        List<SenderOrder> userOrders = SenderDataManager.getInstance().getOrdersByEmail(senderEmail);
+        List<SenderOrder> userOrders = SenderOrderRepository.getInstance().getOrdersByEmail(senderEmail);
         
         activeOrders = 0;
         deliveredOrders = 0;
@@ -672,32 +671,54 @@ public class SenderDashboard extends JFrame {
                            ", Total Spent: RM " + String.format("%.2f", totalSpent));
     }
 
+    private void updateSidebarUserInfo() {
+        // Find and update user info in sidebar
+        Component[] components = sidebar.getComponents();
+        for (Component comp : components) {
+            if (comp instanceof JPanel && ((JPanel) comp).getComponentCount() > 0) {
+                JPanel panel = (JPanel) comp;
+                Component innerComp = panel.getComponent(0);
+                if (innerComp instanceof JPanel) {
+                    JPanel userInfo = (JPanel) innerComp;
+                    if (userInfo.getComponentCount() >= 3) {
+                        Component nameComp = userInfo.getComponent(0);
+                        Component ordersComp = userInfo.getComponent(2);
+                        if (nameComp instanceof JLabel) {
+                            ((JLabel) nameComp).setText(senderName);
+                        }
+                        if (ordersComp instanceof JLabel) {
+                            ((JLabel) ordersComp).setText(activeOrders + " active orders");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void updateStatusBar() {
+        Component[] components = statusBar.getComponents();
+        for (Component comp : components) {
+            if (comp instanceof JLabel && ((JLabel) comp).getHorizontalAlignment() == SwingConstants.RIGHT) {
+                ((JLabel) comp).setText(activeOrders + " active · " + deliveredOrders + " delivered  ");
+                break;
+            }
+        }
+    }
+
     /**
      * Get current card being displayed
      */
     private String getCurrentCard() {
         if (activeButton != null) {
-            JPanel contentPanel = (JPanel) activeButton.getComponent(0);
-            for (Component comp : contentPanel.getComponents()) {
-                if (comp instanceof JLabel) {
-                    JLabel label = (JLabel) comp;
-                    String text = label.getText();
-                    if (text.contains("Home")) return "HOME";
-                    if (text.contains("New Order")) return "NEW_ORDER";
-                    if (text.contains("Track Order")) return "TRACK";
-                    if (text.contains("Support")) return "SUPPORT";
-                    if (text.contains("Profile")) return "PROFILE";
-                }
-            }
+            JLabel contentLabel = (JLabel) ((JButton) activeButton).getComponent(0);
+            String text = contentLabel.getText();
+            if (text.contains("Home")) return "HOME";
+            if (text.contains("New Order")) return "NEW_ORDER";
+            if (text.contains("Track Order")) return "TRACK";
+            if (text.contains("Support")) return "SUPPORT";
+            if (text.contains("My Profile")) return "PROFILE";
         }
         return "HOME";
-    }
-
-    /**
-     * Update notification counts in sidebar
-     */
-    private void updateSidebarNotifications() {
-        // Notifications removed - this method is kept for compatibility
     }
 
     // ================= GETTERS AND SETTERS =================
@@ -719,4 +740,11 @@ public class SenderDashboard extends JFrame {
     public void setDeliveredOrders(int count) { this.deliveredOrders = count; }
     public void setPendingPayments(int count) { this.pendingPayments = count; }
     public void setTotalSpent(double amount) { this.totalSpent = amount; }
+    
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            // For testing - replace with actual login data
+            new SenderDashboard("Test User", "test@example.com", "0123456789", "testuser").setVisible(true);
+        });
+    }
 }
