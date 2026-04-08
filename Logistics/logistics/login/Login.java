@@ -143,7 +143,7 @@ public class Login extends JFrame {
         
         if (!senderDatabase.containsKey("sender")) {
             senderDatabase.put("sender", new SenderAccount(
-                "Demo Sender", "sender@example.com", "0123456789", "sender", "sender123"));
+                "Demo Sender", "sender@example.com", "1234567890", "sender", "sender123"));
             saveSenderData();
         }
     }
@@ -236,8 +236,6 @@ public class Login extends JFrame {
     private JTextField senderRegUsernameField;
     private JPasswordField senderRegPasswordField;
     private JPasswordField senderRegConfirmPwdField;
-    private JCheckBox senderRegShowPasswordCheckBox;
-    private JCheckBox senderRegShowConfirmCheckBox;
     private JProgressBar passwordStrengthBar;
     
     private JTextField courierUserIdField;
@@ -270,9 +268,6 @@ public class Login extends JFrame {
     private final Color GREEN_SUCCESS = new Color(46, 204, 113);
     private final Color RED_ERROR = new Color(231, 76, 60);
     private final Color YELLOW_PENDING = new Color(241, 196, 15);
-    private final Color STRONG_GREEN = new Color(0, 150, 0);
-    private final Color MEDIUM_ORANGE = new Color(255, 140, 0);
-    private final Color WEAK_RED = new Color(220, 20, 60);
     
     // ========== Font Settings ==========
     private final Font TITLE_FONT = new Font("Arial", Font.BOLD, 30);
@@ -692,39 +687,17 @@ public class Login extends JFrame {
         senderRegUsernameField.setPreferredSize(new Dimension(220, 30));
         panel.add(senderRegUsernameField, gbc);
         
-        // Password field with Show checkbox
         gbc.gridy = 5; gbc.gridx = 0;
         panel.add(new JLabel("Password:*"), gbc);
         gbc.gridx = 1;
-        JPanel pwdPanel = new JPanel(new BorderLayout(5, 0));
-        pwdPanel.setBackground(Color.WHITE);
-        senderRegPasswordField.setPreferredSize(new Dimension(180, 30));
-        senderRegPasswordField.setEchoChar('*');
-        senderRegShowPasswordCheckBox = new JCheckBox("Show");
-        senderRegShowPasswordCheckBox.setFont(SMALL_FONT);
-        senderRegShowPasswordCheckBox.setBackground(Color.WHITE);
-        senderRegShowPasswordCheckBox.addActionListener(e -> 
-            senderRegPasswordField.setEchoChar(senderRegShowPasswordCheckBox.isSelected() ? (char)0 : '*'));
-        pwdPanel.add(senderRegPasswordField, BorderLayout.CENTER);
-        pwdPanel.add(senderRegShowPasswordCheckBox, BorderLayout.EAST);
-        panel.add(pwdPanel, gbc);
+        senderRegPasswordField.setPreferredSize(new Dimension(220, 30));
+        panel.add(senderRegPasswordField, gbc);
         
-        // Confirm Password field with Show checkbox
         gbc.gridy = 6; gbc.gridx = 0;
         panel.add(new JLabel("Confirm:*"), gbc);
         gbc.gridx = 1;
-        JPanel confirmPanel = new JPanel(new BorderLayout(5, 0));
-        confirmPanel.setBackground(Color.WHITE);
-        senderRegConfirmPwdField.setPreferredSize(new Dimension(180, 30));
-        senderRegConfirmPwdField.setEchoChar('*');
-        senderRegShowConfirmCheckBox = new JCheckBox("Show");
-        senderRegShowConfirmCheckBox.setFont(SMALL_FONT);
-        senderRegShowConfirmCheckBox.setBackground(Color.WHITE);
-        senderRegShowConfirmCheckBox.addActionListener(e -> 
-            senderRegConfirmPwdField.setEchoChar(senderRegShowConfirmCheckBox.isSelected() ? (char)0 : '*'));
-        confirmPanel.add(senderRegConfirmPwdField, BorderLayout.CENTER);
-        confirmPanel.add(senderRegShowConfirmCheckBox, BorderLayout.EAST);
-        panel.add(confirmPanel, gbc);
+        senderRegConfirmPwdField.setPreferredSize(new Dimension(220, 30));
+        panel.add(senderRegConfirmPwdField, gbc);
         
         gbc.gridy = 7; gbc.gridx = 0; gbc.gridwidth = 2;
         panel.add(passwordStrengthBar, gbc);
@@ -755,41 +728,35 @@ public class Login extends JFrame {
     
     private void checkPasswordStrength() {
         String password = new String(senderRegPasswordField.getPassword());
+        int strength = 0;
+        String strengthText = "";
+        Color strengthColor = Color.GRAY;
         
-        // Check each requirement
-        boolean hasMin8 = password.length() >= 8;
-        boolean hasUpper = password.matches(".*[A-Z].*");
-        boolean hasLower = password.matches(".*[a-z].*");
-        boolean hasNumber = password.matches(".*[0-9].*");
-        boolean hasSpecial = password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*");
+        if (password.length() >= 8) strength++;
+        if (password.length() >= 10) strength++;
+        if (password.matches(".*[A-Z].*")) strength++;
+        if (password.matches(".*[a-z].*")) strength++;
+        if (password.matches(".*[0-9].*")) strength++;
+        if (password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) strength++;
         
-        // Count how many criteria are met (excluding length 10)
-        int metCount = 0;
-        if (hasMin8) metCount++;
-        if (hasUpper) metCount++;
-        if (hasLower) metCount++;
-        if (hasNumber) metCount++;
-        if (hasSpecial) metCount++;
-        
-        // Calculate percentage (each of 5 criteria = 20%)
-        int percentage = metCount * 20;
+        int percentage = Math.min(strength * 17, 100);
         passwordStrengthBar.setValue(percentage);
-        
-        String strengthText;
-        Color strengthColor;
         
         if (password.isEmpty()) {
             strengthText = "Enter password";
             strengthColor = Color.GRAY;
-        } else if (metCount < 3) {
+        } else if (strength < 3) {
             strengthText = "Weak";
-            strengthColor = WEAK_RED;
-        } else if (metCount < 5) {
+            strengthColor = Color.RED;
+        } else if (strength < 5) {
             strengthText = "Medium";
-            strengthColor = MEDIUM_ORANGE;
-        } else {
+            strengthColor = Color.ORANGE;
+        } else if (strength < 7) {
             strengthText = "Strong";
-            strengthColor = STRONG_GREEN;
+            strengthColor = new Color(0, 150, 0);
+        } else {
+            strengthText = "Very Strong";
+            strengthColor = new Color(0, 100, 0);
         }
         
         passwordStrengthBar.setString(strengthText);
@@ -1382,7 +1349,7 @@ public class Login extends JFrame {
         Color themeColor = (type == UserType.SENDER) ? SENDER_COLOR : COURIER_COLOR;
         
         JDialog dialog = new JDialog(this, "Reset Password", true);
-        dialog.setSize(400, 350);
+        dialog.setSize(420, 380);
         dialog.setLocationRelativeTo(this);
         dialog.setResizable(false);
         
@@ -1403,72 +1370,54 @@ public class Login extends JFrame {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         
-        // New Password field with show checkbox
         gbc.gridx = 0; gbc.gridy = 0;
-        JLabel newLabel = new JLabel("New:");
+        JLabel newLabel = new JLabel("New Password:");
         newLabel.setFont(new Font("Arial", Font.PLAIN, 13));
         formPanel.add(newLabel, gbc);
         
         gbc.gridx = 1;
-        JPasswordField pwdField = new JPasswordField(15);
+        JPasswordField pwdField = new JPasswordField(25);
         pwdField.setFont(new Font("Arial", Font.PLAIN, 13));
-        pwdField.setPreferredSize(new Dimension(170, 30));
+        pwdField.setPreferredSize(new Dimension(250, 35));
         formPanel.add(pwdField, gbc);
         
-        gbc.gridx = 2;
-        JCheckBox newShowCheck = new JCheckBox("Show");
-        newShowCheck.setFont(new Font("Arial", Font.PLAIN, 10));
-        newShowCheck.setBackground(Color.WHITE);
-        newShowCheck.addActionListener(e -> pwdField.setEchoChar(newShowCheck.isSelected() ? (char)0 : '*'));
-        formPanel.add(newShowCheck, gbc);
-        
-        // Confirm Password field with show checkbox
         gbc.gridx = 0; gbc.gridy = 1;
-        JLabel confirmLabel = new JLabel("Confirm:");
+        JLabel confirmLabel = new JLabel("Confirm Password:");
         confirmLabel.setFont(new Font("Arial", Font.PLAIN, 13));
         formPanel.add(confirmLabel, gbc);
         
         gbc.gridx = 1;
-        JPasswordField confirmField = new JPasswordField(15);
+        JPasswordField confirmField = new JPasswordField(25);
         confirmField.setFont(new Font("Arial", Font.PLAIN, 13));
-        confirmField.setPreferredSize(new Dimension(170, 30));
+        confirmField.setPreferredSize(new Dimension(250, 35));
         formPanel.add(confirmField, gbc);
         
-        gbc.gridx = 2;
-        JCheckBox confirmShowCheck = new JCheckBox("Show");
-        confirmShowCheck.setFont(new Font("Arial", Font.PLAIN, 10));
-        confirmShowCheck.setBackground(Color.WHITE);
-        confirmShowCheck.addActionListener(e -> confirmField.setEchoChar(confirmShowCheck.isSelected() ? (char)0 : '*'));
-        formPanel.add(confirmShowCheck, gbc);
+        // Password strength progress bar
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
+        JProgressBar resetPasswordStrengthBar = new JProgressBar(0, 100);
+        resetPasswordStrengthBar.setStringPainted(true);
+        resetPasswordStrengthBar.setString("Password Strength");
+        resetPasswordStrengthBar.setForeground(Color.GRAY);
+        resetPasswordStrengthBar.setPreferredSize(new Dimension(280, 20));
+        formPanel.add(resetPasswordStrengthBar, gbc);
         
-        // Password Strength Bar
-        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 3;
-        JProgressBar resetStrengthBar = new JProgressBar(0, 100);
-        resetStrengthBar.setStringPainted(true);
-        resetStrengthBar.setString("Password Strength");
-        resetStrengthBar.setForeground(Color.GRAY);
-        resetStrengthBar.setPreferredSize(new Dimension(300, 20));
-        formPanel.add(resetStrengthBar, gbc);
-        
-        // Password strength label
+        // Password strength hint label
         gbc.gridy = 3;
-        JLabel strengthLabel = new JLabel("Minimum: 8+ chars, uppercase, lowercase, number, special");
-        strengthLabel.setFont(new Font("Arial", Font.PLAIN, 10));
-        strengthLabel.setForeground(Color.DARK_GRAY);
-        formPanel.add(strengthLabel, gbc);
+        JLabel resetPasswordStrengthLabel = new JLabel("Minimum: 8+ chars, uppercase, lowercase, number, special");
+        resetPasswordStrengthLabel.setFont(new Font("Arial", Font.PLAIN, 10));
+        resetPasswordStrengthLabel.setForeground(Color.DARK_GRAY);
+        formPanel.add(resetPasswordStrengthLabel, gbc);
         
-        // Add document listener for password strength
-        pwdField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { 
-                checkResetPasswordStrength(pwdField, resetStrengthBar);
-            }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { 
-                checkResetPasswordStrength(pwdField, resetStrengthBar);
-            }
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { 
-                checkResetPasswordStrength(pwdField, resetStrengthBar);
-            }
+        gbc.gridy = 4;
+        JCheckBox showCheck = new JCheckBox("Show Password");
+        showCheck.setFont(new Font("Arial", Font.PLAIN, 11));
+        showCheck.setBackground(Color.WHITE);
+        showCheck.addActionListener(e -> {
+            char c = showCheck.isSelected() ? (char)0 : '*';
+            pwdField.setEchoChar(c);
+            confirmField.setEchoChar(c);
         });
+        formPanel.add(showCheck, gbc);
         
         mainPanel.add(formPanel, BorderLayout.CENTER);
         
@@ -1500,6 +1449,19 @@ public class Login extends JFrame {
         
         dialog.add(mainPanel);
         dialog.getRootPane().setDefaultButton(resetBtn);
+        
+        // Password strength checker
+        pwdField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { 
+                checkResetPasswordStrength(pwdField, resetPasswordStrengthBar); 
+            }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { 
+                checkResetPasswordStrength(pwdField, resetPasswordStrengthBar); 
+            }
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { 
+                checkResetPasswordStrength(pwdField, resetPasswordStrengthBar); 
+            }
+        });
         
         resetBtn.addActionListener(e -> {
             String pwd = new String(pwdField.getPassword());
@@ -1544,43 +1506,38 @@ public class Login extends JFrame {
         dialog.setVisible(true);
     }
     
-    private void checkResetPasswordStrength(JPasswordField pwdField, JProgressBar strengthBar) {
-        String password = new String(pwdField.getPassword());
+    // Helper method for reset password strength checking
+    private void checkResetPasswordStrength(JPasswordField passwordField, JProgressBar strengthBar) {
+        String password = new String(passwordField.getPassword());
+        int strength = 0;
+        String strengthText = "";
+        Color strengthColor = Color.GRAY;
         
-        // Check each requirement
-        boolean hasMin8 = password.length() >= 8;
-        boolean hasUpper = password.matches(".*[A-Z].*");
-        boolean hasLower = password.matches(".*[a-z].*");
-        boolean hasNumber = password.matches(".*[0-9].*");
-        boolean hasSpecial = password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*");
+        if (password.length() >= 8) strength++;
+        if (password.length() >= 10) strength++;
+        if (password.matches(".*[A-Z].*")) strength++;
+        if (password.matches(".*[a-z].*")) strength++;
+        if (password.matches(".*[0-9].*")) strength++;
+        if (password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) strength++;
         
-        // Count how many criteria are met
-        int metCount = 0;
-        if (hasMin8) metCount++;
-        if (hasUpper) metCount++;
-        if (hasLower) metCount++;
-        if (hasNumber) metCount++;
-        if (hasSpecial) metCount++;
-        
-        // Calculate percentage (each of 5 criteria = 20%)
-        int percentage = metCount * 20;
+        int percentage = Math.min(strength * 17, 100);
         strengthBar.setValue(percentage);
-        
-        String strengthText;
-        Color strengthColor;
         
         if (password.isEmpty()) {
             strengthText = "Enter password";
             strengthColor = Color.GRAY;
-        } else if (metCount < 3) {
+        } else if (strength < 3) {
             strengthText = "Weak";
-            strengthColor = WEAK_RED;
-        } else if (metCount < 5) {
+            strengthColor = Color.RED;
+        } else if (strength < 5) {
             strengthText = "Medium";
-            strengthColor = MEDIUM_ORANGE;
-        } else {
+            strengthColor = Color.ORANGE;
+        } else if (strength < 7) {
             strengthText = "Strong";
-            strengthColor = STRONG_GREEN;
+            strengthColor = new Color(0, 150, 0);
+        } else {
+            strengthText = "Very Strong";
+            strengthColor = new Color(0, 100, 0);
         }
         
         strengthBar.setString(strengthText);
