@@ -1124,6 +1124,7 @@ public class Login extends JFrame {
         centerPanel.add(resultPanel, gbc);
         panel.add(centerPanel, BorderLayout.CENTER);
         
+        // 每次搜索都重新加载数据，确保获取最新状态
         searchBtn.addActionListener(e -> {
             String id = searchField.getText().trim();
             if (id.isEmpty()) {
@@ -1131,7 +1132,9 @@ public class Login extends JFrame {
                 return;
             }
             
-            Driver driver = driverStorage.findDriver(id);
+            // 创建新的 DriverStorage 实例，从文件重新加载数据
+            DriverStorage freshStorage = new DriverStorage();
+            Driver driver = freshStorage.findDriver(id);
             
             if (driver != null) {
                 switch (driver.approvalStatus) {
@@ -1382,7 +1385,7 @@ public class Login extends JFrame {
         Color themeColor = (type == UserType.SENDER) ? SENDER_COLOR : COURIER_COLOR;
         
         JDialog dialog = new JDialog(this, "Reset Password", true);
-        dialog.setSize(400, 350);
+        dialog.setSize(450, 380);
         dialog.setLocationRelativeTo(this);
         dialog.setResizable(false);
         
@@ -1400,43 +1403,43 @@ public class Login extends JFrame {
         formPanel.setBackground(Color.WHITE);
         
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         
         // New Password field with show checkbox
         gbc.gridx = 0; gbc.gridy = 0;
-        JLabel newLabel = new JLabel("New:");
+        JLabel newLabel = new JLabel("New Password:");
         newLabel.setFont(new Font("Arial", Font.PLAIN, 13));
         formPanel.add(newLabel, gbc);
         
         gbc.gridx = 1;
         JPasswordField pwdField = new JPasswordField(15);
         pwdField.setFont(new Font("Arial", Font.PLAIN, 13));
-        pwdField.setPreferredSize(new Dimension(170, 30));
+        pwdField.setPreferredSize(new Dimension(220, 35));
         formPanel.add(pwdField, gbc);
         
         gbc.gridx = 2;
         JCheckBox newShowCheck = new JCheckBox("Show");
-        newShowCheck.setFont(new Font("Arial", Font.PLAIN, 10));
+        newShowCheck.setFont(new Font("Arial", Font.PLAIN, 11));
         newShowCheck.setBackground(Color.WHITE);
         newShowCheck.addActionListener(e -> pwdField.setEchoChar(newShowCheck.isSelected() ? (char)0 : '*'));
         formPanel.add(newShowCheck, gbc);
         
         // Confirm Password field with show checkbox
         gbc.gridx = 0; gbc.gridy = 1;
-        JLabel confirmLabel = new JLabel("Confirm:");
+        JLabel confirmLabel = new JLabel("Confirm Password:");
         confirmLabel.setFont(new Font("Arial", Font.PLAIN, 13));
         formPanel.add(confirmLabel, gbc);
         
         gbc.gridx = 1;
         JPasswordField confirmField = new JPasswordField(15);
         confirmField.setFont(new Font("Arial", Font.PLAIN, 13));
-        confirmField.setPreferredSize(new Dimension(170, 30));
+        confirmField.setPreferredSize(new Dimension(220, 35));
         formPanel.add(confirmField, gbc);
         
         gbc.gridx = 2;
         JCheckBox confirmShowCheck = new JCheckBox("Show");
-        confirmShowCheck.setFont(new Font("Arial", Font.PLAIN, 10));
+        confirmShowCheck.setFont(new Font("Arial", Font.PLAIN, 11));
         confirmShowCheck.setBackground(Color.WHITE);
         confirmShowCheck.addActionListener(e -> confirmField.setEchoChar(confirmShowCheck.isSelected() ? (char)0 : '*'));
         formPanel.add(confirmShowCheck, gbc);
@@ -1447,7 +1450,7 @@ public class Login extends JFrame {
         resetStrengthBar.setStringPainted(true);
         resetStrengthBar.setString("Password Strength");
         resetStrengthBar.setForeground(Color.GRAY);
-        resetStrengthBar.setPreferredSize(new Dimension(300, 20));
+        resetStrengthBar.setPreferredSize(new Dimension(350, 22));
         formPanel.add(resetStrengthBar, gbc);
         
         // Password strength label
@@ -1479,7 +1482,7 @@ public class Login extends JFrame {
         resetBtn.setFont(new Font("Arial", Font.BOLD, 12));
         resetBtn.setForeground(Color.WHITE);
         resetBtn.setBackground(themeColor);
-        resetBtn.setPreferredSize(new Dimension(90, 32));
+        resetBtn.setPreferredSize(new Dimension(100, 38));
         resetBtn.setBorderPainted(false);
         resetBtn.setFocusPainted(false);
         resetBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -1488,7 +1491,7 @@ public class Login extends JFrame {
         cancelBtn.setFont(new Font("Arial", Font.BOLD, 12));
         cancelBtn.setForeground(Color.WHITE);
         cancelBtn.setBackground(Color.GRAY);
-        cancelBtn.setPreferredSize(new Dimension(90, 32));
+        cancelBtn.setPreferredSize(new Dimension(100, 38));
         cancelBtn.setBorderPainted(false);
         cancelBtn.setFocusPainted(false);
         cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
