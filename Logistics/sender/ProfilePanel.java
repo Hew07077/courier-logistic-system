@@ -186,8 +186,17 @@ public class ProfilePanel extends JPanel {
     }
     
     /**
-     * Refresh statistics when tab is selected
+     * Select the Address Book tab in the profile panel
+     * This is called from NewOrderPanel when no default address is found
      */
+    public void selectAddressBookTab() {
+        if (tabbedPane != null) {
+            // Select the Address Book tab (index 1)
+            tabbedPane.setSelectedIndex(1);
+        }
+    }
+    
+    //Refresh statistics when tab is selected
     public void refreshStatistics() {
         if (statisticsPanel != null) {
             statisticsPanel.refreshStats();
@@ -199,8 +208,7 @@ public class ProfilePanel extends JPanel {
         headerPanel.setBackground(Color.WHITE);
         headerPanel.setBorder(BorderFactory.createCompoundBorder(
             new LineBorder(new Color(230, 230, 230), 1, true),
-            BorderFactory.createEmptyBorder(15, 25, 15, 25)
-        ));
+            BorderFactory.createEmptyBorder(15, 25, 15, 25)));
         
         JLabel titleLabel = new JLabel("My Profile");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
@@ -678,9 +686,6 @@ public class ProfilePanel extends JPanel {
                 emptyPanel.setBackground(new Color(248, 249, 250));
                 emptyPanel.setPreferredSize(new Dimension(800, 300));
                 
-                JLabel emptyIcon = new JLabel("📍");
-                emptyIcon.setFont(new Font("Segoe UI", Font.PLAIN, 48));
-                
                 JLabel emptyLabel = new JLabel("No addresses saved yet");
                 emptyLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
                 emptyLabel.setForeground(new Color(108, 117, 125));
@@ -693,10 +698,8 @@ public class ProfilePanel extends JPanel {
                 gbc.gridx = 0;
                 gbc.gridy = 0;
                 gbc.insets = new Insets(10, 10, 10, 10);
-                emptyPanel.add(emptyIcon, gbc);
-                gbc.gridy = 1;
                 emptyPanel.add(emptyLabel, gbc);
-                gbc.gridy = 2;
+                gbc.gridy = 1;
                 emptyPanel.add(emptyHint, gbc);
                 
                 addressListPanel.add(emptyPanel);
@@ -1394,25 +1397,22 @@ public class ProfilePanel extends JPanel {
             statsGridPanel.removeAll();
             
             statsGridPanel.add(createStatCard("Total Orders", String.valueOf(totalOrders), 
-                "Lifetime orders", new Color(0, 123, 255), "📦"));
+                "Lifetime orders", new Color(0, 123, 255), ""));
             
             statsGridPanel.add(createStatCard("Delivered", String.valueOf(deliveredOrders),
-                "Completed deliveries", new Color(40, 167, 69), "✅"));
+                "Completed deliveries", new Color(40, 167, 69), ""));
             
             statsGridPanel.add(createStatCard("Active Orders", String.valueOf(activeOrders),
-                "Pending & In Transit", new Color(255, 193, 7), "🚚"));
+                "Pending & In Transit", new Color(255, 193, 7), ""));
             
             statsGridPanel.add(createStatCard("Total Spent", "RM " + String.format("%.2f", totalSpent),
-                "Lifetime spending", new Color(111, 66, 193), "💰"));
+                "Lifetime spending", new Color(111, 66, 193), ""));
             
             statsGridPanel.add(createStatCard("Average Order", "RM " + String.format("%.2f", avgOrderValue),
-                "Per order average", new Color(23, 162, 184), "📊"));
+                "Per order average", new Color(23, 162, 184), ""));
             
             statsGridPanel.add(createStatCard("Member Since", memberSince,
-                "Customer since", new Color(253, 126, 20), "⭐"));
-            
-            statsGridPanel.revalidate();
-            statsGridPanel.repaint();
+                "Customer since", new Color(253, 126, 20), ""));
         }
         
         private double extractTotalCostFromOrder(SenderOrder order) {

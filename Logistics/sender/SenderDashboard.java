@@ -36,6 +36,9 @@ public class SenderDashboard extends JFrame {
     private JPanel topBar;
     private JPanel statusBar;
     
+    // Map to store navigation buttons for easy access
+    private Map<String, JButton> navButtons;
+    
     // Panel cache
     private Map<String, JPanel> panelCache;
     
@@ -152,6 +155,7 @@ public class SenderDashboard extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
         
+        navButtons = new HashMap<>();
         panelCache = new HashMap<>();
         
         initializePanels();
@@ -307,22 +311,27 @@ public class SenderDashboard extends JFrame {
         JButton homeBtn = createNavButton("Home", "HOME", 
             "Dashboard overview", true);
         menu.add(homeBtn);
+        navButtons.put("HOME", homeBtn);
         
         JButton newOrderBtn = createNavButton("New Order", "NEW_ORDER", 
             "Create new shipment", false);
         menu.add(newOrderBtn);
+        navButtons.put("NEW_ORDER", newOrderBtn);
         
         JButton trackBtn = createNavButton("Track Order", "TRACK", 
             "Track your packages", false);
         menu.add(trackBtn);
+        navButtons.put("TRACK", trackBtn);
         
         JButton supportBtn = createNavButton("Support", "SUPPORT", 
             "Get help and support", false);
         menu.add(supportBtn);
+        navButtons.put("SUPPORT", supportBtn);
         
         JButton profileBtn = createNavButton("My Profile", "PROFILE", 
             "Personal information", false);
         menu.add(profileBtn);
+        navButtons.put("PROFILE", profileBtn);
 
         sidebar.add(menu, BorderLayout.CENTER);
         sidebar.add(createUserProfile(), BorderLayout.SOUTH);
@@ -349,6 +358,7 @@ public class SenderDashboard extends JFrame {
         if (selected) {
             btn.setBackground(BUTTON_SELECTED);
             btn.setOpaque(true);
+            activeButton = btn;
         } else {
             btn.setBackground(BUTTON_NORMAL);
             btn.setOpaque(false);
@@ -359,8 +369,6 @@ public class SenderDashboard extends JFrame {
         btn.setContentAreaFilled(true);
         btn.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        if (selected) activeButton = btn;
 
         btn.addMouseListener(new MouseAdapter() {
             @Override
@@ -383,20 +391,41 @@ public class SenderDashboard extends JFrame {
         });
 
         btn.addActionListener(e -> {
-            if (activeButton != null && activeButton != btn) {
-                activeButton.setOpaque(false);
-                activeButton.setBackground(BUTTON_NORMAL);
-                activeButton.repaint();
-            }
-            
-            btn.setOpaque(true);
-            btn.setBackground(BUTTON_SELECTED);
-            activeButton = btn;
-            
+            setActiveNavButton(btn);
             showPanel(card);
         });
 
         return btn;
+    }
+    
+    /**
+     * Set the active navigation button and update its appearance
+     * @param button The button to set as active
+     */
+    public void setActiveNavButton(JButton button) {
+        if (activeButton != null && activeButton != button) {
+            activeButton.setOpaque(false);
+            activeButton.setBackground(BUTTON_NORMAL);
+            activeButton.repaint();
+        }
+        
+        if (button != null) {
+            button.setOpaque(true);
+            button.setBackground(BUTTON_SELECTED);
+            activeButton = button;
+            button.repaint();
+        }
+    }
+    
+    /**
+     * Set active button by panel name (for quick actions)
+     * @param panelName The panel name to activate ("HOME", "NEW_ORDER", "TRACK", "SUPPORT", "PROFILE")
+     */
+    public void setActiveButtonByPanel(String panelName) {
+        JButton targetButton = navButtons.get(panelName);
+        if (targetButton != null) {
+            setActiveNavButton(targetButton);
+        }
     }
 
     private JPanel createUserProfile() {
@@ -533,6 +562,9 @@ public class SenderDashboard extends JFrame {
 
     public void showPanel(String panelName) {
         cardLayout.show(contentPanel, panelName);
+        
+        // Also update the sidebar button to show which panel is active
+        setActiveButtonByPanel(panelName);
         
         switch(panelName) {
             case "HOME":
@@ -710,13 +742,12 @@ public class SenderDashboard extends JFrame {
      */
     private String getCurrentCard() {
         if (activeButton != null) {
-            JLabel contentLabel = (JLabel) ((JButton) activeButton).getComponent(0);
-            String text = contentLabel.getText();
-            if (text.contains("Home")) return "HOME";
-            if (text.contains("New Order")) return "NEW_ORDER";
-            if (text.contains("Track Order")) return "TRACK";
-            if (text.contains("Support")) return "SUPPORT";
-            if (text.contains("My Profile")) return "PROFILE";
+            // Find which panel is active based on the active button
+            for (Map.Entry<String, JButton> entry : navButtons.entrySet()) {
+                if (entry.getValue() == activeButton) {
+                    return entry.getKey();
+                }
+            }
         }
         return "HOME";
     }
@@ -740,11 +771,4 @@ public class SenderDashboard extends JFrame {
     public void setDeliveredOrders(int count) { this.deliveredOrders = count; }
     public void setPendingPayments(int count) { this.pendingPayments = count; }
     public void setTotalSpent(double amount) { this.totalSpent = amount; }
-    
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            // For testing - replace with actual login data
-            new SenderDashboard("Test User", "test@example.com", "0123456789", "testuser").setVisible(true);
-        });
-    }
 }
