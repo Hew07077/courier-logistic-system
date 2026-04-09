@@ -71,37 +71,8 @@ public class SenderDashboard extends JFrame {
         this.username = username;
         
         initializeStats();
-        fixPendingPayments(); // Fix any incorrect payment statuses
         initialize();
         startAutoRefresh();
-    }
-    
-    // Temporary fix - call this from constructor after initializeStats()
-    private void fixPendingPayments() {
-        List<SenderOrder> userOrders = SenderOrderRepository.getInstance().getOrdersByEmail(senderEmail);
-        boolean fixed = false;
-        
-        for (SenderOrder order : userOrders) {
-            // If order is not pending and not cancelled, but payment is pending, fix it
-            if (!"Pending".equals(order.getStatus()) && !"Cancelled".equals(order.getStatus()) 
-                && "Pending".equals(order.getPaymentStatus())) {
-                System.out.println("Fixing payment status for order: " + order.getId());
-                order.setPaymentStatus("Paid");
-                // Generate a transaction ID if not present
-                if (order.getTransactionId() == null || order.getTransactionId().isEmpty()) {
-                    order.setTransactionId("TXN" + System.currentTimeMillis() + order.getId().substring(0, 3));
-                }
-                if (order.getPaymentDate() == null || order.getPaymentDate().isEmpty()) {
-                    order.setPaymentDate(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
-                }
-                fixed = true;
-            }
-        }
-        
-        if (fixed) {
-            SenderOrderRepository.getInstance().saveOrders();
-            System.out.println("Fixed pending payments for orders");
-        }
     }
 
     private void initializeStats() {
@@ -127,7 +98,7 @@ public class SenderDashboard extends JFrame {
                 System.out.println("  Delivered order: " + order.getId());
             }
             
-            // Count pending payments - FIX: Check payment status correctly
+            // Count pending payments
             if ("Pending".equals(order.getPaymentStatus())) {
                 pendingPayments++;
                 System.out.println("  Pending payment order: " + order.getId() + " - Payment Status: " + order.getPaymentStatus());
@@ -642,7 +613,6 @@ public class SenderDashboard extends JFrame {
                 case "TRACK":
                     if (trackOrderPanel != null) {
                         // Don't auto-refresh track panel - just reset if needed
-                        // trackOrderPanel.refreshOrders() is disabled
                     }
                     break;
             }
@@ -656,7 +626,7 @@ public class SenderDashboard extends JFrame {
     }
 
     /**
-     * Refresh statistics from current data - FIXED VERSION
+     * Refresh statistics from current data
      */
     public void refreshStats() {
         List<SenderOrder> userOrders = SenderOrderRepository.getInstance().getOrdersByEmail(senderEmail);
@@ -681,7 +651,7 @@ public class SenderDashboard extends JFrame {
                 System.out.println("  Delivered order: " + order.getId());
             }
             
-            // Count pending payments - FIX: Check payment status correctly
+            // Count pending payments
             if ("Pending".equals(order.getPaymentStatus())) {
                 pendingPayments++;
                 System.out.println("  Pending payment order: " + order.getId() + " - Payment Status: " + order.getPaymentStatus());
