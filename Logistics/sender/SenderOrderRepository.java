@@ -69,10 +69,7 @@ public class SenderOrderRepository {
         }
     }
     
-    /**
-     * Parse order from the full 29-field format
-     * FIXED: Correct field index mapping for status at index 8
-     */
+    //Parse order from the full 29-field format
     private SenderOrder parseOrderFromString(String line) {
         try {
             String[] parts = line.split("\\|", -1);
@@ -94,7 +91,7 @@ public class SenderOrderRepository {
             // 5: recipientName
             // 6: recipientPhone
             // 7: recipientAddress
-            // 8: status ← CRITICAL FIX: Status is at index 8
+            // 8: status
             // 9: orderDate
             // 10: estimatedDelivery
             // 11: actualDelivery (skip)
@@ -279,9 +276,6 @@ public class SenderOrderRepository {
         }
     }
     
-    /**
-     * Delete an order from the system by ID
-     */
     public boolean deleteOrder(String orderId) {
         System.out.println("===== DELETE ORDER CALLED =====");
         System.out.println("Attempting to delete order: " + orderId);
@@ -371,7 +365,7 @@ public class SenderOrderRepository {
         
         System.out.println("getOrdersByEmail(" + email + ") found " + result.size() + " orders");
         
-        // Debug: Print failed orders for this email
+        // Print failed orders for this email
         long failedCount = result.stream().filter(o -> "Failed".equals(o.getStatus())).count();
         if (failedCount > 0) {
             System.out.println("  Includes " + failedCount + " failed orders");

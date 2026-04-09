@@ -1,4 +1,3 @@
-// NewOrderPanel.java - With Radio Buttons for Shipping Speed and Full Validation
 package sender;
 
 import javax.swing.*;
