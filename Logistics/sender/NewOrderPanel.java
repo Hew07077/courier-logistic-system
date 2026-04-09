@@ -4,6 +4,10 @@ package sender;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.text.AbstractDocument;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DocumentFilter;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
@@ -55,6 +59,18 @@ public class NewOrderPanel extends JPanel {
     private JComboBox<String> paymentMethodCombo;
     private JPanel paymentDetailsPanel;
     private CardLayout paymentDetailsLayout;
+    
+    // Store card expiry components for validation
+    private JComboBox<String> cardMonthCombo;
+    private JComboBox<String> cardYearCombo;
+    private JComboBox<String> debitMonthCombo;
+    private JComboBox<String> debitYearCombo;
+    
+    // Store card number and CVV fields for validation
+    private JTextField cardNumberField;
+    private JTextField cardCvvField;
+    private JTextField debitCardNumberField;
+    private JTextField debitCvvField;
 
     private String senderName;
     private String senderEmail;
@@ -84,9 +100,9 @@ public class NewOrderPanel extends JPanel {
         "Books", "Clothing", "Documents", "Electronics", "Food", "Fragile Items", "Other"
     };
     
-    // Payment methods sorted alphabetically
+    // Payment methods sorted alphabetically (Bank Transfer removed)
     private static final String[] PAYMENT_METHODS = {
-        "Bank Transfer", "Credit Card (Visa/Mastercard)", "Debit Card", "GrabPay", "PayPal", "Touch 'n Go"
+        "Credit Card (Visa/Mastercard)", "Debit Card", "GrabPay", "PayPal", "Touch 'n Go"
     };
     
     // Months for expiry date (already sorted)
@@ -226,7 +242,6 @@ public class NewOrderPanel extends JPanel {
         malaysiaData.put("Labuan", labuanCities);
         stateList.add("Labuan");
         
-        // Sort states alphabetically
         Collections.sort(stateList);
     }
 
@@ -406,7 +421,7 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 1;
         formPanel.add(dimPanel, gbc);
 
-        JLabel descLabel = new JLabel("Description:*");
+        JLabel descLabel = new JLabel("Description (Optional):");
         descLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         gbc.gridx = 0;
         gbc.gridy = gridy++;
@@ -589,7 +604,6 @@ public class NewOrderPanel extends JPanel {
         paymentDetailsPanel.add(createCreditCardPanel(), "CREDIT_CARD");
         paymentDetailsPanel.add(createDebitCardPanel(), "DEBIT_CARD");
         paymentDetailsPanel.add(createPayPalPanel(), "PAYPAL");
-        paymentDetailsPanel.add(createBankTransferPanel(), "BANK_TRANSFER");
         paymentDetailsPanel.add(createEWalletPanel("Touch 'n Go"), "TOUCH_N_GO");
         paymentDetailsPanel.add(createEWalletPanel("GrabPay"), "GRABPAY");
         
@@ -759,9 +773,6 @@ public class NewOrderPanel extends JPanel {
 
     // ========== DEFAULT ADDRESS FUNCTIONALITY ==========
     
-    /**
-     * Create the "Use Default Address" button
-     */
     private JButton createUseDefaultAddressButton() {
         JButton defaultAddrBtn = new JButton("Use Default Address");
         defaultAddrBtn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
@@ -774,9 +785,6 @@ public class NewOrderPanel extends JPanel {
         return defaultAddrBtn;
     }
     
-    /**
-     * Load default address from ProfilePanel and auto-fill the form (only when button clicked)
-     */
     public void loadDefaultAddress() {
         ProfilePanel profilePanel = getProfilePanelFromDashboard();
         if (profilePanel != null) {
@@ -797,9 +805,6 @@ public class NewOrderPanel extends JPanel {
         }
     }
     
-    /**
-     * Get ProfilePanel instance from dashboard
-     */
     private ProfilePanel getProfilePanelFromDashboard() {
         if (dashboard != null) {
             try {
@@ -818,30 +823,23 @@ public class NewOrderPanel extends JPanel {
         return null;
     }
     
-    /**
-     * Auto-fill the form from an Address object
-     */
     private void autoFillFromAddress(ProfilePanel.Address address) {
         if (address == null) return;
         
-        // Auto-fill sender address fields
         String street = address.getStreet();
         String cityName = address.getCityName();
         String state = address.getState();
         String postcode = address.getPostcode();
         
-        // Set street address
         if (street != null && !street.isEmpty() && !street.equals("Enter street address")) {
             fromAddressField.setText(street);
             fromAddressField.setForeground(Color.BLACK);
         }
         
-        // Set state
         if (state != null && !state.isEmpty()) {
             fromStateCombo.setSelectedItem(state);
         }
         
-        // Set city and postcode
         SwingUtilities.invokeLater(() -> {
             if (cityName != null && !cityName.isEmpty()) {
                 setCityWithRetry(cityName, 0);
@@ -852,7 +850,6 @@ public class NewOrderPanel extends JPanel {
             calculateEstimate();
         });
         
-        // Show confirmation message
         JOptionPane.showMessageDialog(this, 
             "Default address loaded successfully!\n\n" +
             "Address: " + street + "\n" +
@@ -863,9 +860,6 @@ public class NewOrderPanel extends JPanel {
             JOptionPane.INFORMATION_MESSAGE);
     }
     
-    /**
-     * Set city with retry mechanism (no timer)
-     */
     private void setCityWithRetry(String cityName, int attempt) {
         if (attempt > 10) {
             System.out.println("Could not set city after " + attempt + " attempts");
@@ -879,9 +873,6 @@ public class NewOrderPanel extends JPanel {
         }
     }
     
-    /**
-     * Refresh the form with updated default address from profile
-     */
     public void refreshDefaultAddress() {
         loadDefaultAddress();
     }
@@ -1029,6 +1020,84 @@ public class NewOrderPanel extends JPanel {
         return panel;
     }
 
+    // Card Number Formatter - adds space every 4 digits
+    private class CardNumberFormatter extends DocumentFilter {
+        private int maxLength = 19; // 16 digits + 3 spaces
+        
+        @Override
+        public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+            StringBuilder sb = new StringBuilder(fb.getDocument().getText(0, fb.getDocument().getLength()));
+            sb.insert(offset, string);
+            String formatted = formatCardNumber(sb.toString());
+            if (formatted.length() <= maxLength) {
+                super.remove(fb, 0, fb.getDocument().getLength());
+                super.insertString(fb, 0, formatted, attr);
+            }
+        }
+        
+        @Override
+        public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+            StringBuilder sb = new StringBuilder(fb.getDocument().getText(0, fb.getDocument().getLength()));
+            sb.replace(offset, offset + length, text);
+            String formatted = formatCardNumber(sb.toString());
+            if (formatted.length() <= maxLength) {
+                super.remove(fb, 0, fb.getDocument().getLength());
+                super.insertString(fb, 0, formatted, attrs);
+            }
+        }
+        
+        @Override
+        public void remove(FilterBypass fb, int offset, int length) throws BadLocationException {
+            StringBuilder sb = new StringBuilder(fb.getDocument().getText(0, fb.getDocument().getLength()));
+            sb.delete(offset, offset + length);
+            String formatted = formatCardNumber(sb.toString());
+            super.remove(fb, 0, fb.getDocument().getLength());
+            super.insertString(fb, 0, formatted, null);
+        }
+        
+        private String formatCardNumber(String input) {
+            String digits = input.replaceAll("\\D", "");
+            if (digits.length() > 16) {
+                digits = digits.substring(0, 16);
+            }
+            StringBuilder formatted = new StringBuilder();
+            for (int i = 0; i < digits.length(); i++) {
+                if (i > 0 && i % 4 == 0) {
+                    formatted.append(" ");
+                }
+                formatted.append(digits.charAt(i));
+            }
+            return formatted.toString();
+        }
+    }
+    
+    // CVV Filter - only allows digits, max 4 characters
+    private class CvvFilter extends DocumentFilter {
+        private int maxLength = 4;
+        
+        @Override
+        public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr) throws BadLocationException {
+            String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
+            StringBuilder sb = new StringBuilder(currentText);
+            sb.insert(offset, string);
+            String digits = sb.toString().replaceAll("\\D", "");
+            if (digits.length() <= maxLength) {
+                super.insertString(fb, offset, string, attr);
+            }
+        }
+        
+        @Override
+        public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+            String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
+            StringBuilder sb = new StringBuilder(currentText);
+            sb.replace(offset, offset + length, text);
+            String digits = sb.toString().replaceAll("\\D", "");
+            if (digits.length() <= maxLength) {
+                super.replace(fb, offset, length, text, attrs);
+            }
+        }
+    }
+
     private JPanel createCreditCardPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(248, 249, 250));
@@ -1053,12 +1122,70 @@ public class NewOrderPanel extends JPanel {
         bankCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Bank"));
         panel.add(bankCombo, gbc);
         
-        addPaymentField(panel, "Card Number:*", "4111 1111 1111 1111", gbc, y++);
-        addPaymentField(panel, "Cardholder Name:*", "John Doe", gbc, y++);
-        
+        // Card Number field with auto-formatting
         gbc.gridy = y++;
         gbc.gridx = 0;
-        gbc.gridwidth = 1;
+        JLabel cardLabel = new JLabel("Card Number:*");
+        cardLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        panel.add(cardLabel, gbc);
+        
+        gbc.gridx = 1;
+        cardNumberField = new JTextField(20);
+        cardNumberField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cardNumberField.setForeground(new Color(108, 117, 125));
+        cardNumberField.setText("1234 5678 9012 3456");
+        ((AbstractDocument) cardNumberField.getDocument()).setDocumentFilter(new CardNumberFormatter());
+        cardNumberField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (cardNumberField.getText().equals("1234 5678 9012 3456")) {
+                    cardNumberField.setText("");
+                    cardNumberField.setForeground(Color.BLACK);
+                }
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (cardNumberField.getText().isEmpty()) {
+                    cardNumberField.setText("1234 5678 9012 3456");
+                    cardNumberField.setForeground(new Color(108, 117, 125));
+                }
+            }
+        });
+        panel.add(cardNumberField, gbc);
+        
+        // Cardholder Name
+        gbc.gridy = y++;
+        gbc.gridx = 0;
+        JLabel nameLabel = new JLabel("Cardholder Name:*");
+        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        panel.add(nameLabel, gbc);
+        
+        gbc.gridx = 1;
+        JTextField cardholderField = new JTextField(20);
+        cardholderField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cardholderField.setForeground(new Color(108, 117, 125));
+        cardholderField.setText("John Doe");
+        cardholderField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (cardholderField.getText().equals("John Doe")) {
+                    cardholderField.setText("");
+                    cardholderField.setForeground(Color.BLACK);
+                }
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (cardholderField.getText().isEmpty()) {
+                    cardholderField.setText("John Doe");
+                    cardholderField.setForeground(new Color(108, 117, 125));
+                }
+            }
+        });
+        panel.add(cardholderField, gbc);
+        
+        // Expiry Date
+        gbc.gridy = y++;
+        gbc.gridx = 0;
         JLabel expiryLabel = new JLabel("Expiry Date:*");
         expiryLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         panel.add(expiryLabel, gbc);
@@ -1067,10 +1194,10 @@ public class NewOrderPanel extends JPanel {
         JPanel expiryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         expiryPanel.setOpaque(false);
         
-        JComboBox<String> monthCombo = new JComboBox<>(MONTHS);
-        monthCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        monthCombo.setPreferredSize(new Dimension(65, 25));
-        expiryPanel.add(monthCombo);
+        cardMonthCombo = new JComboBox<>(MONTHS);
+        cardMonthCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cardMonthCombo.setPreferredSize(new Dimension(65, 25));
+        expiryPanel.add(cardMonthCombo);
         
         expiryPanel.add(new JLabel("/"));
         
@@ -1079,14 +1206,43 @@ public class NewOrderPanel extends JPanel {
         for (int i = 0; i <= 10; i++) {
             years[i] = String.valueOf(currentYear + i);
         }
-        JComboBox<String> yearCombo = new JComboBox<>(years);
-        yearCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        yearCombo.setPreferredSize(new Dimension(75, 25));
-        expiryPanel.add(yearCombo);
+        cardYearCombo = new JComboBox<>(years);
+        cardYearCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cardYearCombo.setPreferredSize(new Dimension(75, 25));
+        expiryPanel.add(cardYearCombo);
         
         panel.add(expiryPanel, gbc);
         
-        addPaymentField(panel, "CVV:*", "123", gbc, y++);
+        // CVV field with validation
+        gbc.gridy = y++;
+        gbc.gridx = 0;
+        JLabel cvvLabel = new JLabel("CVV:*");
+        cvvLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        panel.add(cvvLabel, gbc);
+        
+        gbc.gridx = 1;
+        cardCvvField = new JTextField(5);
+        cardCvvField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cardCvvField.setForeground(new Color(108, 117, 125));
+        cardCvvField.setText("123");
+        ((AbstractDocument) cardCvvField.getDocument()).setDocumentFilter(new CvvFilter());
+        cardCvvField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (cardCvvField.getText().equals("123")) {
+                    cardCvvField.setText("");
+                    cardCvvField.setForeground(Color.BLACK);
+                }
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (cardCvvField.getText().isEmpty()) {
+                    cardCvvField.setText("123");
+                    cardCvvField.setForeground(new Color(108, 117, 125));
+                }
+            }
+        });
+        panel.add(cardCvvField, gbc);
         
         return panel;
     }
@@ -1115,12 +1271,70 @@ public class NewOrderPanel extends JPanel {
         bankCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Bank"));
         panel.add(bankCombo, gbc);
         
-        addPaymentField(panel, "Debit Card Number:*", "4111 1111 1111 1111", gbc, y++);
-        addPaymentField(panel, "Cardholder Name:*", "John Doe", gbc, y++);
-        
+        // Debit Card Number field with auto-formatting
         gbc.gridy = y++;
         gbc.gridx = 0;
-        gbc.gridwidth = 1;
+        JLabel cardLabel = new JLabel("Debit Card Number:*");
+        cardLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        panel.add(cardLabel, gbc);
+        
+        gbc.gridx = 1;
+        debitCardNumberField = new JTextField(20);
+        debitCardNumberField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        debitCardNumberField.setForeground(new Color(108, 117, 125));
+        debitCardNumberField.setText("1234 5678 9012 3456");
+        ((AbstractDocument) debitCardNumberField.getDocument()).setDocumentFilter(new CardNumberFormatter());
+        debitCardNumberField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (debitCardNumberField.getText().equals("1234 5678 9012 3456")) {
+                    debitCardNumberField.setText("");
+                    debitCardNumberField.setForeground(Color.BLACK);
+                }
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (debitCardNumberField.getText().isEmpty()) {
+                    debitCardNumberField.setText("1234 5678 9012 3456");
+                    debitCardNumberField.setForeground(new Color(108, 117, 125));
+                }
+            }
+        });
+        panel.add(debitCardNumberField, gbc);
+        
+        // Cardholder Name
+        gbc.gridy = y++;
+        gbc.gridx = 0;
+        JLabel nameLabel = new JLabel("Cardholder Name:*");
+        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        panel.add(nameLabel, gbc);
+        
+        gbc.gridx = 1;
+        JTextField cardholderField = new JTextField(20);
+        cardholderField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cardholderField.setForeground(new Color(108, 117, 125));
+        cardholderField.setText("John Doe");
+        cardholderField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (cardholderField.getText().equals("John Doe")) {
+                    cardholderField.setText("");
+                    cardholderField.setForeground(Color.BLACK);
+                }
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (cardholderField.getText().isEmpty()) {
+                    cardholderField.setText("John Doe");
+                    cardholderField.setForeground(new Color(108, 117, 125));
+                }
+            }
+        });
+        panel.add(cardholderField, gbc);
+        
+        // Expiry Date
+        gbc.gridy = y++;
+        gbc.gridx = 0;
         JLabel expiryLabel = new JLabel("Expiry Date:*");
         expiryLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         panel.add(expiryLabel, gbc);
@@ -1129,10 +1343,10 @@ public class NewOrderPanel extends JPanel {
         JPanel expiryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         expiryPanel.setOpaque(false);
         
-        JComboBox<String> monthCombo = new JComboBox<>(MONTHS);
-        monthCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        monthCombo.setPreferredSize(new Dimension(65, 25));
-        expiryPanel.add(monthCombo);
+        debitMonthCombo = new JComboBox<>(MONTHS);
+        debitMonthCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        debitMonthCombo.setPreferredSize(new Dimension(65, 25));
+        expiryPanel.add(debitMonthCombo);
         
         expiryPanel.add(new JLabel("/"));
         
@@ -1141,14 +1355,43 @@ public class NewOrderPanel extends JPanel {
         for (int i = 0; i <= 10; i++) {
             years[i] = String.valueOf(currentYear + i);
         }
-        JComboBox<String> yearCombo = new JComboBox<>(years);
-        yearCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        yearCombo.setPreferredSize(new Dimension(75, 25));
-        expiryPanel.add(yearCombo);
+        debitYearCombo = new JComboBox<>(years);
+        debitYearCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        debitYearCombo.setPreferredSize(new Dimension(75, 25));
+        expiryPanel.add(debitYearCombo);
         
         panel.add(expiryPanel, gbc);
         
-        addPaymentField(panel, "CVV:*", "123", gbc, y++);
+        // CVV field with validation
+        gbc.gridy = y++;
+        gbc.gridx = 0;
+        JLabel cvvLabel = new JLabel("CVV:*");
+        cvvLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        panel.add(cvvLabel, gbc);
+        
+        gbc.gridx = 1;
+        debitCvvField = new JTextField(5);
+        debitCvvField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        debitCvvField.setForeground(new Color(108, 117, 125));
+        debitCvvField.setText("123");
+        ((AbstractDocument) debitCvvField.getDocument()).setDocumentFilter(new CvvFilter());
+        debitCvvField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (debitCvvField.getText().equals("123")) {
+                    debitCvvField.setText("");
+                    debitCvvField.setForeground(Color.BLACK);
+                }
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (debitCvvField.getText().isEmpty()) {
+                    debitCvvField.setText("123");
+                    debitCvvField.setForeground(new Color(108, 117, 125));
+                }
+            }
+        });
+        panel.add(debitCvvField, gbc);
         
         return panel;
     }
@@ -1167,51 +1410,6 @@ public class NewOrderPanel extends JPanel {
         noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         noteLabel.setForeground(new Color(108, 117, 125));
         gbc.gridy = 1;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        panel.add(noteLabel, gbc);
-        
-        return panel;
-    }
-
-    private JPanel createBankTransferPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(new Color(248, 249, 250));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.weightx = 1.0;
-        
-        int y = 0;
-        
-        gbc.gridy = y++;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        JLabel merchantLabel = new JLabel("Transfer to LogiXpress (Maybank: 1234-5678-9012-3456)");
-        merchantLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        merchantLabel.setForeground(new Color(0, 102, 204));
-        panel.add(merchantLabel, gbc);
-        
-        gbc.gridy = y++;
-        gbc.gridx = 0;
-        gbc.gridwidth = 1;
-        JLabel userBankLabel = new JLabel("Your Bank:*");
-        userBankLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        panel.add(userBankLabel, gbc);
-        
-        gbc.gridx = 1;
-        JComboBox<String> userBankCombo = new JComboBox<>(MALAYSIAN_BANKS);
-        userBankCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        userBankCombo.setSelectedIndex(-1);
-        userBankCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Your Bank"));
-        panel.add(userBankCombo, gbc);
-        
-        addPaymentField(panel, "Reference No:*", "e.g., ORD-XXXX", gbc, y++);
-        
-        JLabel noteLabel = new JLabel("Please use your Order ID as reference for faster verification");
-        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 10));
-        noteLabel.setForeground(new Color(108, 117, 125));
-        gbc.gridy = y++;
         gbc.gridx = 0;
         gbc.gridwidth = 2;
         panel.add(noteLabel, gbc);
@@ -1287,8 +1485,6 @@ public class NewOrderPanel extends JPanel {
             paymentDetailsLayout.show(paymentDetailsPanel, "DEBIT_CARD");
         } else if (selected.contains("PayPal")) {
             paymentDetailsLayout.show(paymentDetailsPanel, "PAYPAL");
-        } else if (selected.contains("Bank Transfer")) {
-            paymentDetailsLayout.show(paymentDetailsPanel, "BANK_TRANSFER");
         } else if (selected.contains("Touch 'n Go")) {
             paymentDetailsLayout.show(paymentDetailsPanel, "TOUCH_N_GO");
         } else if (selected.contains("GrabPay")) {
@@ -1336,7 +1532,6 @@ public class NewOrderPanel extends JPanel {
         gbc.gridwidth = 2;
         gbc.insets = new Insets(10, 5, 5, 5);
         
-        // Add header panel with title and "Use Default Address" button
         JPanel addressHeaderPanel = new JPanel(new BorderLayout());
         addressHeaderPanel.setOpaque(false);
         addressHeaderPanel.add(new JLabel("Pickup Address:"), BorderLayout.WEST);
@@ -1408,23 +1603,17 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0; gbc.gridy = 1;
         box.add(new JLabel("Recipient Phone:*"), gbc);
         recipientPhoneField = new JTextField(30);
-        recipientPhoneField.setForeground(new Color(108, 117, 125));
-        recipientPhoneField.setText("012-3456789");
+        recipientPhoneField.setForeground(Color.BLACK);
+        recipientPhoneField.setText("");
         recipientPhoneField.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                if (recipientPhoneField.getText().equals("012-3456789")) {
-                    recipientPhoneField.setText("");
-                    recipientPhoneField.setForeground(Color.BLACK);
-                }
+                // No auto-clear, let user type freely
             }
             @Override
             public void focusLost(FocusEvent e) {
                 String text = recipientPhoneField.getText().trim();
-                if (text.isEmpty()) {
-                    recipientPhoneField.setText("012-3456789");
-                    recipientPhoneField.setForeground(new Color(108, 117, 125));
-                } else if (isValidMalaysianPhoneNumber(text)) {
+                if (!text.isEmpty() && isValidMalaysianPhoneNumber(text)) {
                     String formatted = formatPhoneNumber(text);
                     recipientPhoneField.setText(formatted);
                     recipientPhoneField.setForeground(Color.BLACK);
@@ -1485,11 +1674,8 @@ public class NewOrderPanel extends JPanel {
         
         String cleaned = phone.trim().replaceAll("\\s+", "");
         
-        // Remove all hyphens for validation
         String noHyphen = cleaned.replaceAll("-", "");
         
-        // Check if it's a valid Malaysian mobile number
-        // Malaysian mobile prefixes: 010, 011, 012, 013, 014, 015, 016, 017, 018, 019
         boolean valid = false;
         
         if (noHyphen.matches("^01[0-46-9][0-9]{7,8}$")) {
@@ -1500,7 +1686,6 @@ public class NewOrderPanel extends JPanel {
             valid = true;
         }
         
-        // Also allow the format with hyphens
         if (!valid && cleaned.matches("^01[0-46-9]-[0-9]{7,8}$")) {
             valid = true;
         } else if (!valid && cleaned.matches("^601[0-46-9]-[0-9]{7,8}$")) {
@@ -1519,14 +1704,12 @@ public class NewOrderPanel extends JPanel {
         
         String cleaned = phone.trim().replaceAll("\\s+", "").replaceAll("-", "");
         
-        // Remove country code if present
         if (cleaned.startsWith("+60")) {
             cleaned = "0" + cleaned.substring(3);
         } else if (cleaned.startsWith("60")) {
             cleaned = "0" + cleaned.substring(2);
         }
         
-        // Format as 012-3456789 or 012-34567890
         if (cleaned.length() >= 10 && cleaned.length() <= 11 && cleaned.startsWith("01")) {
             return cleaned.substring(0, 3) + "-" + cleaned.substring(3);
         }
@@ -1563,7 +1746,7 @@ public class NewOrderPanel extends JPanel {
     private boolean validateRecipientPhone() {
         String phone = recipientPhoneField.getText().trim();
         
-        if (phone.isEmpty() || phone.equals("012-3456789")) {
+        if (phone.isEmpty()) {
             JOptionPane.showMessageDialog(this, 
                 "Please enter recipient phone number", 
                 "Validation Error", 
@@ -1589,7 +1772,6 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
         
-        // Format the phone number nicely
         String formatted = formatPhoneNumber(phone);
         recipientPhoneField.setText(formatted);
         recipientPhoneField.setForeground(Color.BLACK);
@@ -1846,12 +2028,7 @@ public class NewOrderPanel extends JPanel {
     
     private String safeString(String s) { return s != null && !s.isEmpty() ? s : ""; }
 
-    /**
-     * Validate that sender and recipient addresses are not identical
-     * @return true if addresses are different, false if they are the same
-     */
     private boolean validateAddressesNotSame() {
-        // Get sender address components
         String fromAddressLine = fromAddressField.getText().trim();
         if (fromAddressLine.equals("Enter street address")) fromAddressLine = "";
         
@@ -1859,7 +2036,6 @@ public class NewOrderPanel extends JPanel {
         String fromCity = (String) fromCityCombo.getSelectedItem();
         String fromPostcode = fromPostcodeField.getText().trim();
         
-        // Get recipient address components
         String toAddressLine = toAddressField.getText().trim();
         if (toAddressLine.equals("Enter street address")) toAddressLine = "";
         
@@ -1867,11 +2043,9 @@ public class NewOrderPanel extends JPanel {
         String toCity = (String) toCityCombo.getSelectedItem();
         String toPostcode = toPostcodeField.getText().trim();
         
-        // Build full addresses for comparison
         String fromFullAddress = buildFullAddress(fromAddressLine, fromCity, fromState, fromPostcode);
         String toFullAddress = buildFullAddress(toAddressLine, toCity, toState, toPostcode);
         
-        // Check if addresses are identical (case-insensitive, trim whitespace)
         boolean isSame = fromFullAddress.equalsIgnoreCase(toFullAddress);
         
         if (isSame) {
@@ -1887,9 +2061,6 @@ public class NewOrderPanel extends JPanel {
         return true;
     }
     
-    /**
-     * Build a complete address string for comparison
-     */
     private String buildFullAddress(String addressLine, String city, String state, String postcode) {
         StringBuilder sb = new StringBuilder();
         if (addressLine != null && !addressLine.isEmpty()) {
@@ -1909,9 +2080,159 @@ public class NewOrderPanel extends JPanel {
         }
         return sb.toString().trim();
     }
+    
+    // Card expiry date validation
+    private boolean validateCardExpiry(JComboBox<String> monthCombo, JComboBox<String> yearCombo) {
+        if (monthCombo == null || yearCombo == null) return true;
+        
+        String selectedMonth = (String) monthCombo.getSelectedItem();
+        String selectedYear = (String) yearCombo.getSelectedItem();
+        
+        if (selectedMonth == null || selectedYear == null) {
+            return false;
+        }
+        
+        try {
+            int month = Integer.parseInt(selectedMonth);
+            int year = Integer.parseInt(selectedYear);
+            
+            Calendar now = Calendar.getInstance();
+            int currentYear = now.get(Calendar.YEAR);
+            int currentMonth = now.get(Calendar.MONTH) + 1;
+            
+            if (year < currentYear) {
+                return false;
+            } else if (year == currentYear && month < currentMonth) {
+                return false;
+            }
+            
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+    
+    // CVV validation
+    private boolean validateCvv(JTextField cvvField) {
+        if (cvvField == null) return true;
+        
+        String cvv = cvvField.getText().trim();
+        if (cvv.isEmpty() || cvv.equals("123")) {
+            return false;
+        }
+        
+        // CVV should be 3 or 4 digits
+        String digits = cvv.replaceAll("\\D", "");
+        if (digits.length() < 3 || digits.length() > 4) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Card number validation (16 digits)
+    private boolean validateCardNumber(JTextField cardNumberField) {
+        if (cardNumberField == null) return true;
+        
+        String cardNumber = cardNumberField.getText().trim();
+        if (cardNumber.isEmpty() || cardNumber.equals("1234 5678 9012 3456")) {
+            return false;
+        }
+        
+        // Remove spaces and check if it's 16 digits
+        String digits = cardNumber.replaceAll("\\s", "");
+        if (digits.length() != 16) {
+            return false;
+        }
+        
+        // Check if all are digits
+        if (!digits.matches("\\d+")) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    private boolean validatePaymentDetails() {
+        String selectedMethod = (String) paymentMethodCombo.getSelectedItem();
+        if (selectedMethod == null) {
+            JOptionPane.showMessageDialog(this, "Please select a payment method", "Payment Required", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        
+        if (selectedMethod.contains("Credit Card")) {
+            // Validate card number
+            if (!validateCardNumber(cardNumberField)) {
+                JOptionPane.showMessageDialog(this, 
+                    "Please enter a valid 16-digit credit card number.\nFormat: XXXX XXXX XXXX XXXX",
+                    "Invalid Card Number", 
+                    JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+            
+            // Validate expiry date
+            if (cardMonthCombo == null || cardYearCombo == null) {
+                JOptionPane.showMessageDialog(this, "Please enter credit card expiry date", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+            
+            if (!validateCardExpiry(cardMonthCombo, cardYearCombo)) {
+                JOptionPane.showMessageDialog(this, 
+                    "Credit card has expired or expiry date is invalid.\nPlease use a valid card that has not expired yet.",
+                    "Card Expired", 
+                    JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+            
+            // Validate CVV
+            if (!validateCvv(cardCvvField)) {
+                JOptionPane.showMessageDialog(this, 
+                    "Please enter a valid CVV (3 or 4 digits).",
+                    "Invalid CVV", 
+                    JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+        } else if (selectedMethod.contains("Debit Card")) {
+            // Validate card number
+            if (!validateCardNumber(debitCardNumberField)) {
+                JOptionPane.showMessageDialog(this, 
+                    "Please enter a valid 16-digit debit card number.\nFormat: XXXX XXXX XXXX XXXX",
+                    "Invalid Card Number", 
+                    JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+            
+            // Validate expiry date
+            if (debitMonthCombo == null || debitYearCombo == null) {
+                JOptionPane.showMessageDialog(this, "Please enter debit card expiry date", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+            
+            if (!validateCardExpiry(debitMonthCombo, debitYearCombo)) {
+                JOptionPane.showMessageDialog(this, 
+                    "Debit card has expired or expiry date is invalid.\nPlease use a valid card that has not expired yet.",
+                    "Card Expired", 
+                    JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+            
+            // Validate CVV
+            if (!validateCvv(debitCvvField)) {
+                JOptionPane.showMessageDialog(this, 
+                    "Please enter a valid CVV (3 or 4 digits).",
+                    "Invalid CVV", 
+                    JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+        }
+        
+        return true;
+    }
 
     private void createOrder() {
         if (!validateForm()) return;
+        
+        if (!validatePaymentDetails()) return;
 
         String paymentMethod = (String) paymentMethodCombo.getSelectedItem();
         if (paymentMethod == null) {
@@ -1960,7 +2281,6 @@ public class NewOrderPanel extends JPanel {
             if (recipientName.equals("Full name")) recipientName = "";
             
             String recipientPhone = recipientPhoneField.getText().trim();
-            if (recipientPhone.equals("012-3456789")) recipientPhone = "";
             
             SenderOrder order = new SenderOrder(orderId, senderName, senderPhone, senderEmail, fromAddress,
                 recipientName, recipientPhone, toAddress, weight, dimensions);
@@ -2002,7 +2322,9 @@ public class NewOrderPanel extends JPanel {
             
             String description = descriptionArea.getText().trim();
             if (description.equals("Describe the package contents...")) description = "";
-            notes.append("; Description: ").append(description);
+            if (!description.isEmpty()) {
+                notes.append("; Description: ").append(description);
+            }
             order.setNotes(notes.toString());
             
             JDialog processingDialog = createPaymentProcessingDialog(totalCost, paymentMethod);
@@ -2068,7 +2390,6 @@ public class NewOrderPanel extends JPanel {
     }
 
     private boolean validateForm() {
-        // Validate sender phone
         if (!validateSenderPhone()) {
             return false;
         }
@@ -2115,7 +2436,6 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
         
-        // NEW VALIDATION: Check that sender and recipient addresses are not the same
         if (!validateAddressesNotSame()) {
             return false;
         }
@@ -2127,7 +2447,6 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
         
-        // Validate recipient phone
         if (!validateRecipientPhone()) {
             return false;
         }
@@ -2197,12 +2516,7 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
         
-        String description = descriptionArea.getText().trim();
-        if (description.isEmpty() || description.equals("Describe the package contents...")) {
-            JOptionPane.showMessageDialog(this, "Please enter a package description", "Validation Error", JOptionPane.ERROR_MESSAGE);
-            descriptionArea.requestFocus();
-            return false;
-        }
+        // Description is now optional - removed validation
         
         if (insuranceCheckBox.isSelected()) {
             String declaredStr = declaredValueField.getText().trim();
@@ -2252,8 +2566,8 @@ public class NewOrderPanel extends JPanel {
         toPostcodeField.setText("");
         recipientNameField.setText("Full name");
         recipientNameField.setForeground(new Color(108, 117, 125));
-        recipientPhoneField.setText("012-3456789");
-        recipientPhoneField.setForeground(new Color(108, 117, 125));
+        recipientPhoneField.setText("");
+        recipientPhoneField.setForeground(Color.BLACK);
         packageTypeCombo.setSelectedIndex(-1);
         customPackageType = null;
         weightField.setText("Enter weight in kg");
@@ -2280,6 +2594,30 @@ public class NewOrderPanel extends JPanel {
         shippingCostDisplayLabel.setText("RM 0.00");
         insuranceCostLabel.setText("RM 0.00");
         distanceLabel.setText("-- km");
+        
+        // Reset card fields
+        if (cardNumberField != null) {
+            cardNumberField.setText("1234 5678 9012 3456");
+            cardNumberField.setForeground(new Color(108, 117, 125));
+        }
+        if (cardCvvField != null) {
+            cardCvvField.setText("123");
+            cardCvvField.setForeground(new Color(108, 117, 125));
+        }
+        if (debitCardNumberField != null) {
+            debitCardNumberField.setText("1234 5678 9012 3456");
+            debitCardNumberField.setForeground(new Color(108, 117, 125));
+        }
+        if (debitCvvField != null) {
+            debitCvvField.setText("123");
+            debitCvvField.setForeground(new Color(108, 117, 125));
+        }
+        
+        if (cardMonthCombo != null) cardMonthCombo.setSelectedIndex(0);
+        if (cardYearCombo != null) cardYearCombo.setSelectedIndex(0);
+        if (debitMonthCombo != null) debitMonthCombo.setSelectedIndex(0);
+        if (debitYearCombo != null) debitYearCombo.setSelectedIndex(0);
+        
         updateFromCities();
         updateToCities();
         calculateEstimate();
