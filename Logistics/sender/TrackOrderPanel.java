@@ -862,7 +862,8 @@ public class TrackOrderPanel extends JPanel {
         for (int i = 0; i < stepTitles.length; i++) {
             boolean isCompleted = i < currentStep;
             boolean isCurrent = i == currentStep;
-           String timestamp = getRealTimestampForStep(order, i);
+            // FIXED: Get REAL timestamp from order data instead of fake calculated dates
+            String timestamp = getRealTimestampForStep(order, i);
             
             timelinePanel.add(createTimelineStep(
                 stepTitles[i], 
@@ -903,6 +904,10 @@ public class TrackOrderPanel extends JPanel {
         return timelinePanel;
     }
     
+    /**
+     * FIXED: Returns REAL timestamp for each step from order data
+     * instead of generating fake dates
+     */
     private String getRealTimestampForStep(SenderOrder order, int step) {
         switch(step) {
             case 0: // Order Placed

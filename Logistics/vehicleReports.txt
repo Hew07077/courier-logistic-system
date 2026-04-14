@@ -1,6 +1,1 @@
 REPORT_ID|VEHICLE_ID|DRIVER_NAME|REPORT_DATE|DESCRIPTION|SEVERITY|STATUS|ADMIN_NOTES
-RPT001|TRK001|Ahmad Bin Abdullah|1743235200000|Engine starting problem at Kuala Lumpur City Center|Medium|Pending|
-RPT002|TRK002|Tan Siew Ming|1743321600000|Brake issue reported - need immediate attention|High|Pending|
-RPT003|VAN003|Chong Wei Ming|1743408000000|Transmission slipping when shifting gears|Critical|Pending|
-RPT004|CAR001|Unassigned|1743494400000|Check engine light on dashboard|Low|Pending|
-RPT005|VAN001|Unassigned|1743580800000|Tire pressure low warning|Medium|Pending|

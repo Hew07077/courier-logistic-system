@@ -70,7 +70,7 @@ public class MaintenanceManagement {
     private static final Color ACTIVE_FILTER_BORDER = new Color(41, 98, 255);
     private static final Color CALENDAR_DAY_HOVER = new Color(230, 242, 255);
     
-    // Fonts - Using standard Java font constants
+    // Fonts
     private static final Font TITLE_FONT = new Font("Segoe UI", Font.BOLD, 28);
     private static final Font SUBTITLE_FONT = new Font("Segoe UI", Font.PLAIN, 14);
     private static final Font HEADER_FONT = new Font("Segoe UI", Font.BOLD, 13);
@@ -404,7 +404,6 @@ public class MaintenanceManagement {
             Calendar cal = Calendar.getInstance();
             Date today = new Date();
             
-            // Add more sample records to make the table fuller
             cal.setTime(today);
             cal.add(Calendar.MONTH, -2);
             maintenanceRecords.add(new MaintenanceRecord(
@@ -494,7 +493,7 @@ public class MaintenanceManagement {
     }
     
     /**
-     * Creates the statistics panel showing counts by status - SMALLER CARDS, NO ICONS
+     * Creates the statistics panel showing counts by status
      */
     private JPanel createStatsPanel() {
         statsPanel = new JPanel(new GridLayout(1, 4, 15, 0));
@@ -524,7 +523,7 @@ public class MaintenanceManagement {
     }
     
     /**
-     * Creates an individual stat card - SMALLER SIZE, NO ICONS, CLICKABLE
+     * Creates an individual stat card - CLICKABLE
      */
     private JPanel createStatCard(String title, String description, 
                                   String value, Color color, Color bgColor, int index) {
@@ -536,19 +535,16 @@ public class MaintenanceManagement {
             BorderFactory.createEmptyBorder(8, 12, 8, 12)
         ));
         
-        // Title
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 11));
         titleLabel.setForeground(TEXT_SECONDARY);
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         
-        // Value
         JLabel valueLabel = new JLabel(value);
         valueLabel.setFont(STATS_FONT);
         valueLabel.setForeground(color);
         valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         
-        // Description
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(SMALL_FONT);
         descLabel.setForeground(TEXT_MUTED);
@@ -560,7 +556,6 @@ public class MaintenanceManagement {
         card.add(Box.createVerticalStrut(2));
         card.add(descLabel);
         
-        // Store reference to value label for updates
         statLabels[index] = valueLabel;
         
         // Make all cards clickable
@@ -598,17 +593,29 @@ public class MaintenanceManagement {
                     applyFilter(null);
                     // No highlight for Total card
                 } else {
-                    // Set current filter
-                    currentFilter = filterStatus;
-                    
-                    // Highlight selected card
-                    card.setBorder(BorderFactory.createCompoundBorder(
-                        new LineBorder(ACTIVE_FILTER_BORDER, 2, true),
-                        BorderFactory.createEmptyBorder(7, 11, 7, 11)
-                    ));
-                    
-                    // Apply filter to table
-                    applyFilter(filterStatus);
+                    // Toggle filter if clicking same card
+                    if (title.equals(currentFilter)) {
+                        currentFilter = null;
+                        applyFilter(null);
+                        card.setBackground(CARD_BG);
+                        card.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(BORDER_COLOR, 1, true),
+                            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+                        ));
+                    } else {
+                        // Set current filter
+                        currentFilter = filterStatus;
+                        
+                        // Highlight selected card
+                        card.setBorder(BorderFactory.createCompoundBorder(
+                            new LineBorder(ACTIVE_FILTER_BORDER, 2, true),
+                            BorderFactory.createEmptyBorder(7, 11, 7, 11)
+                        ));
+                        card.setBackground(color.brighter());
+                        
+                        // Apply filter to table
+                        applyFilter(filterStatus);
+                    }
                 }
             }
         });
@@ -623,17 +630,18 @@ public class MaintenanceManagement {
         if (status == null) {
             rowSorter.setRowFilter(null);
         } else {
+            final String finalFilterStatus = status;
             rowSorter.setRowFilter(new RowFilter<DefaultTableModel, Integer>() {
                 @Override
                 public boolean include(Entry<? extends DefaultTableModel, ? extends Integer> entry) {
-                    return status.equals(entry.getStringValue(3)); // Status column is index 3
+                    return finalFilterStatus.equals(entry.getStringValue(3));
                 }
             });
         }
     }
     
     /**
-     * Creates the table panel - BIGGER TABLE
+     * Creates the table panel
      */
     private JPanel createTablePanel() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -645,7 +653,6 @@ public class MaintenanceManagement {
         scrollPane.getViewport().setBackground(CARD_BG);
         scrollPane.setCorner(JScrollPane.UPPER_RIGHT_CORNER, createTableHeaderCorner());
         
-        // Make the scroll pane take all available space
         scrollPane.setPreferredSize(new Dimension(900, 500));
         
         panel.add(scrollPane, BorderLayout.CENTER);
@@ -661,7 +668,7 @@ public class MaintenanceManagement {
     }
     
     /**
-     * Creates the maintenance table - BIGGER ROWS
+     * Creates the maintenance table - FIXED SELECTION
      */
     private JTable createTable() {
         tableModel = new DefaultTableModel(TABLE_COLUMNS, 0) {
@@ -678,7 +685,7 @@ public class MaintenanceManagement {
         };
         
         maintenanceTable = new JTable(tableModel);
-        maintenanceTable.setRowHeight(55); // Taller rows
+        maintenanceTable.setRowHeight(55);
         maintenanceTable.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         maintenanceTable.setSelectionBackground(SELECTION_COLOR);
         maintenanceTable.setSelectionForeground(TEXT_PRIMARY);
@@ -686,6 +693,11 @@ public class MaintenanceManagement {
         maintenanceTable.setGridColor(BORDER_COLOR);
         maintenanceTable.setIntercellSpacing(new Dimension(10, 5));
         maintenanceTable.setFillsViewportHeight(true);
+        
+        // CRITICAL: Enable row selection
+        maintenanceTable.setRowSelectionAllowed(true);
+        maintenanceTable.setColumnSelectionAllowed(false);
+        maintenanceTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         
         // Table header styling
         JTableHeader header = maintenanceTable.getTableHeader();
@@ -711,91 +723,40 @@ public class MaintenanceManagement {
         maintenanceTable.getColumnModel().getColumn(3).setCellRenderer(new StatusCellRenderer());
         maintenanceTable.getColumnModel().getColumn(4).setCellRenderer(new DateCellRenderer());
         
-        // Double-click listener
+        // FIXED: Mouse listener for row selection
         maintenanceTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    showRecordDetails();
+                int row = maintenanceTable.rowAtPoint(e.getPoint());
+                if (row >= 0) {
+                    // Select the row
+                    maintenanceTable.setRowSelectionInterval(row, row);
+                    System.out.println("Row " + row + " selected in Maintenance table");
+                    
+                    if (e.getClickCount() == 2) {
+                        System.out.println("Double click - showing record details");
+                        showRecordDetails();
+                    }
                 }
             }
         });
         
-        // Add hover effect
-        maintenanceTable.addMouseMotionListener(new MouseMotionAdapter() {
+        // Add keyboard selection support
+        maintenanceTable.addKeyListener(new KeyAdapter() {
             @Override
-            public void mouseMoved(MouseEvent e) {
-                int row = maintenanceTable.rowAtPoint(e.getPoint());
-                if (row >= 0 && maintenanceTable.getSelectedRow() != row) {
-                    maintenanceTable.setRowSelectionInterval(row, row);
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    int row = maintenanceTable.getSelectedRow();
+                    if (row >= 0) {
+                        System.out.println("Enter pressed on row " + row);
+                        showRecordDetails();
+                    }
                 }
             }
         });
         
         refreshTableData();
         return maintenanceTable;
-    }
-    
-    /**
-     * Creates the button panel with action buttons - REMOVED VIEW BUTTON
-     */
-    private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
-        panel.setBackground(BG_COLOR);
-        
-        ButtonConfig[] buttons = {
-            new ButtonConfig("Add", PRIMARY, PRIMARY_DARK, this::showAddDialog),
-            new ButtonConfig("Edit", WARNING, WARNING_DARK, this::showEditDialog),
-            new ButtonConfig("Delete", DANGER, DANGER_DARK, this::deleteRecord),
-            new ButtonConfig("Start", INFO, INFO_DARK, () -> updateStatus("In Progress")),
-            new ButtonConfig("Complete", SUCCESS, SUCCESS_DARK, () -> updateStatus("Completed"))
-        };
-        
-        for (ButtonConfig config : buttons) {
-            panel.add(createActionButton(config));
-        }
-        
-        return panel;
-    }
-    
-    private static class ButtonConfig {
-        final String text;
-        final Color bgColor;
-        final Color hoverColor;
-        final Runnable action;
-        
-        ButtonConfig(String text, Color bgColor, Color hoverColor, Runnable action) {
-            this.text = text;
-            this.bgColor = bgColor;
-            this.hoverColor = hoverColor;
-            this.action = action;
-        }
-    }
-    
-    private JButton createActionButton(ButtonConfig config) {
-        JButton btn = new JButton(config.text);
-        btn.setBackground(config.bgColor);
-        btn.setForeground(Color.WHITE);
-        btn.setFont(BUTTON_FONT);
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setPreferredSize(new Dimension(85, 32));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        btn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                btn.setBackground(config.hoverColor);
-                btn.setFont(BUTTON_HOVER_FONT);
-            }
-            public void mouseExited(MouseEvent e) {
-                btn.setBackground(config.bgColor);
-                btn.setFont(BUTTON_FONT);
-            }
-        });
-        
-        btn.addActionListener(e -> config.action.run());
-        
-        return btn;
     }
     
     /**
@@ -904,16 +865,26 @@ public class MaintenanceManagement {
     }
     
     /**
-     * Shows detailed view of a selected record
+     * Shows detailed view of a selected record - FIXED
      */
     private void showRecordDetails() {
         int selectedRow = maintenanceTable.getSelectedRow();
-        if (!validateRowSelection(selectedRow, "Select a record to view details")) {
+        System.out.println("showRecordDetails - selected row: " + selectedRow);
+        
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Please select a record to view details.\n\nClick on any row to select it, then double-click or press Enter.", 
+                "No Selection", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         
         MaintenanceRecord record = getSelectedRecord(selectedRow);
-        if (record == null) return;
+        if (record == null) {
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Could not retrieve the selected record.", 
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         
         String taxStatus = record.scheduledDate.before(new Date()) && !record.status.equals("Completed") 
             ? "Overdue" : "On Schedule";
@@ -987,6 +958,8 @@ public class MaintenanceManagement {
         if (currentFilter != null) {
             applyFilter(currentFilter);
         }
+        
+        System.out.println("Table refreshed with " + maintenanceRecords.size() + " records");
     }
     
     /**
@@ -1014,281 +987,71 @@ public class MaintenanceManagement {
     }
     
     /**
-     * Creates a date picker panel with spinner and improved calendar button
+     * Creates the button panel with action buttons
      */
-    private JPanel createDatePicker(Date initialDate) {
-        JPanel panel = new JPanel(new BorderLayout(5, 0));
-        panel.setBackground(CARD_BG);
+    private JPanel createButtonPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
+        panel.setBackground(BG_COLOR);
         
-        // Create spinner for date
-        SpinnerDateModel dateModel = new SpinnerDateModel(initialDate, null, null, Calendar.DAY_OF_MONTH);
-        JSpinner dateSpinner = new JSpinner(dateModel);
-        JSpinner.DateEditor dateEditor = new JSpinner.DateEditor(dateSpinner, DATE_FORMAT);
-        dateSpinner.setEditor(dateEditor);
-        dateSpinner.setFont(REGULAR_FONT);
-        dateSpinner.setPreferredSize(new Dimension(200, 35));
+        ButtonConfig[] buttons = {
+            new ButtonConfig("Add", PRIMARY, PRIMARY_DARK, this::showAddDialog),
+            new ButtonConfig("Edit", WARNING, WARNING_DARK, this::showEditDialog),
+            new ButtonConfig("Delete", DANGER, DANGER_DARK, this::deleteRecord),
+            new ButtonConfig("Start", INFO, INFO_DARK, () -> updateStatus("In Progress")),
+            new ButtonConfig("Complete", SUCCESS, SUCCESS_DARK, () -> updateStatus("Completed"))
+        };
         
-        // Calendar button with calendar icon (using Unicode character)
-        JButton calendarBtn = new JButton("\uD83D\uDCC5"); // Unicode calendar icon
-        calendarBtn.setFont(new Font("Segoe UI", Font.PLAIN, 18));
-        calendarBtn.setBackground(CARD_BG);
-        calendarBtn.setForeground(PRIMARY);
-        calendarBtn.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(PRIMARY, 1, true),
-            BorderFactory.createEmptyBorder(5, 10, 5, 10)
-        ));
-        calendarBtn.setPreferredSize(new Dimension(45, 35));
-        calendarBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        calendarBtn.setToolTipText("Open Calendar");
-        calendarBtn.setFocusPainted(false);
-        
-        calendarBtn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                calendarBtn.setBackground(PRIMARY);
-                calendarBtn.setForeground(Color.WHITE);
-            }
-            public void mouseExited(MouseEvent e) {
-                calendarBtn.setBackground(CARD_BG);
-                calendarBtn.setForeground(PRIMARY);
-            }
-        });
-        
-        calendarBtn.addActionListener(e -> showImprovedCalendarPopup(calendarBtn, dateSpinner));
-        
-        panel.add(dateSpinner, BorderLayout.CENTER);
-        panel.add(calendarBtn, BorderLayout.EAST);
+        for (ButtonConfig config : buttons) {
+            panel.add(createActionButton(config));
+        }
         
         return panel;
     }
     
-    /**
-     * Shows an improved popup calendar with better design - FIXED VERSION
-     */
-    private void showImprovedCalendarPopup(Component parent, JSpinner dateSpinner) {
-        // Create a new JDialog for the calendar
-        JDialog calendarDialog = new JDialog();
-        calendarDialog.setTitle("Select Date");
-        calendarDialog.setModal(true);
-        calendarDialog.setUndecorated(false); // Changed to false to show title
-        calendarDialog.setAlwaysOnTop(true);
+    private static class ButtonConfig {
+        final String text;
+        final Color bgColor;
+        final Color hoverColor;
+        final Runnable action;
         
-        // Get current date from spinner
-        Date currentDate = (Date) dateSpinner.getValue();
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(currentDate);
-        
-        // Main calendar panel
-        JPanel calendarPanel = new JPanel(new BorderLayout(10, 10));
-        calendarPanel.setBackground(CARD_BG);
-        calendarPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(PRIMARY, 2),
-            BorderFactory.createEmptyBorder(15, 15, 15, 15)
-        ));
-        
-        // Header with month and year
-        JPanel headerPanel = new JPanel(new BorderLayout(10, 0));
-        headerPanel.setBackground(PRIMARY);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        JButton prevMonthBtn = new JButton("◀");
-        styleCalendarNavButton(prevMonthBtn);
-        
-        JLabel monthLabel = new JLabel(new SimpleDateFormat("MMMM yyyy").format(currentDate), SwingConstants.CENTER);
-        monthLabel.setFont(CALENDAR_HEADER_FONT);
-        monthLabel.setForeground(Color.WHITE);
-        
-        JButton nextMonthBtn = new JButton("▶");
-        styleCalendarNavButton(nextMonthBtn);
-        
-        headerPanel.add(prevMonthBtn, BorderLayout.WEST);
-        headerPanel.add(monthLabel, BorderLayout.CENTER);
-        headerPanel.add(nextMonthBtn, BorderLayout.EAST);
-        
-        // Days of week header
-        JPanel daysHeaderPanel = new JPanel(new GridLayout(1, 7, 5, 5));
-        daysHeaderPanel.setBackground(CARD_BG);
-        daysHeaderPanel.setBorder(BorderFactory.createEmptyBorder(10, 5, 5, 5));
-        
-        String[] dayNames = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-        for (String day : dayNames) {
-            JLabel dayLabel = new JLabel(day, SwingConstants.CENTER);
-            dayLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            dayLabel.setForeground(day.equals("Sun") || day.equals("Sat") ? DANGER : TEXT_PRIMARY);
-            daysHeaderPanel.add(dayLabel);
+        ButtonConfig(String text, Color bgColor, Color hoverColor, Runnable action) {
+            this.text = text;
+            this.bgColor = bgColor;
+            this.hoverColor = hoverColor;
+            this.action = action;
         }
-        
-        // Days grid panel
-        JPanel daysGridPanel = new JPanel(new GridLayout(0, 7, 5, 5)); // Changed to 0 rows to auto-fit
-        daysGridPanel.setBackground(CARD_BG);
-        daysGridPanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 10, 5));
-        
-        // Create calendar for the current month
-        Calendar displayCal = (Calendar) cal.clone();
-        displayCal.set(Calendar.DAY_OF_MONTH, 1);
-        
-        // Store current selection for highlighting
-        Calendar today = Calendar.getInstance();
-        
-        // Function to update days grid
-        Runnable updateDaysGrid = () -> {
-            daysGridPanel.removeAll();
-            
-            int firstDayOfWeek = displayCal.get(Calendar.DAY_OF_WEEK);
-            int daysInMonth = displayCal.getActualMaximum(Calendar.DAY_OF_MONTH);
-            
-            // Add empty cells for days before first day of month
-            for (int i = 1; i < firstDayOfWeek; i++) {
-                JLabel emptyLabel = new JLabel("");
-                emptyLabel.setPreferredSize(new Dimension(35, 35));
-                daysGridPanel.add(emptyLabel);
-            }
-            
-            // Add day buttons
-            for (int day = 1; day <= daysInMonth; day++) {
-                final int selectedDay = day;
-                JButton dayBtn = new JButton(String.valueOf(day));
-                dayBtn.setFont(CALENDAR_FONT);
-                dayBtn.setBackground(CARD_BG);
-                dayBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
-                dayBtn.setFocusPainted(false);
-                dayBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                dayBtn.setPreferredSize(new Dimension(35, 35));
-                
-                // Check if this is the selected date
-                boolean isSelectedDate = day == cal.get(Calendar.DAY_OF_MONTH) && 
-                                         displayCal.get(Calendar.MONTH) == cal.get(Calendar.MONTH) &&
-                                         displayCal.get(Calendar.YEAR) == cal.get(Calendar.YEAR);
-                
-                // Check if this is today
-                boolean isToday = day == today.get(Calendar.DAY_OF_MONTH) && 
-                                  displayCal.get(Calendar.MONTH) == today.get(Calendar.MONTH) &&
-                                  displayCal.get(Calendar.YEAR) == today.get(Calendar.YEAR);
-                
-                if (isSelectedDate) {
-                    dayBtn.setBackground(PRIMARY);
-                    dayBtn.setForeground(Color.WHITE);
-                    dayBtn.setBorder(BorderFactory.createLineBorder(PRIMARY_DARK, 1));
-                } else if (isToday) {
-                    dayBtn.setBackground(new Color(255, 243, 224));
-                    dayBtn.setForeground(WARNING.darker());
-                    dayBtn.setBorder(BorderFactory.createLineBorder(WARNING, 1));
-                }
-                
-                // Add hover effect
-                dayBtn.addMouseListener(new MouseAdapter() {
-                    public void mouseEntered(MouseEvent e) {
-                        if (!isSelectedDate) {
-                            dayBtn.setBackground(CALENDAR_DAY_HOVER);
-                        }
-                    }
-                    public void mouseExited(MouseEvent e) {
-                        if (!isSelectedDate) {
-                            if (isToday) {
-                                dayBtn.setBackground(new Color(255, 243, 224));
-                            } else {
-                                dayBtn.setBackground(CARD_BG);
-                            }
-                        }
-                    }
-                });
-                
-                dayBtn.addActionListener(e -> {
-                    Calendar selected = Calendar.getInstance();
-                    selected.set(displayCal.get(Calendar.YEAR), displayCal.get(Calendar.MONTH), selectedDay, 
-                                 cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
-                    dateSpinner.setValue(selected.getTime());
-                    calendarDialog.dispose();
-                });
-                
-                daysGridPanel.add(dayBtn);
-            }
-            
-            daysGridPanel.revalidate();
-            daysGridPanel.repaint();
-        };
-        
-        // Initial update
-        updateDaysGrid.run();
-        
-        // Navigation actions
-        prevMonthBtn.addActionListener(e -> {
-            displayCal.add(Calendar.MONTH, -1);
-            monthLabel.setText(new SimpleDateFormat("MMMM yyyy").format(displayCal.getTime()));
-            updateDaysGrid.run();
-            calendarDialog.pack();
-        });
-        
-        nextMonthBtn.addActionListener(e -> {
-            displayCal.add(Calendar.MONTH, 1);
-            monthLabel.setText(new SimpleDateFormat("MMMM yyyy").format(displayCal.getTime()));
-            updateDaysGrid.run();
-            calendarDialog.pack();
-        });
-        
-        // Footer with close button
-        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        footerPanel.setBackground(CARD_BG);
-        footerPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
-        
-        JButton closeBtn = new JButton("Close");
-        closeBtn.setFont(REGULAR_FONT);
-        closeBtn.setForeground(TEXT_SECONDARY);
-        closeBtn.setBackground(CARD_BG);
-        closeBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
-        closeBtn.setFocusPainted(false);
-        closeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        closeBtn.setPreferredSize(new Dimension(80, 30));
-        closeBtn.addActionListener(e -> calendarDialog.dispose());
-        
-        closeBtn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                closeBtn.setBackground(HOVER_COLOR);
-            }
-            public void mouseExited(MouseEvent e) {
-                closeBtn.setBackground(CARD_BG);
-            }
-        });
-        
-        footerPanel.add(closeBtn);
-        
-        // Assemble calendar
-        calendarPanel.add(headerPanel, BorderLayout.NORTH);
-        calendarPanel.add(daysHeaderPanel, BorderLayout.CENTER);
-        calendarPanel.add(daysGridPanel, BorderLayout.SOUTH);
-        
-        // Create a container for the whole dialog
-        JPanel contentPanel = new JPanel(new BorderLayout());
-        contentPanel.setBackground(CARD_BG);
-        contentPanel.add(calendarPanel, BorderLayout.CENTER);
-        contentPanel.add(footerPanel, BorderLayout.SOUTH);
-        
-        calendarDialog.add(contentPanel);
-        calendarDialog.pack();
-        calendarDialog.setLocationRelativeTo(parent);
-        calendarDialog.setVisible(true);
     }
     
-    private void styleCalendarNavButton(JButton button) {
-        button.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        button.setForeground(Color.WHITE);
-        button.setBackground(PRIMARY);
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setPreferredSize(new Dimension(40, 30));
+    private JButton createActionButton(ButtonConfig config) {
+        JButton btn = new JButton(config.text);
+        btn.setBackground(config.bgColor);
+        btn.setForeground(Color.WHITE);
+        btn.setFont(BUTTON_FONT);
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setPreferredSize(new Dimension(85, 32));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
-        button.addMouseListener(new MouseAdapter() {
+        btn.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
-                button.setBackground(PRIMARY_DARK);
+                btn.setBackground(config.hoverColor);
+                btn.setFont(BUTTON_HOVER_FONT);
             }
             public void mouseExited(MouseEvent e) {
-                button.setBackground(PRIMARY);
+                btn.setBackground(config.bgColor);
+                btn.setFont(BUTTON_FONT);
             }
         });
+        
+        btn.addActionListener(e -> config.action.run());
+        
+        return btn;
     }
+    
+    // ========== CRUD OPERATIONS ==========
     
     /**
-     * Shows dialog to add a new maintenance record - WITH IMPROVED DATE PICKER
+     * Shows dialog to add a new maintenance record
      */
     private void showAddDialog() {
         JDialog dialog = createBaseDialog("Add Maintenance Record", 600, 650);
@@ -1300,67 +1063,27 @@ public class MaintenanceManagement {
         // Get vehicle IDs from VehicleManagement if available
         JComboBox<String> vehicleCombo;
         if (vehicleManagement != null) {
-            // Get all vehicles
             List<VehicleManagement.Vehicle> vehicles = vehicleManagement.getAllVehicles();
             String[] vehicleIds = vehicles.stream()
                 .map(v -> v.id + " - " + v.model)
                 .toArray(String[]::new);
             vehicleCombo = createStyledComboBox(vehicleIds);
         } else {
-            // Fallback to text field if VehicleManagement not available
             vehicleCombo = new JComboBox<>(new String[]{"TRK001", "VAN001", "CAR001", "TRK002", "VAN002"});
             vehicleCombo.setEditable(true);
             styleComboBox(vehicleCombo);
         }
         
         JTextField descField = createStyledTextField();
-        
-        // Improved date picker panel
         JPanel datePickerPanel = createDatePicker(new Date());
-        
         JComboBox<String> statusCombo = createStyledComboBox(new String[]{"Scheduled", "In Progress", "Completed"});
         JTextArea notesArea = createStyledTextArea();
-        
-        // Quick date buttons
-        JPanel quickDatePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
-        quickDatePanel.setBackground(CARD_BG);
-        
-        JButton todayBtn = new JButton("Today");
-        JButton tomorrowBtn = new JButton("Tomorrow");
-        JButton nextWeekBtn = new JButton("Next Week");
-        
-        styleQuickDateButton(todayBtn);
-        styleQuickDateButton(tomorrowBtn);
-        styleQuickDateButton(nextWeekBtn);
-        
-        Calendar cal = Calendar.getInstance();
-        
-        todayBtn.addActionListener(e -> {
-            ((SpinnerDateModel)((JSpinner)datePickerPanel.getComponent(0)).getModel()).setValue(new Date());
-        });
-        
-        tomorrowBtn.addActionListener(e -> {
-            cal.setTime(new Date());
-            cal.add(Calendar.DAY_OF_MONTH, 1);
-            ((SpinnerDateModel)((JSpinner)datePickerPanel.getComponent(0)).getModel()).setValue(cal.getTime());
-        });
-        
-        nextWeekBtn.addActionListener(e -> {
-            cal.setTime(new Date());
-            cal.add(Calendar.DAY_OF_MONTH, 7);
-            ((SpinnerDateModel)((JSpinner)datePickerPanel.getComponent(0)).getModel()).setValue(cal.getTime());
-        });
-        
-        quickDatePanel.add(todayBtn);
-        quickDatePanel.add(tomorrowBtn);
-        quickDatePanel.add(nextWeekBtn);
         
         // Form panel
         JPanel formPanel = createFormPanel(new FormField[]{
             new FormField("Vehicle:", vehicleCombo),
             new FormField("Description:", descField),
             new FormField("Date:", datePickerPanel),
-            new FormField("Quick Select:", quickDatePanel),
             new FormField("Status:", statusCombo),
             new FormField("Notes:", new JScrollPane(notesArea))
         });
@@ -1378,11 +1101,10 @@ public class MaintenanceManagement {
                         Date date = (Date) ((JSpinner)datePickerPanel.getComponent(0)).getValue();
                         String status = (String) statusCombo.getSelectedItem();
                         
-                        // Get vehicle ID from combo box
                         String selectedVehicle = (String) vehicleCombo.getSelectedItem();
                         String vehicleId;
                         if (selectedVehicle.contains(" - ")) {
-                            vehicleId = selectedVehicle.split(" - ")[0]; // Extract just the ID
+                            vehicleId = selectedVehicle.split(" - ")[0];
                         } else {
                             vehicleId = selectedVehicle.trim().toUpperCase();
                         }
@@ -1404,7 +1126,6 @@ public class MaintenanceManagement {
                             dashboardListener.onMaintenanceDataChanged();
                         }
                         
-                        // Update vehicle status in VehicleManagement
                         if (vehicleManagement != null && status.equals("In Progress")) {
                             vehicleManagement.updateVehicleStatus(vehicleId, "Maintenance");
                         }
@@ -1423,25 +1144,270 @@ public class MaintenanceManagement {
         dialog.setVisible(true);
     }
     
-    private void styleQuickDateButton(JButton button) {
-        button.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        button.setForeground(PRIMARY);
-        button.setBackground(CARD_BG);
-        button.setBorder(BorderFactory.createLineBorder(PRIMARY, 1, true));
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setPreferredSize(new Dimension(85, 28));
+    /**
+     * Shows dialog to edit an existing maintenance record
+     */
+    private void showEditDialog() {
+        int selectedRow = maintenanceTable.getSelectedRow();
+        if (!validateRowSelection(selectedRow, "Select a record to edit")) {
+            return;
+        }
         
-        button.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                button.setBackground(PRIMARY);
-                button.setForeground(Color.WHITE);
+        MaintenanceRecord record = getSelectedRecord(selectedRow);
+        if (record == null) return;
+        
+        JDialog dialog = createBaseDialog("Edit Record: " + record.maintenanceId, 600, 650);
+        
+        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+        mainPanel.setBackground(CARD_BG);
+        
+        // Form fields
+        JComboBox<String> vehicleCombo;
+        if (vehicleManagement != null) {
+            List<VehicleManagement.Vehicle> vehicles = vehicleManagement.getAllVehicles();
+            String[] vehicleIds = vehicles.stream()
+                .map(v -> v.id + " - " + v.model)
+                .toArray(String[]::new);
+            vehicleCombo = createStyledComboBox(vehicleIds);
+            for (int i = 0; i < vehicleIds.length; i++) {
+                if (vehicleIds[i].startsWith(record.vehicleId)) {
+                    vehicleCombo.setSelectedIndex(i);
+                    break;
+                }
             }
-            public void mouseExited(MouseEvent e) {
-                button.setBackground(CARD_BG);
-                button.setForeground(PRIMARY);
-            }
+        } else {
+            vehicleCombo = new JComboBox<>(new String[]{record.vehicleId});
+            vehicleCombo.setEditable(true);
+            styleComboBox(vehicleCombo);
+        }
+        
+        JTextField descField = createStyledTextField(record.description);
+        JPanel datePickerPanel = createDatePicker(record.scheduledDate);
+        JComboBox<String> statusCombo = createStyledComboBox(new String[]{"Scheduled", "In Progress", "Completed"});
+        statusCombo.setSelectedItem(record.status);
+        JTextArea notesArea = createStyledTextArea();
+        notesArea.setText(record.notes);
+        
+        // Form panel
+        JPanel formPanel = createFormPanel(new FormField[]{
+            new FormField("Vehicle:", vehicleCombo),
+            new FormField("Description:", descField),
+            new FormField("Date:", datePickerPanel),
+            new FormField("Status:", statusCombo),
+            new FormField("Notes:", new JScrollPane(notesArea))
         });
+        
+        // Button panel
+        JPanel buttonPanel = createDialogButtonPanel(
+            dialog,
+            "Save Changes",
+            WARNING,
+            WARNING_DARK,
+            () -> {
+                try {
+                    String oldStatus = record.status;
+                    String oldVehicleId = record.vehicleId;
+                    
+                    String selectedVehicle = (String) vehicleCombo.getSelectedItem();
+                    String vehicleId;
+                    if (selectedVehicle.contains(" - ")) {
+                        vehicleId = selectedVehicle.split(" - ")[0];
+                    } else {
+                        vehicleId = selectedVehicle.trim().toUpperCase();
+                    }
+                    
+                    record.vehicleId = vehicleId;
+                    record.description = descField.getText().trim();
+                    record.scheduledDate = (Date) ((JSpinner)datePickerPanel.getComponent(0)).getValue();
+                    record.status = (String) statusCombo.getSelectedItem();
+                    record.notes = notesArea.getText().trim();
+                    
+                    if (vehicleManagement != null) {
+                        if (!oldStatus.equals(record.status)) {
+                            if (record.status.equals("In Progress")) {
+                                vehicleManagement.updateVehicleStatus(vehicleId, "Maintenance");
+                            } else if (record.status.equals("Completed")) {
+                                vehicleManagement.completeMaintenanceForVehicle(vehicleId);
+                            }
+                        }
+                        
+                        if (!oldVehicleId.equals(vehicleId)) {
+                            vehicleManagement.completeMaintenanceForVehicle(oldVehicleId);
+                            if (record.status.equals("In Progress")) {
+                                vehicleManagement.updateVehicleStatus(vehicleId, "Maintenance");
+                            }
+                        }
+                    }
+                    
+                    saveMaintenanceRecords();
+                    refreshTableData();
+                    
+                    if (dashboardListener != null) {
+                        dashboardListener.onMaintenanceDataChanged();
+                    }
+                    
+                    showSuccess("Record " + record.maintenanceId + " updated successfully!");
+                    dialog.dispose();
+                } catch (Exception ex) {
+                    showError("Error updating record: " + ex.getMessage());
+                }
+            }
+        );
+        
+        assembleDialog(mainPanel, createHeaderLabel("Edit Record"), formPanel, buttonPanel);
+        dialog.add(mainPanel);
+        dialog.setVisible(true);
+    }
+    
+    /**
+     * Deletes the selected record
+     */
+    private void deleteRecord() {
+        int selectedRow = maintenanceTable.getSelectedRow();
+        if (!validateRowSelection(selectedRow, "Select a record to delete")) {
+            return;
+        }
+        
+        MaintenanceRecord record = getSelectedRecord(selectedRow);
+        if (record == null) return;
+        
+        int confirm = JOptionPane.showConfirmDialog(mainPanel,
+            "Are you sure you want to delete record " + record.maintenanceId + "?\nThis action cannot be undone.",
+            "Confirm Deletion",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            maintenanceRecords.remove(record);
+            saveMaintenanceRecords();
+            refreshTableData();
+            
+            if (dashboardListener != null) {
+                dashboardListener.onMaintenanceDataChanged();
+            }
+            
+            showSuccess("Record deleted successfully!");
+        }
+    }
+    
+    /**
+     * Updates the status of the selected record
+     * @param newStatus The new status to set
+     */
+    private void updateStatus(String newStatus) {
+        int selectedRow = maintenanceTable.getSelectedRow();
+        if (!validateRowSelection(selectedRow, "Select a record to update")) {
+            return;
+        }
+        
+        MaintenanceRecord record = getSelectedRecord(selectedRow);
+        if (record == null) return;
+        
+        if (record.status.equals(newStatus)) {
+            showWarning("Record is already " + newStatus);
+            return;
+        }
+        
+        String oldStatus = record.status;
+        record.status = newStatus;
+        record.notes += " | Status changed to " + newStatus + " on " + dateFormat.format(new Date());
+        
+        if (vehicleManagement != null) {
+            if (oldStatus.equals("In Progress") && record.status.equals("Completed")) {
+                vehicleManagement.completeMaintenanceForVehicle(record.vehicleId);
+            } else if (!oldStatus.equals("In Progress") && record.status.equals("In Progress")) {
+                vehicleManagement.updateVehicleStatus(record.vehicleId, "Maintenance");
+            }
+        }
+        
+        saveMaintenanceRecords();
+        refreshTableData();
+        
+        if (dashboardListener != null) {
+            dashboardListener.onMaintenanceDataChanged();
+        }
+        
+        showSuccess("Status updated to: " + record.status);
+    }
+    
+    /**
+     * Validates that a row is selected
+     * @param selectedRow The selected row index
+     * @param message The message to show if no row is selected
+     * @return true if a row is selected, false otherwise
+     */
+    private boolean validateRowSelection(int selectedRow, String message) {
+        if (selectedRow == -1) {
+            showWarning(message);
+            return false;
+        }
+        return true;
+    }
+    
+    /**
+     * Gets the selected record from the table - FIXED
+     * @param selectedRow The selected row index
+     * @return The selected MaintenanceRecord or null if invalid
+     */
+    private MaintenanceRecord getSelectedRecord(int selectedRow) {
+        try {
+            // Convert view row index to model row index (accounting for sorting/filtering)
+            int modelRow = maintenanceTable.convertRowIndexToModel(selectedRow);
+            System.out.println("getSelectedRecord - view row: " + selectedRow + ", model row: " + modelRow);
+            
+            if (modelRow >= 0 && modelRow < maintenanceRecords.size()) {
+                return maintenanceRecords.get(modelRow);
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Invalid row selection", e);
+        }
+        return null;
+    }
+    
+    /**
+     * Generates a new maintenance ID
+     * @return A unique maintenance ID
+     */
+    private String generateMaintenanceId() {
+        int maxId = maintenanceRecords.stream()
+            .mapToInt(r -> {
+                try {
+                    return Integer.parseInt(r.maintenanceId.replace("MNT", ""));
+                } catch (NumberFormatException e) {
+                    return 0;
+                }
+            })
+            .max()
+            .orElse(0);
+        
+        return String.format("MNT%03d", maxId + 1);
+    }
+    
+    private boolean validateForm(JTextField descField) {
+        if (descField.getText().trim().isEmpty()) {
+            showWarning("Please enter description");
+            return false;
+        }
+        return true;
+    }
+    
+    // ========== HELPER METHODS ==========
+    
+    private JPanel createDatePicker(Date initialDate) {
+        JPanel panel = new JPanel(new BorderLayout(5, 0));
+        panel.setBackground(CARD_BG);
+        
+        SpinnerDateModel dateModel = new SpinnerDateModel(initialDate, null, null, Calendar.DAY_OF_MONTH);
+        JSpinner dateSpinner = new JSpinner(dateModel);
+        JSpinner.DateEditor dateEditor = new JSpinner.DateEditor(dateSpinner, DATE_FORMAT);
+        dateSpinner.setEditor(dateEditor);
+        dateSpinner.setFont(REGULAR_FONT);
+        dateSpinner.setPreferredSize(new Dimension(200, 35));
+        
+        panel.add(dateSpinner, BorderLayout.CENTER);
+        
+        return panel;
     }
     
     private void styleComboBox(JComboBox<String> comboBox) {
@@ -1597,309 +1563,14 @@ public class MaintenanceManagement {
         mainPanel.add(buttons, BorderLayout.SOUTH);
     }
     
-    /**
-     * Shows dialog to edit an existing maintenance record - WITH IMPROVED DATE PICKER
-     */
-    private void showEditDialog() {
-        int selectedRow = maintenanceTable.getSelectedRow();
-        if (!validateRowSelection(selectedRow, "Select a record to edit")) {
-            return;
-        }
-        
-        MaintenanceRecord record = getSelectedRecord(selectedRow);
-        if (record == null) return;
-        
-        JDialog dialog = createBaseDialog("Edit Record: " + record.maintenanceId, 600, 650);
-        
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
-        mainPanel.setBackground(CARD_BG);
-        
-        // Form fields
-        JComboBox<String> vehicleCombo;
-        if (vehicleManagement != null) {
-            // Get all vehicles
-            List<VehicleManagement.Vehicle> vehicles = vehicleManagement.getAllVehicles();
-            String[] vehicleIds = vehicles.stream()
-                .map(v -> v.id + " - " + v.model)
-                .toArray(String[]::new);
-            vehicleCombo = createStyledComboBox(vehicleIds);
-            // Find and select the current vehicle
-            for (int i = 0; i < vehicleIds.length; i++) {
-                if (vehicleIds[i].startsWith(record.vehicleId)) {
-                    vehicleCombo.setSelectedIndex(i);
-                    break;
-                }
-            }
-        } else {
-            vehicleCombo = new JComboBox<>(new String[]{record.vehicleId});
-            vehicleCombo.setEditable(true);
-            styleComboBox(vehicleCombo);
-        }
-        
-        JTextField descField = createStyledTextField(record.description);
-        
-        // Improved date picker panel
-        JPanel datePickerPanel = createDatePicker(record.scheduledDate);
-        
-        JComboBox<String> statusCombo = createStyledComboBox(new String[]{"Scheduled", "In Progress", "Completed"});
-        statusCombo.setSelectedItem(record.status);
-        JTextArea notesArea = createStyledTextArea();
-        notesArea.setText(record.notes);
-        
-        // Quick date buttons
-        JPanel quickDatePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
-        quickDatePanel.setBackground(CARD_BG);
-        
-        JButton todayBtn = new JButton("Today");
-        JButton tomorrowBtn = new JButton("Tomorrow");
-        JButton nextWeekBtn = new JButton("Next Week");
-        
-        styleQuickDateButton(todayBtn);
-        styleQuickDateButton(tomorrowBtn);
-        styleQuickDateButton(nextWeekBtn);
-        
-        Calendar cal = Calendar.getInstance();
-        
-        todayBtn.addActionListener(e -> {
-            ((SpinnerDateModel)((JSpinner)datePickerPanel.getComponent(0)).getModel()).setValue(new Date());
-        });
-        
-        tomorrowBtn.addActionListener(e -> {
-            cal.setTime(new Date());
-            cal.add(Calendar.DAY_OF_MONTH, 1);
-            ((SpinnerDateModel)((JSpinner)datePickerPanel.getComponent(0)).getModel()).setValue(cal.getTime());
-        });
-        
-        nextWeekBtn.addActionListener(e -> {
-            cal.setTime(new Date());
-            cal.add(Calendar.DAY_OF_MONTH, 7);
-            ((SpinnerDateModel)((JSpinner)datePickerPanel.getComponent(0)).getModel()).setValue(cal.getTime());
-        });
-        
-        quickDatePanel.add(todayBtn);
-        quickDatePanel.add(tomorrowBtn);
-        quickDatePanel.add(nextWeekBtn);
-        
-        // Form panel
-        JPanel formPanel = createFormPanel(new FormField[]{
-            new FormField("Vehicle:", vehicleCombo),
-            new FormField("Description:", descField),
-            new FormField("Date:", datePickerPanel),
-            new FormField("Quick Select:", quickDatePanel),
-            new FormField("Status:", statusCombo),
-            new FormField("Notes:", new JScrollPane(notesArea))
-        });
-        
-        // Button panel
-        JPanel buttonPanel = createDialogButtonPanel(
-            dialog,
-            "Save Changes",
-            WARNING,
-            WARNING_DARK,
-            () -> {
-                try {
-                    String oldStatus = record.status;
-                    String oldVehicleId = record.vehicleId;
-                    
-                    // Get vehicle ID from combo box
-                    String selectedVehicle = (String) vehicleCombo.getSelectedItem();
-                    String vehicleId;
-                    if (selectedVehicle.contains(" - ")) {
-                        vehicleId = selectedVehicle.split(" - ")[0]; // Extract just the ID
-                    } else {
-                        vehicleId = selectedVehicle.trim().toUpperCase();
-                    }
-                    
-                    record.vehicleId = vehicleId;
-                    record.description = descField.getText().trim();
-                    record.scheduledDate = (Date) ((JSpinner)datePickerPanel.getComponent(0)).getValue();
-                    record.status = (String) statusCombo.getSelectedItem();
-                    record.notes = notesArea.getText().trim();
-                    
-                    // Update vehicle status in VehicleManagement if status changed
-                    if (vehicleManagement != null) {
-                        if (!oldStatus.equals(record.status)) {
-                            if (record.status.equals("In Progress")) {
-                                vehicleManagement.updateVehicleStatus(vehicleId, "Maintenance");
-                            } else if (record.status.equals("Completed")) {
-                                vehicleManagement.completeMaintenanceForVehicle(vehicleId);
-                            }
-                        }
-                        
-                        // If vehicle ID changed, update old vehicle status
-                        if (!oldVehicleId.equals(vehicleId)) {
-                            vehicleManagement.completeMaintenanceForVehicle(oldVehicleId);
-                            if (record.status.equals("In Progress")) {
-                                vehicleManagement.updateVehicleStatus(vehicleId, "Maintenance");
-                            }
-                        }
-                    }
-                    
-                    saveMaintenanceRecords();
-                    refreshTableData();
-                    
-                    if (dashboardListener != null) {
-                        dashboardListener.onMaintenanceDataChanged();
-                    }
-                    
-                    showSuccess("Record " + record.maintenanceId + " updated successfully!");
-                    dialog.dispose();
-                } catch (Exception ex) {
-                    showError("Error updating record: " + ex.getMessage());
-                }
-            }
-        );
-        
-        assembleDialog(mainPanel, createHeaderLabel("Edit Record"), formPanel, buttonPanel);
-        dialog.add(mainPanel);
-        dialog.setVisible(true);
-    }
-    
-    /**
-     * Deletes the selected record
-     */
-    private void deleteRecord() {
-        int selectedRow = maintenanceTable.getSelectedRow();
-        if (!validateRowSelection(selectedRow, "Select a record to delete")) {
-            return;
-        }
-        
-        MaintenanceRecord record = getSelectedRecord(selectedRow);
-        if (record == null) return;
-        
-        int confirm = JOptionPane.showConfirmDialog(mainPanel,
-            "Are you sure you want to delete record " + record.maintenanceId + "?\nThis action cannot be undone.",
-            "Confirm Deletion",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            maintenanceRecords.remove(record);
-            saveMaintenanceRecords();
-            refreshTableData();
-            
-            if (dashboardListener != null) {
-                dashboardListener.onMaintenanceDataChanged();
-            }
-            
-            showSuccess("Record deleted successfully!");
-        }
-    }
-    
-    /**
-     * Updates the status of the selected record
-     * @param newStatus The new status to set
-     */
-    private void updateStatus(String newStatus) {
-        int selectedRow = maintenanceTable.getSelectedRow();
-        if (!validateRowSelection(selectedRow, "Select a record to update")) {
-            return;
-        }
-        
-        MaintenanceRecord record = getSelectedRecord(selectedRow);
-        if (record == null) return;
-        
-        if (record.status.equals(newStatus)) {
-            showWarning("Record is already " + newStatus);
-            return;
-        }
-        
-        String oldStatus = record.status;
-        record.status = newStatus;
-        record.notes += " | Status changed to " + newStatus + " on " + dateFormat.format(new Date());
-        
-        if (vehicleManagement != null) {
-            if (oldStatus.equals("In Progress") && record.status.equals("Completed")) {
-                vehicleManagement.completeMaintenanceForVehicle(record.vehicleId);
-            } else if (!oldStatus.equals("In Progress") && record.status.equals("In Progress")) {
-                vehicleManagement.updateVehicleStatus(record.vehicleId, "Maintenance");
-            }
-        }
-        
-        saveMaintenanceRecords();
-        refreshTableData();
-        
-        if (dashboardListener != null) {
-            dashboardListener.onMaintenanceDataChanged();
-        }
-        
-        showSuccess("Status updated to: " + record.status);
-    }
-    
-    /**
-     * Validates that a row is selected
-     * @param selectedRow The selected row index
-     * @param message The message to show if no row is selected
-     * @return true if a row is selected, false otherwise
-     */
-    private boolean validateRowSelection(int selectedRow, String message) {
-        if (selectedRow == -1) {
-            showWarning(message);
-            return false;
-        }
-        return true;
-    }
-    
-    /**
-     * Gets the selected record from the table
-     * @param selectedRow The selected row index
-     * @return The selected MaintenanceRecord or null if invalid
-     */
-    private MaintenanceRecord getSelectedRecord(int selectedRow) {
-        try {
-            int modelRow = maintenanceTable.convertRowIndexToModel(selectedRow);
-            return maintenanceRecords.get(modelRow);
-        } catch (IndexOutOfBoundsException e) {
-            LOGGER.log(Level.WARNING, "Invalid row selection", e);
-            return null;
-        }
-    }
-    
-    /**
-     * Generates a new maintenance ID
-     * @return A unique maintenance ID
-     */
-    private String generateMaintenanceId() {
-        int maxId = maintenanceRecords.stream()
-            .mapToInt(r -> {
-                try {
-                    return Integer.parseInt(r.maintenanceId.replace("MNT", ""));
-                } catch (NumberFormatException e) {
-                    return 0;
-                }
-            })
-            .max()
-            .orElse(0);
-        
-        return String.format("MNT%03d", maxId + 1);
-    }
-    
-    private boolean validateForm(JTextField descField) {
-        if (descField.getText().trim().isEmpty()) {
-            showWarning("Please enter description");
-            return false;
-        }
-        return true;
-    }
-    
-    /**
-     * Shows an error message dialog
-     */
     private void showError(String msg) { 
         JOptionPane.showMessageDialog(mainPanel, msg, "Error", JOptionPane.ERROR_MESSAGE);
     }
     
-    /**
-     * Shows a warning message dialog
-     */
     private void showWarning(String msg) { 
         JOptionPane.showMessageDialog(mainPanel, msg, "Warning", JOptionPane.WARNING_MESSAGE);
     }
     
-    /**
-     * Shows a success message dialog
-     */
     private void showSuccess(String msg) {
         JOptionPane.showMessageDialog(mainPanel, msg, "Success", JOptionPane.INFORMATION_MESSAGE);
     }
@@ -1968,10 +1639,6 @@ public class MaintenanceManagement {
             .filter(r -> r.status.equals("Completed"))
             .count();
     }
-    
-    // ==================== INTEGRATION METHODS ====================
-    // Note: The duplicate methods below have been removed to avoid conflicts
-    // The original implementations above should be used instead.
     
     /**
      * Maintenance Record class representing a single maintenance task

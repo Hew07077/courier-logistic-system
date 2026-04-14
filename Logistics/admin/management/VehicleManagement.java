@@ -39,7 +39,6 @@ public class VehicleManagement {
     
     // Modern color scheme
     private static final Color PRIMARY = new Color(255, 140, 0);
-    private static final Color PRIMARY_DARK = new Color(235, 120, 0);
     private static final Color SUCCESS = new Color(40, 167, 69);
     private static final Color SUCCESS_DARK = new Color(30, 126, 52);
     private static final Color WARNING = new Color(255, 193, 7);
@@ -47,7 +46,6 @@ public class VehicleManagement {
     private static final Color DANGER = new Color(220, 53, 69);
     private static final Color DANGER_DARK = new Color(176, 42, 55);
     private static final Color INFO = new Color(23, 162, 184);
-    private static final Color INFO_DARK = new Color(17, 122, 139);
     private static final Color PURPLE = new Color(111, 66, 193);
     private static final Color PURPLE_DARK = new Color(88, 53, 154);
     private static final Color BG_COLOR = new Color(248, 249, 250);
@@ -70,9 +68,7 @@ public class VehicleManagement {
     private static final Font BUTTON_FONT = new Font("Segoe UI", Font.BOLD, 12);
     private static final Font STATUS_FONT = new Font("Segoe UI", Font.BOLD, 12);
     
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("MMM dd, yyyy");
-    private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
     
     // Driver data cache
     private Map<String, DriverData> driverCache = new HashMap<>();
@@ -127,6 +123,92 @@ public class VehicleManagement {
         this.orderManagement = orderMgmt;
     }
     
+    // ========== LICENSE TO VEHICLE TYPE MAPPING ==========
+    
+    private String[] getAllowedVehicleTypesForLicense(String licenseType) {
+        if (licenseType == null) return new String[]{};
+        String upperLicense = licenseType.toUpperCase();
+        
+        switch(upperLicense) {
+            case "B":
+            case "B1":
+            case "B2":
+                return new String[]{"Motorcycle", "MTC"};
+            case "D":
+            case "DA":
+                return new String[]{"Car", "Van"};
+            case "E":
+            case "E1":
+            case "E2":
+                return new String[]{"Truck", "Van"};
+            default:
+                return new String[]{};
+        }
+    }
+    
+    private boolean canDriverDriveVehicle(String driverId, String vehicleId) {
+        DriverData driver = driverCache.get(driverId);
+        if (driver == null) return false;
+        
+        Vehicle vehicle = getVehicleById(vehicleId);
+        if (vehicle == null) return false;
+        
+        return canDriverDriveVehicleType(driver.licenseType, vehicle.type);
+    }
+    
+    private boolean canDriverDriveVehicleType(String licenseType, String vehicleType) {
+        if (licenseType == null) return false;
+        String upperLicense = licenseType.toUpperCase();
+        
+        switch(upperLicense) {
+            case "B":
+            case "B1":
+            case "B2":
+                return "Motorcycle".equals(vehicleType) || "MTC".equals(vehicleType);
+            case "D":
+            case "DA":
+                return "Car".equals(vehicleType) || "Van".equals(vehicleType);
+            case "E":
+            case "E1":
+            case "E2":
+                return "Truck".equals(vehicleType) || "Van".equals(vehicleType);
+            default:
+                return false;
+        }
+    }
+    
+    private String getLicenseDisplayString(String licenseType) {
+        if (licenseType == null) return "Unknown";
+        String upperLicense = licenseType.toUpperCase();
+        
+        switch(upperLicense) {
+            case "B": return "B (Motorcycle)";
+            case "B1": return "B1 (Motorcycle)";
+            case "B2": return "B2 (Motorcycle)";
+            case "D": return "D (Car/Van)";
+            case "DA": return "DA (Car/Van)";
+            case "E": return "E (Truck/Van)";
+            case "E1": return "E1 (Truck/Van)";
+            case "E2": return "E2 (Truck/Van)";
+            default: return licenseType;
+        }
+    }
+    
+    private String getRequiredLicenseDisplay(String vehicleType) {
+        if ("Motorcycle".equals(vehicleType) || "MTC".equals(vehicleType)) {
+            return "B, B1, B2 (Motorcycle)";
+        } else if ("Car".equals(vehicleType)) {
+            return "D, DA (Car)";
+        } else if ("Truck".equals(vehicleType)) {
+            return "E, E1, E2 (Truck)";
+        } else if ("Van".equals(vehicleType)) {
+            return "D, DA (Car) or E, E1, E2 (Truck)";
+        }
+        return "Unknown";
+    }
+    
+    // ========== DRIVER DATA MANAGEMENT ==========
+    
     private void loadDriversFromFile() {
         driverCache.clear();
         File file = new File(DRIVERS_FILE);
@@ -143,8 +225,9 @@ public class VehicleManagement {
                     firstLine = false;
                     continue;
                 }
+                if (line.startsWith("#")) continue;
                 
-                String[] parts = line.split("\\|");
+                String[] parts = line.split("\\|", -1);
                 if (parts.length >= 9) {
                     DriverData driver = new DriverData();
                     driver.id = parts[0].trim();
@@ -152,61 +235,34 @@ public class VehicleManagement {
                     driver.phone = parts[2].trim();
                     driver.email = parts[3].trim();
                     driver.licenseNumber = parts[4].trim();
-                    driver.licenseExpiry = parts[5].trim();
                     driver.workStatus = parts[6].trim();
                     driver.approvalStatus = parts[7].trim();
                     driver.vehicleId = parts[8].trim();
                     if (driver.vehicleId.isEmpty()) driver.vehicleId = null;
                     
+                    if (parts.length > 19) {
+                        driver.licenseType = parts[19].trim();
+                        if (driver.licenseType.isEmpty()) driver.licenseType = null;
+                    }
+                    
                     driverCache.put(driver.id, driver);
                 }
             }
+            System.out.println("Loaded " + driverCache.size() + " drivers with license info");
         } catch (IOException e) {
             System.err.println("Error loading drivers: " + e.getMessage());
         }
     }
     
-    private void updateDriverVehicleAssignment(String driverId, String vehicleId) {
-        DriverData driver = driverCache.get(driverId);
-        if (driver == null) return;
-        
-        driver.vehicleId = vehicleId;
-        if (vehicleId != null && !vehicleId.isEmpty()) {
-            driver.workStatus = "On Delivery";
-        } else {
-            driver.workStatus = "Available";
-        }
-        
-        rewriteDriversFile();
-        
-        if (vehicleId != null) {
-            Optional<Vehicle> vehicleOpt = findVehicle(vehicleId);
-            if (vehicleOpt.isPresent()) {
-                Vehicle v = vehicleOpt.get();
-                v.status = "Active";
-                saveData();
-            }
-        } else {
-            for (Vehicle v : vehicles) {
-                String currentDriverId = getDriverIdForVehicle(v.id);
-                if (driverId.equals(currentDriverId)) {
-                    v.driverName = null;
-                    saveData();
-                    break;
-                }
-            }
-        }
-        
-        loadDriversFromFile();
-        refreshTable();
-        updateStats();
-    }
-    
-    private void rewriteDriversFile() {
+    private void updateDriverInFile(String driverId, String newVehicleId, String newWorkStatus) {
         File file = new File(DRIVERS_FILE);
-        if (!file.exists()) return;
+        if (!file.exists()) {
+            return;
+        }
         
         List<String> lines = new ArrayList<>();
+        boolean updated = false;
+        
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             boolean firstLine = true;
@@ -217,88 +273,55 @@ public class VehicleManagement {
                     continue;
                 }
                 
-                if (line.trim().isEmpty()) {
+                if (line.trim().isEmpty() || line.startsWith("#")) {
                     lines.add(line);
                     continue;
                 }
                 
-                String[] parts = line.split("\\|");
-                if (parts.length >= 9) {
-                    String driverId = parts[0].trim();
-                    DriverData driver = driverCache.get(driverId);
-                    if (driver != null) {
-                        StringBuilder updatedLine = new StringBuilder();
-                        updatedLine.append(driver.id).append("|");
-                        updatedLine.append(driver.name).append("|");
-                        updatedLine.append(driver.phone).append("|");
-                        updatedLine.append(driver.email).append("|");
-                        updatedLine.append(driver.licenseNumber).append("|");
-                        updatedLine.append(driver.licenseExpiry).append("|");
-                        updatedLine.append(driver.workStatus).append("|");
-                        updatedLine.append(driver.approvalStatus).append("|");
-                        updatedLine.append(driver.vehicleId != null ? driver.vehicleId : "").append("|");
-                        
-                        if (parts.length > 9) {
-                            for (int i = 9; i < parts.length; i++) {
-                                updatedLine.append("|").append(parts[i]);
-                            }
-                        }
-                        lines.add(updatedLine.toString());
-                    } else {
-                        lines.add(line);
+                String[] parts = line.split("\\|", -1);
+                if (parts.length >= 9 && parts[0].trim().equals(driverId)) {
+                    StringBuilder updatedLine = new StringBuilder();
+                    updatedLine.append(parts[0]).append("|");
+                    updatedLine.append(parts[1]).append("|");
+                    updatedLine.append(parts[2]).append("|");
+                    updatedLine.append(parts[3]).append("|");
+                    updatedLine.append(parts[4]).append("|");
+                    updatedLine.append(parts[5]).append("|");
+                    updatedLine.append(newWorkStatus).append("|");
+                    updatedLine.append(parts[7]).append("|");
+                    updatedLine.append(newVehicleId != null ? newVehicleId : "").append("|");
+                    
+                    for (int i = 9; i < parts.length; i++) {
+                        if (i > 9) updatedLine.append("|");
+                        updatedLine.append(parts[i]);
                     }
+                    lines.add(updatedLine.toString());
+                    updated = true;
                 } else {
                     lines.add(line);
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Error reading drivers file: " + e.getMessage());
             return;
         }
         
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            for (String line : lines) {
-                writer.write(line);
-                writer.newLine();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    
-    private DriverData getDriverById(String id) {
-        return driverCache.get(id);
-    }
-    
-    private DriverData getDriverByName(String name) {
-        if (name == null) return null;
-        for (DriverData driver : driverCache.values()) {
-            if (driver.name.equals(name)) {
-                return driver;
+        if (updated) {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+                for (String line : lines) {
+                    writer.write(line);
+                    writer.newLine();
+                }
+                writer.flush();
+            } catch (IOException e) {
+                System.err.println("Error writing drivers file: " + e.getMessage());
             }
         }
-        return null;
-    }
-    
-    private String getDriverDisplayInfo(String driverName) {
-        if (driverName == null || driverName.equals("Unassigned")) {
-            return "Unassigned";
-        }
-        
-        DriverData driver = getDriverByName(driverName);
-        if (driver == null) return driverName;
-        
-        if ("APPROVED".equals(driver.approvalStatus)) {
-            return driver.name;
-        } else if ("PENDING".equals(driver.approvalStatus)) {
-            return driver.name + " (Pending)";
-        } else if ("REJECTED".equals(driver.approvalStatus)) {
-            return driver.name + " (Rejected)";
-        }
-        return driver.name;
     }
     
     private String getDriverIdForVehicle(String vehicleId) {
+        loadDriversFromFile();
+        
         for (DriverData driver : driverCache.values()) {
             if (driver.vehicleId != null && driver.vehicleId.equals(vehicleId)) {
                 return driver.id;
@@ -306,7 +329,342 @@ public class VehicleManagement {
         }
         return null;
     }
-
+    
+    // ========== ASSIGN DRIVER WITH LICENSE CHECK ==========
+    
+    private void assignDriver(Vehicle vehicle) {
+        if (vehicle.status.equals("Maintenance")) {
+            showNotification("Cannot assign to vehicle in maintenance", WARNING);
+            return;
+        }
+        
+        loadDriversFromFile();
+        
+        List<DriverData> availableDrivers = new ArrayList<>();
+        for (DriverData d : driverCache.values()) {
+            if ("APPROVED".equals(d.approvalStatus) && 
+                "Available".equals(d.workStatus) && 
+                (d.vehicleId == null || d.vehicleId.isEmpty())) {
+                
+                if (canDriverDriveVehicleType(d.licenseType, vehicle.type)) {
+                    availableDrivers.add(d);
+                }
+            }
+        }
+        
+        if (availableDrivers.isEmpty()) {
+            String message = "No available drivers with appropriate license for this " + vehicle.type + ".\n\n";
+            message += "Required license types:\n";
+            if ("Motorcycle".equals(vehicle.type) || "MTC".equals(vehicle.type)) {
+                message += "• License B, B1, B2 (Motorcycle)\n";
+            } else if ("Car".equals(vehicle.type)) {
+                message += "• License D, DA (Car)\n";
+            } else if ("Truck".equals(vehicle.type)) {
+                message += "• License E, E1, E2 (Truck)\n";
+            } else if ("Van".equals(vehicle.type)) {
+                message += "• License D, DA (Car) or E, E1, E2 (Truck)\n";
+            }
+            showNotification(message, WARNING);
+            return;
+        }
+        
+        String[] driverOptions = new String[availableDrivers.size()];
+        for (int i = 0; i < availableDrivers.size(); i++) {
+            DriverData d = availableDrivers.get(i);
+            String licenseDisplay = getLicenseDisplayString(d.licenseType);
+            driverOptions[i] = String.format("%s - %s [%s]", d.id, d.name, licenseDisplay);
+        }
+        
+        JComboBox<String> driverCombo = new JComboBox<>(driverOptions);
+        driverCombo.setFont(REGULAR_FONT);
+        
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        JLabel label = new JLabel("Select driver to assign to " + vehicle.id + " (" + vehicle.type + "):");
+        label.setFont(HEADER_FONT);
+        label.setForeground(TEXT_PRIMARY);
+        
+        panel.add(label, BorderLayout.NORTH);
+        panel.add(driverCombo, BorderLayout.CENTER);
+        
+        int result = JOptionPane.showConfirmDialog(mainPanel, panel,
+            "Assign Driver to " + vehicle.id,
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.PLAIN_MESSAGE);
+        
+        if (result == JOptionPane.OK_OPTION) {
+            int selectedIndex = driverCombo.getSelectedIndex();
+            if (selectedIndex >= 0 && selectedIndex < availableDrivers.size()) {
+                DriverData selectedDriver = availableDrivers.get(selectedIndex);
+                
+                if (!canDriverDriveVehicleType(selectedDriver.licenseType, vehicle.type)) {
+                    showNotification("Driver's license does not permit driving this vehicle type!", DANGER);
+                    return;
+                }
+                
+                String existingDriverId = getDriverIdForVehicle(vehicle.id);
+                if (existingDriverId != null && !existingDriverId.equals(selectedDriver.id)) {
+                    updateDriverInFile(existingDriverId, null, "Available");
+                }
+                
+                if (selectedDriver.vehicleId != null && !selectedDriver.vehicleId.isEmpty() && 
+                    !selectedDriver.vehicleId.equals(vehicle.id)) {
+                    updateDriverInFile(selectedDriver.id, null, "Available");
+                }
+                
+                updateDriverInFile(selectedDriver.id, vehicle.id, "Available");
+                
+                vehicle.status = "Active";
+                vehicle.driverName = selectedDriver.name;
+                saveData();
+                
+                loadDriversFromFile();
+                
+                refreshTable();
+                
+                if (driverManagement != null) {
+                    driverManagement.refreshData();
+                }
+                
+                String licenseMsg = getLicenseDisplayString(selectedDriver.licenseType);
+                showNotification(selectedDriver.name + " [" + licenseMsg + "] assigned to " + vehicle.id + " (" + vehicle.type + ")", SUCCESS);
+            }
+        }
+    }
+    
+    private void unassignDriver(Vehicle vehicle, String driverId) {
+        loadDriversFromFile();
+        
+        DriverData driver = driverCache.get(driverId);
+        if (driver == null) {
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Driver not found: " + driverId, 
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        if (driver.vehicleId == null || !driver.vehicleId.equals(vehicle.id)) {
+            JOptionPane.showMessageDialog(mainPanel, 
+                "Driver " + driver.name + " is not assigned to this vehicle.", 
+                "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        
+        int confirm = JOptionPane.showConfirmDialog(mainPanel,
+            "Unassign " + driver.name + " from " + vehicle.id + "?\n\n" +
+            "The driver will become available for new assignments.",
+            "Confirm Unassign",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            updateDriverInFile(driverId, null, "Available");
+            vehicle.driverName = null;
+            saveData();
+            
+            driver.vehicleId = null;
+            driver.workStatus = "Available";
+            if (driverCache.containsKey(driverId)) {
+                driverCache.put(driverId, driver);
+            }
+            
+            refreshTable();
+            
+            if (driverManagement != null) {
+                driverManagement.refreshData();
+            }
+            
+            showNotification(driver.name + " is now available for assignment", SUCCESS);
+        }
+    }
+    
+    public boolean assignDriverToVehicle(String driverId, String vehicleId) {
+        if (driverId == null) {
+            String existingDriverId = getDriverIdForVehicle(vehicleId);
+            if (existingDriverId != null) {
+                updateDriverInFile(existingDriverId, null, "Available");
+            }
+            
+            Optional<Vehicle> vehicleOpt = findVehicle(vehicleId);
+            if (vehicleOpt.isPresent()) {
+                vehicleOpt.get().driverName = null;
+                saveData();
+                refreshTable();
+                return true;
+            }
+            return false;
+        }
+        
+        loadDriversFromFile();
+        DriverData driver = driverCache.get(driverId);
+        if (driver == null) return false;
+        
+        if (driver.vehicleId != null && !driver.vehicleId.isEmpty()) {
+            if (!driver.vehicleId.equals(vehicleId)) {
+                return false;
+            }
+        }
+        
+        Optional<Vehicle> vehicleOpt = findVehicle(vehicleId);
+        if (!vehicleOpt.isPresent()) return false;
+        
+        Vehicle vehicle = vehicleOpt.get();
+        if (vehicle.status.equals("Maintenance")) return false;
+        
+        if (!canDriverDriveVehicleType(driver.licenseType, vehicle.type)) {
+            System.err.println("Driver " + driverId + " with license " + driver.licenseType + 
+                              " cannot drive vehicle " + vehicleId + " of type " + vehicle.type);
+            return false;
+        }
+        
+        String existingDriverId = getDriverIdForVehicle(vehicleId);
+        if (existingDriverId != null && !existingDriverId.equals(driverId)) {
+            updateDriverInFile(existingDriverId, null, "Available");
+        }
+        
+        updateDriverInFile(driverId, vehicleId, "On Delivery");
+        vehicle.driverName = driver.name;
+        vehicle.status = "Active";
+        saveData();
+        
+        loadDriversFromFile();
+        refreshTable();
+        
+        if (driverManagement != null) {
+            driverManagement.refreshData();
+        }
+        
+        return true;
+    }
+    
+    private void showDriverActions() {
+        int row = vehiclesTable.getSelectedRow();
+        if (row == -1) { 
+            showNotification("Please select a vehicle first", WARNING);
+            return; 
+        }
+        
+        int modelRow = vehiclesTable.convertRowIndexToModel(row);
+        if (modelRow < 0 || modelRow >= vehicles.size()) return;
+        
+        Vehicle v = vehicles.get(modelRow);
+        String currentDriverId = getDriverIdForVehicle(v.id);
+        DriverData currentDriver = currentDriverId != null ? driverCache.get(currentDriverId) : null;
+        
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(mainPanel), 
+            "Driver Management - " + v.id, true);
+        dialog.setSize(550, 380);
+        dialog.setLocationRelativeTo(mainPanel);
+        
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setBackground(CARD_BG);
+        
+        JLabel titleLabel = new JLabel("Driver Assignment");
+        titleLabel.setFont(HEADER_FONT);
+        titleLabel.setForeground(PURPLE);
+        
+        JLabel vehicleLabel = new JLabel("Vehicle: " + v.id + " (" + v.model + " - " + v.type + ")");
+        vehicleLabel.setFont(REGULAR_FONT);
+        vehicleLabel.setForeground(TEXT_SECONDARY);
+        
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(CARD_BG);
+        headerPanel.add(titleLabel, BorderLayout.NORTH);
+        headerPanel.add(vehicleLabel, BorderLayout.SOUTH);
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
+        
+        JPanel infoPanel = new JPanel(new BorderLayout());
+        infoPanel.setBackground(CARD_BG);
+        infoPanel.setBorder(BorderFactory.createCompoundBorder(
+            new LineBorder(BORDER_COLOR, 1, true),
+            BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        ));
+        
+        JLabel currentLabel = new JLabel("Current Driver:");
+        currentLabel.setFont(HEADER_FONT);
+        
+        String driverDisplay = currentDriver != null ? 
+            currentDriver.name + " [" + getLicenseDisplayString(currentDriver.licenseType) + "]" : 
+            "Unassigned";
+        JLabel driverNameLabel = new JLabel(driverDisplay);
+        driverNameLabel.setFont(REGULAR_FONT);
+        driverNameLabel.setForeground(currentDriver != null ? SUCCESS : TEXT_MUTED);
+        
+        infoPanel.add(currentLabel, BorderLayout.NORTH);
+        infoPanel.add(driverNameLabel, BorderLayout.CENTER);
+        
+        JPanel licenseInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        licenseInfoPanel.setBackground(CARD_BG);
+        JLabel licenseReqLabel = new JLabel("Required License: ");
+        licenseReqLabel.setFont(SMALL_FONT);
+        licenseReqLabel.setForeground(TEXT_SECONDARY);
+        
+        String requiredLicense = getRequiredLicenseDisplay(v.type);
+        
+        JLabel requiredLabel = new JLabel(requiredLicense);
+        requiredLabel.setFont(SMALL_FONT);
+        requiredLabel.setForeground(INFO);
+        licenseInfoPanel.add(licenseReqLabel);
+        licenseInfoPanel.add(requiredLabel);
+        
+        infoPanel.add(licenseInfoPanel, BorderLayout.SOUTH);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        buttonPanel.setBackground(CARD_BG);
+        
+        JButton assignBtn = new JButton("Assign New Driver");
+        assignBtn.setBackground(SUCCESS);
+        assignBtn.setForeground(Color.WHITE);
+        assignBtn.setFont(BUTTON_FONT);
+        assignBtn.setFocusPainted(false);
+        assignBtn.setBorderPainted(false);
+        assignBtn.setPreferredSize(new Dimension(150, 35));
+        assignBtn.addActionListener(e -> {
+            dialog.dispose();
+            assignDriver(v);
+        });
+        
+        JButton unassignBtn = new JButton("Unassign Driver");
+        unassignBtn.setBackground(DANGER);
+        unassignBtn.setForeground(Color.WHITE);
+        unassignBtn.setFont(BUTTON_FONT);
+        unassignBtn.setFocusPainted(false);
+        unassignBtn.setBorderPainted(false);
+        unassignBtn.setPreferredSize(new Dimension(150, 35));
+        unassignBtn.setEnabled(currentDriver != null);
+        unassignBtn.addActionListener(e -> {
+            if (currentDriver != null) {
+                dialog.dispose();
+                unassignDriver(v, currentDriver.id);
+            }
+        });
+        
+        JButton cancelBtn = new JButton("Cancel");
+        cancelBtn.setBackground(TEXT_SECONDARY);
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setFont(BUTTON_FONT);
+        cancelBtn.setFocusPainted(false);
+        cancelBtn.setBorderPainted(false);
+        cancelBtn.setPreferredSize(new Dimension(100, 35));
+        cancelBtn.addActionListener(e -> dialog.dispose());
+        
+        buttonPanel.add(assignBtn);
+        buttonPanel.add(unassignBtn);
+        buttonPanel.add(cancelBtn);
+        
+        panel.add(headerPanel, BorderLayout.NORTH);
+        panel.add(infoPanel, BorderLayout.CENTER);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+    
+    // ========== DATA LOADING METHODS ==========
+    
     private void loadData() {
         loadFromFile(VEHICLES_FILE, this::parseVehicle);
         loadFromFile(COUNTERS_FILE, line -> {
@@ -318,30 +676,21 @@ public class VehicleManagement {
     private void loadDriverReports() {
         driverReports.clear();
         File file = new File(REPORTS_FILE);
-        if (!file.exists()) {
-            System.out.println("Reports file not found: " + REPORTS_FILE);
-            return;
-        }
+        if (!file.exists()) return;
         
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             boolean firstLine = true;
             while ((line = reader.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
-                
-                // Skip header line
                 if (firstLine && (line.contains("REPORT_ID") || line.startsWith("==="))) {
                     firstLine = false;
                     continue;
                 }
                 firstLine = false;
-                
-                // Skip comment lines
                 if (line.startsWith("//")) continue;
-                
                 parseDriverReport(line);
             }
-            System.out.println("Loaded " + driverReports.size() + " driver reports");
         } catch (IOException e) {
             System.err.println("Error loading driver reports: " + e.getMessage());
         }
@@ -364,8 +713,6 @@ public class VehicleManagement {
                     p.length > 7 ? p[7].trim() : ""
                 );
                 driverReports.add(report);
-            } else {
-                System.err.println("Invalid report line: " + line);
             }
         } catch (Exception e) {
             System.err.println("Error parsing driver report: " + e.getMessage());
@@ -392,10 +739,7 @@ public class VehicleManagement {
             if (line.startsWith("VEHICLE_ID") || line.contains("VEHICLE_ID|VEHICLE_TYPE")) {
                 return;
             }
-            
-            if (line.trim().isEmpty()) {
-                return;
-            }
+            if (line.trim().isEmpty()) return;
             
             String[] p = line.split("\\|");
             if (p.length >= 8) {
@@ -491,7 +835,7 @@ public class VehicleManagement {
         title.setFont(TITLE_FONT);
         title.setForeground(TEXT_PRIMARY);
         
-        JLabel subtitle = new JLabel("Manage fleet vehicles, drivers, and maintenance reports");
+        JLabel subtitle = new JLabel("Manage fleet vehicles and driver assignments");
         subtitle.setFont(SUBTITLE_FONT);
         subtitle.setForeground(TEXT_SECONDARY);
         
@@ -510,7 +854,7 @@ public class VehicleManagement {
         statsPanel.setBackground(BG_COLOR);
         statsPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
-        String[] titles = {"Total Fleet", "Active", "Maintenance", "Tax Expired", "Avail. Drivers", "Driver Reports"};
+        String[] titles = {"Total Fleet", "Active", "Maintenance", "Tax Expired", "Avail. Drivers", "Total Reports"};
         String[] descriptions = {"All vehicles", "Currently operating", "In service", "Overdue renewal", "Ready to assign", "Total reports"};
         Color[] colors = {PRIMARY, SUCCESS, INFO, WARNING, PURPLE, new Color(255, 87, 34)};
         Color[] bgColors = {
@@ -624,7 +968,8 @@ public class VehicleManagement {
                     card.setBackground(CARD_BG);
                 }
                 public void mouseClicked(MouseEvent e) {
-                    showDriverReportsDialog();
+                    // Removed - Reports dialog removed
+                    showNotification("Reports feature removed", INFO);
                 }
             });
         } else if (index == 0) {
@@ -731,7 +1076,7 @@ public class VehicleManagement {
         
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(mainPanel), 
             "Available Drivers", true);
-        dialog.setSize(500, 450);
+        dialog.setSize(600, 450);
         dialog.setLocationRelativeTo(mainPanel);
         
         JPanel panel = new JPanel(new BorderLayout());
@@ -745,8 +1090,9 @@ public class VehicleManagement {
         
         DefaultListModel<String> listModel = new DefaultListModel<>();
         for (DriverData d : available) {
-            listModel.addElement(String.format("%s (ID: %s) - %s | %s", 
-                d.name, d.id, d.licenseNumber, d.phone));
+            String licenseDisplay = getLicenseDisplayString(d.licenseType);
+            listModel.addElement(String.format("%s (ID: %s) | %s | %s | License: %s", 
+                d.name, d.id, d.licenseNumber, d.phone, licenseDisplay));
         }
         
         JList<String> driverList = new JList<>(listModel);
@@ -778,9 +1124,7 @@ public class VehicleManagement {
     private JPanel createCenterPanel() {
         JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.setBackground(BG_COLOR);
-        
         panel.add(createTablePanel(), BorderLayout.CENTER);
-        
         return panel;
     }
 
@@ -968,7 +1312,9 @@ public class VehicleManagement {
                 if (driverId != null) {
                     DriverData driver = driverCache.get(driverId);
                     if (driver != null) {
-                        setText(getDriverDisplayInfo(driver.name));
+                        String licenseDisplay = getLicenseDisplayString(driver.licenseType);
+                        setText(driver.name + " [" + licenseDisplay + "]");
+                        setForeground(TEXT_PRIMARY);
                     } else {
                         setText("Unassigned");
                         setForeground(TEXT_MUTED);
@@ -1050,26 +1396,21 @@ public class VehicleManagement {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 10));
         panel.setBackground(BG_COLOR);
         
+        // Only Add, Edit, Delete, and Driver buttons - Removed Service and Reports
         JButton addBtn = createStyledButton("Add", SUCCESS, SUCCESS_DARK);
         JButton editBtn = createStyledButton("Edit", WARNING, WARNING_DARK);
         JButton deleteBtn = createStyledButton("Delete", DANGER, DANGER_DARK);
         JButton driverBtn = createStyledButton("Driver", PURPLE, PURPLE_DARK);
-        JButton serviceBtn = createStyledButton("Service", INFO, INFO_DARK);
-        JButton reportsBtn = createStyledButton("Reports", PRIMARY, PRIMARY_DARK);
         
         addBtn.addActionListener(e -> addVehicle());
         editBtn.addActionListener(e -> editVehicle());
         deleteBtn.addActionListener(e -> deleteVehicle());
         driverBtn.addActionListener(e -> showDriverActions());
-        serviceBtn.addActionListener(e -> scheduleMaintenance());
-        reportsBtn.addActionListener(e -> showDriverReportsDialog());
         
         panel.add(addBtn);
         panel.add(editBtn);
         panel.add(deleteBtn);
         panel.add(driverBtn);
-        panel.add(serviceBtn);
-        panel.add(reportsBtn);
         
         return panel;
     }
@@ -1096,274 +1437,26 @@ public class VehicleManagement {
         return btn;
     }
 
-    private void showDriverActions() {
-        int row = vehiclesTable.getSelectedRow();
-        if (row == -1) { 
-            showNotification("Please select a vehicle first", WARNING);
-            return; 
-        }
-        
-        int modelRow = vehiclesTable.convertRowIndexToModel(row);
-        if (modelRow < 0 || modelRow >= vehicles.size()) return;
-        
-        Vehicle v = vehicles.get(modelRow);
-        String currentDriverId = getDriverIdForVehicle(v.id);
-        DriverData currentDriver = currentDriverId != null ? driverCache.get(currentDriverId) : null;
-        
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(mainPanel), 
-            "Driver Management - " + v.id, true);
-        dialog.setSize(450, 300);
-        dialog.setLocationRelativeTo(mainPanel);
-        
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setBackground(CARD_BG);
-        
-        JLabel titleLabel = new JLabel("Driver Assignment");
-        titleLabel.setFont(HEADER_FONT);
-        titleLabel.setForeground(PURPLE);
-        
-        JLabel vehicleLabel = new JLabel("Vehicle: " + v.id + " (" + v.model + ")");
-        vehicleLabel.setFont(REGULAR_FONT);
-        vehicleLabel.setForeground(TEXT_SECONDARY);
-        
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(CARD_BG);
-        headerPanel.add(titleLabel, BorderLayout.NORTH);
-        headerPanel.add(vehicleLabel, BorderLayout.SOUTH);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
-        
-        JPanel infoPanel = new JPanel(new BorderLayout());
-        infoPanel.setBackground(CARD_BG);
-        infoPanel.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(BORDER_COLOR, 1, true),
-            BorderFactory.createEmptyBorder(15, 15, 15, 15)
-        ));
-        
-        JLabel currentLabel = new JLabel("Current Driver:");
-        currentLabel.setFont(HEADER_FONT);
-        
-        String driverDisplay = currentDriver != null ? 
-            getDriverDisplayInfo(currentDriver.name) : "Unassigned";
-        JLabel driverNameLabel = new JLabel(driverDisplay);
-        driverNameLabel.setFont(REGULAR_FONT);
-        driverNameLabel.setForeground(currentDriver != null ? SUCCESS : TEXT_MUTED);
-        
-        infoPanel.add(currentLabel, BorderLayout.NORTH);
-        infoPanel.add(driverNameLabel, BorderLayout.CENTER);
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
-        buttonPanel.setBackground(CARD_BG);
-        
-        JButton assignBtn = new JButton("Assign New Driver");
-        assignBtn.setBackground(SUCCESS);
-        assignBtn.setForeground(Color.WHITE);
-        assignBtn.setFont(BUTTON_FONT);
-        assignBtn.setFocusPainted(false);
-        assignBtn.setBorderPainted(false);
-        assignBtn.setPreferredSize(new Dimension(150, 35));
-        assignBtn.addActionListener(e -> {
-            dialog.dispose();
-            assignDriver(v);
-        });
-        
-        JButton unassignBtn = new JButton("Unassign Driver");
-        unassignBtn.setBackground(DANGER);
-        unassignBtn.setForeground(Color.WHITE);
-        unassignBtn.setFont(BUTTON_FONT);
-        unassignBtn.setFocusPainted(false);
-        unassignBtn.setBorderPainted(false);
-        unassignBtn.setPreferredSize(new Dimension(150, 35));
-        unassignBtn.setEnabled(currentDriver != null);
-        unassignBtn.addActionListener(e -> {
-            if (currentDriver != null) {
-                dialog.dispose();
-                unassignDriver(v, currentDriver.id);
-            }
-        });
-        
-        JButton cancelBtn = new JButton("Cancel");
-        cancelBtn.setBackground(TEXT_SECONDARY);
-        cancelBtn.setForeground(Color.WHITE);
-        cancelBtn.setFont(BUTTON_FONT);
-        cancelBtn.setFocusPainted(false);
-        cancelBtn.setBorderPainted(false);
-        cancelBtn.setPreferredSize(new Dimension(100, 35));
-        cancelBtn.addActionListener(e -> dialog.dispose());
-        
-        buttonPanel.add(assignBtn);
-        buttonPanel.add(unassignBtn);
-        buttonPanel.add(cancelBtn);
-        
-        panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(infoPanel, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.add(panel);
-        dialog.setVisible(true);
-    }
-
-    private void assignDriver(Vehicle vehicle) {
-        if (vehicle.status.equals("Maintenance")) {
-            showNotification("Cannot assign to vehicle in maintenance", WARNING);
-            return;
-        }
-        
-        loadDriversFromFile();
-        
-        List<DriverData> availableDrivers = new ArrayList<>();
-        for (DriverData d : driverCache.values()) {
-            if ("APPROVED".equals(d.approvalStatus) && 
-                "Available".equals(d.workStatus) && 
-                (d.vehicleId == null || d.vehicleId.isEmpty())) {
-                availableDrivers.add(d);
-            }
-        }
-        
-        if (availableDrivers.isEmpty()) {
-            showNotification("No available drivers to assign.", WARNING);
-            return;
-        }
-        
-        String[] driverOptions = new String[availableDrivers.size()];
-        for (int i = 0; i < availableDrivers.size(); i++) {
-            DriverData d = availableDrivers.get(i);
-            driverOptions[i] = String.format("%s (ID: %s) - %s | %s", 
-                d.name, d.id, d.licenseNumber, d.phone);
-        }
-        
-        JComboBox<String> driverCombo = new JComboBox<>(driverOptions);
-        driverCombo.setFont(REGULAR_FONT);
-        
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(CARD_BG);
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        JLabel label = new JLabel("Select driver to assign to " + vehicle.id + ":");
-        label.setFont(HEADER_FONT);
-        label.setForeground(TEXT_PRIMARY);
-        
-        panel.add(label, BorderLayout.NORTH);
-        panel.add(driverCombo, BorderLayout.CENTER);
-        
-        int result = JOptionPane.showConfirmDialog(mainPanel, panel,
-            "Assign Driver to " + vehicle.id,
-            JOptionPane.OK_CANCEL_OPTION,
-            JOptionPane.PLAIN_MESSAGE);
-        
-        if (result == JOptionPane.OK_OPTION) {
-            int selectedIndex = driverCombo.getSelectedIndex();
-            if (selectedIndex >= 0 && selectedIndex < availableDrivers.size()) {
-                DriverData selectedDriver = availableDrivers.get(selectedIndex);
-                
-                String existingDriverId = getDriverIdForVehicle(vehicle.id);
-                if (existingDriverId != null) {
-                    updateDriverVehicleAssignment(existingDriverId, null);
-                }
-                
-                updateDriverVehicleAssignment(selectedDriver.id, vehicle.id);
-                
-                vehicle.status = "Active";
-                vehicle.driverName = selectedDriver.name;
-                saveData();
-                
-                refreshTable();
-                showNotification(selectedDriver.name + " assigned to " + vehicle.id, SUCCESS);
-            }
-        }
-    }
-
-    private void unassignDriver(Vehicle vehicle, String driverId) {
-        DriverData driver = driverCache.get(driverId);
-        if (driver == null) return;
-        
-        int confirm = JOptionPane.showConfirmDialog(mainPanel,
-            "Unassign " + driver.name + " from " + vehicle.id + "?",
-            "Confirm Unassign",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            updateDriverVehicleAssignment(driverId, null);
-            
-            vehicle.driverName = null;
-            saveData();
-            
-            refreshTable();
-            showNotification(driver.name + " is now available for assignment", SUCCESS);
-        }
-    }
-
-    private void scheduleMaintenance() {
-        int row = vehiclesTable.getSelectedRow();
-        if (row == -1) { 
-            showNotification("Please select a vehicle", WARNING); 
-            return; 
-        }
-        
-        int modelRow = vehiclesTable.convertRowIndexToModel(row);
-        if (modelRow < 0 || modelRow >= vehicles.size()) return;
-        
-        Vehicle v = vehicles.get(modelRow);
-        String driverId = getDriverIdForVehicle(v.id);
-        
-        if (v.status.equals("Maintenance")) {
-            showNotification("Vehicle is already in maintenance.", INFO);
-            return;
-        }
-        
-        String description = JOptionPane.showInputDialog(mainPanel,
-            "Enter maintenance description for " + v.id + ":",
-            "Schedule Maintenance",
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (description == null || description.trim().isEmpty()) {
-            return;
-        }
-        
-        int confirm = JOptionPane.showConfirmDialog(mainPanel,
-            "Schedule maintenance for " + v.id + "?\n\n" +
-            "Description: " + description + "\n\n" +
-            (driverId != null ? "Driver will be unassigned.\n" : ""),
-            "Confirm Maintenance",
-            JOptionPane.YES_NO_OPTION);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            if (driverId != null) {
-                updateDriverVehicleAssignment(driverId, null);
-            }
-            
-            if (maintenanceManagement != null) {
-                maintenanceManagement.addVehicleToMaintenance(v.id, v.model, description);
-            }
-            
-            v.status = "Maintenance";
-            saveData();
-            refreshTable();
-            showNotification("Maintenance scheduled for " + v.id, SUCCESS);
-        }
-    }
-
     private void addVehicle() {
         JTextField modelField = new JTextField();
         JTextField plateField = new JTextField();
         JComboBox<String> typeCombo = new JComboBox<>(new String[]{"Truck", "Van", "Car", "Motorcycle"});
-        JComboBox<String> fuelCombo = new JComboBox<>(new String[]{"Diesel", "Electric", "Hybrid"});
+        JComboBox<String> fuelCombo = new JComboBox<>(new String[]{"Diesel", "Electric", "Hybrid", "Petrol"});
         JSpinner dateSpinner = new JSpinner(new SpinnerDateModel());
         dateSpinner.setEditor(new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd"));
         dateSpinner.setValue(new Date());
         
         JPanel panel = new JPanel(new GridLayout(0, 2, 10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        panel.add(new JLabel("Type:"));
+        panel.add(new JLabel("Type:*"));
         panel.add(typeCombo);
-        panel.add(new JLabel("Model:"));
+        panel.add(new JLabel("Model:*"));
         panel.add(modelField);
-        panel.add(new JLabel("License Plate:"));
+        panel.add(new JLabel("License Plate:*"));
         panel.add(plateField);
-        panel.add(new JLabel("Fuel Type:"));
+        panel.add(new JLabel("Fuel Type:*"));
         panel.add(fuelCombo);
-        panel.add(new JLabel("Road Tax Expiry:"));
+        panel.add(new JLabel("Road Tax Expiry:*"));
         panel.add(dateSpinner);
         
         int result = JOptionPane.showConfirmDialog(mainPanel, panel, 
@@ -1390,7 +1483,7 @@ public class VehicleManagement {
             vehicles.add(newVehicle);
             saveData();
             refreshTable();
-            showNotification("Vehicle added: " + id, SUCCESS);
+            showNotification("Vehicle added: " + id + " (" + type + ")", SUCCESS);
         }
     }
     
@@ -1464,632 +1557,17 @@ public class VehicleManagement {
         if (confirm == JOptionPane.YES_OPTION) {
             String driverId = getDriverIdForVehicle(v.id);
             if (driverId != null) {
-                updateDriverVehicleAssignment(driverId, null);
+                updateDriverInFile(driverId, null, "Available");
+                loadDriversFromFile();
+                if (driverManagement != null) {
+                    driverManagement.refreshData();
+                }
             }
             
             vehicles.remove(modelRow);
             saveData();
             refreshTable();
             showNotification("Vehicle deleted", SUCCESS);
-        }
-    }
-
-    // ==================== IMPROVED DRIVER REPORTS SECTION ====================
-
-    private void showDriverReportsDialog() {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(mainPanel), 
-            "Driver Reports Management", true);
-        dialog.setSize(1000, 650);
-        dialog.setLocationRelativeTo(mainPanel);
-        
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        mainPanel.setBackground(CARD_BG);
-        
-        // Header
-        JLabel titleLabel = new JLabel("Driver Reports");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        titleLabel.setForeground(PRIMARY);
-        
-        JLabel subtitleLabel = new JLabel("View, manage, and take action on driver-submitted reports");
-        subtitleLabel.setFont(SUBTITLE_FONT);
-        subtitleLabel.setForeground(TEXT_SECONDARY);
-        
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(CARD_BG);
-        headerPanel.add(titleLabel, BorderLayout.NORTH);
-        headerPanel.add(subtitleLabel, BorderLayout.SOUTH);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
-        
-        // Create tabs for pending and all reports
-        JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(HEADER_FONT);
-        
-        // Filter reports
-        List<DriverReport> pendingReports = driverReports.stream()
-            .filter(r -> "Pending".equals(r.status))
-            .collect(Collectors.toList());
-        
-        List<DriverReport> scheduledReports = driverReports.stream()
-            .filter(r -> "Scheduled".equals(r.status))
-            .collect(Collectors.toList());
-        
-        List<DriverReport> resolvedReports = driverReports.stream()
-            .filter(r -> "Resolved".equals(r.status))
-            .collect(Collectors.toList());
-        
-        List<DriverReport> postponedReports = driverReports.stream()
-            .filter(r -> "Postponed".equals(r.status))
-            .collect(Collectors.toList());
-        
-        // Create panels for each tab
-        if (!pendingReports.isEmpty()) {
-            tabbedPane.addTab("⚠️ Pending (" + pendingReports.size() + ")", 
-                createReportTablePanel(pendingReports, true));
-        }
-        
-        if (!scheduledReports.isEmpty()) {
-            tabbedPane.addTab("📅 Scheduled (" + scheduledReports.size() + ")", 
-                createReportTablePanel(scheduledReports, false));
-        }
-        
-        if (!postponedReports.isEmpty()) {
-            tabbedPane.addTab("⏰ Postponed (" + postponedReports.size() + ")", 
-                createReportTablePanel(postponedReports, false));
-        }
-        
-        if (!resolvedReports.isEmpty()) {
-            tabbedPane.addTab("✅ Resolved (" + resolvedReports.size() + ")", 
-                createReportTablePanel(resolvedReports, false));
-        }
-        
-        if (driverReports.isEmpty()) {
-            JPanel emptyPanel = new JPanel(new BorderLayout());
-            emptyPanel.setBackground(CARD_BG);
-            JLabel emptyLabel = new JLabel("No driver reports available");
-            emptyLabel.setFont(REGULAR_FONT);
-            emptyLabel.setForeground(TEXT_MUTED);
-            emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            emptyPanel.add(emptyLabel, BorderLayout.CENTER);
-            tabbedPane.addTab("All Reports (0)", emptyPanel);
-        } else if (pendingReports.isEmpty() && scheduledReports.isEmpty() && 
-                   postponedReports.isEmpty() && resolvedReports.isEmpty()) {
-            // Show all reports if no filtered categories
-            tabbedPane.addTab("All Reports (" + driverReports.size() + ")", 
-                createReportTablePanel(driverReports, false));
-        }
-        
-        // Button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        buttonPanel.setBackground(CARD_BG);
-        
-        JButton refreshBtn = new JButton("Refresh");
-        refreshBtn.setFont(BUTTON_FONT);
-        refreshBtn.setBackground(INFO);
-        refreshBtn.setForeground(Color.WHITE);
-        refreshBtn.setBorderPainted(false);
-        refreshBtn.addActionListener(e -> {
-            loadDriverReports();
-            dialog.dispose();
-            showDriverReportsDialog();
-        });
-        
-        JButton closeBtn = new JButton("Close");
-        closeBtn.setFont(BUTTON_FONT);
-        closeBtn.setBackground(PRIMARY);
-        closeBtn.setForeground(Color.WHITE);
-        closeBtn.setBorderPainted(false);
-        closeBtn.addActionListener(e -> dialog.dispose());
-        
-        buttonPanel.add(refreshBtn);
-        buttonPanel.add(closeBtn);
-        
-        mainPanel.add(headerPanel, BorderLayout.NORTH);
-        mainPanel.add(tabbedPane, BorderLayout.CENTER);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.add(mainPanel);
-        dialog.setVisible(true);
-    }
-    
-    private JPanel createReportTablePanel(List<DriverReport> reports, boolean showActions) {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(CARD_BG);
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        // Create table model
-        String[] columns = {"Report ID", "Vehicle", "Driver", "Date", "Severity", "Status", "Description"};
-        DefaultTableModel tableModel = new DefaultTableModel(columns, 0) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
-        };
-        
-        // Custom renderer for severity and status
-        JTable reportTable = new JTable(tableModel) {
-            @Override
-            public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
-                Component comp = super.prepareRenderer(renderer, row, column);
-                if (!isRowSelected(row)) {
-                    String severity = (String) getValueAt(row, 4);
-                    if ("Critical".equals(severity)) {
-                        comp.setBackground(new Color(255, 235, 238));
-                    } else if ("High".equals(severity)) {
-                        comp.setBackground(new Color(255, 243, 224));
-                    } else if ("Medium".equals(severity)) {
-                        comp.setBackground(new Color(232, 245, 233));
-                    } else {
-                        comp.setBackground(row % 2 == 0 ? new Color(252, 252, 253) : CARD_BG);
-                    }
-                }
-                return comp;
-            }
-        };
-        
-        // Add data to table
-        for (DriverReport r : reports) {
-            tableModel.addRow(new Object[]{
-                r.reportId,
-                r.vehicleId,
-                getDriverDisplayInfo(r.driverName),
-                displayDateFormat.format(r.reportDate),
-                r.severity,
-                r.status,
-                r.description.length() > 60 ? r.description.substring(0, 60) + "..." : r.description
-            });
-        }
-        
-        reportTable.setFont(REGULAR_FONT);
-        reportTable.setRowHeight(35);
-        reportTable.getTableHeader().setFont(HEADER_FONT);
-        reportTable.getTableHeader().setBackground(new Color(245, 245, 245));
-        reportTable.setSelectionBackground(SELECTION_COLOR);
-        
-        // Set column widths
-        reportTable.getColumnModel().getColumn(0).setPreferredWidth(80);
-        reportTable.getColumnModel().getColumn(1).setPreferredWidth(80);
-        reportTable.getColumnModel().getColumn(2).setPreferredWidth(150);
-        reportTable.getColumnModel().getColumn(3).setPreferredWidth(100);
-        reportTable.getColumnModel().getColumn(4).setPreferredWidth(80);
-        reportTable.getColumnModel().getColumn(5).setPreferredWidth(100);
-        reportTable.getColumnModel().getColumn(6).setPreferredWidth(300);
-        
-        JScrollPane scrollPane = new JScrollPane(reportTable);
-        scrollPane.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        
-        // Action panel
-        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        actionPanel.setBackground(CARD_BG);
-        
-        JButton viewBtn = new JButton("View Details");
-        viewBtn.setFont(BUTTON_FONT);
-        viewBtn.setBackground(INFO);
-        viewBtn.setForeground(Color.WHITE);
-        viewBtn.setBorderPainted(false);
-        viewBtn.addActionListener(e -> {
-            int row = reportTable.getSelectedRow();
-            if (row >= 0) {
-                showReportDetailsDialog(reports.get(row));
-            } else {
-                showNotification("Please select a report", WARNING);
-            }
-        });
-        
-        actionPanel.add(viewBtn);
-        
-        if (showActions) {
-            JButton scheduleBtn = new JButton("Schedule Maintenance");
-            scheduleBtn.setFont(BUTTON_FONT);
-            scheduleBtn.setBackground(SUCCESS);
-            scheduleBtn.setForeground(Color.WHITE);
-            scheduleBtn.setBorderPainted(false);
-            scheduleBtn.addActionListener(e -> {
-                int row = reportTable.getSelectedRow();
-                if (row >= 0) {
-                    scheduleMaintenanceFromReport(reports.get(row));
-                } else {
-                    showNotification("Please select a report", WARNING);
-                }
-            });
-            
-            JButton postponeBtn = new JButton("Postpone");
-            postponeBtn.setFont(BUTTON_FONT);
-            postponeBtn.setBackground(WARNING);
-            postponeBtn.setForeground(Color.WHITE);
-            postponeBtn.setBorderPainted(false);
-            postponeBtn.addActionListener(e -> {
-                int row = reportTable.getSelectedRow();
-                if (row >= 0) {
-                    postponeReportDialog(reports.get(row));
-                } else {
-                    showNotification("Please select a report", WARNING);
-                }
-            });
-            
-            JButton resolveBtn = new JButton("Mark Resolved");
-            resolveBtn.setFont(BUTTON_FONT);
-            resolveBtn.setBackground(PURPLE);
-            resolveBtn.setForeground(Color.WHITE);
-            resolveBtn.setBorderPainted(false);
-            resolveBtn.addActionListener(e -> {
-                int row = reportTable.getSelectedRow();
-                if (row >= 0) {
-                    markReportResolved(reports.get(row));
-                } else {
-                    showNotification("Please select a report", WARNING);
-                }
-            });
-            
-            JButton deleteBtn = new JButton("Delete");
-            deleteBtn.setFont(BUTTON_FONT);
-            deleteBtn.setBackground(DANGER);
-            deleteBtn.setForeground(Color.WHITE);
-            deleteBtn.setBorderPainted(false);
-            deleteBtn.addActionListener(e -> {
-                int row = reportTable.getSelectedRow();
-                if (row >= 0) {
-                    deleteReportDialog(reports.get(row));
-                } else {
-                    showNotification("Please select a report", WARNING);
-                }
-            });
-            
-            actionPanel.add(scheduleBtn);
-            actionPanel.add(postponeBtn);
-            actionPanel.add(resolveBtn);
-            actionPanel.add(deleteBtn);
-        } else {
-            JButton deleteBtn = new JButton("Delete");
-            deleteBtn.setFont(BUTTON_FONT);
-            deleteBtn.setBackground(DANGER);
-            deleteBtn.setForeground(Color.WHITE);
-            deleteBtn.setBorderPainted(false);
-            deleteBtn.addActionListener(e -> {
-                int row = reportTable.getSelectedRow();
-                if (row >= 0) {
-                    deleteReportDialog(reports.get(row));
-                } else {
-                    showNotification("Please select a report", WARNING);
-                }
-            });
-            
-            actionPanel.add(deleteBtn);
-        }
-        
-        panel.add(scrollPane, BorderLayout.CENTER);
-        panel.add(actionPanel, BorderLayout.SOUTH);
-        
-        return panel;
-    }
-    
-    private void showReportDetailsDialog(DriverReport report) {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(mainPanel), 
-            "Report Details - " + report.reportId, true);
-        dialog.setSize(550, 500);
-        dialog.setLocationRelativeTo(mainPanel);
-        
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setBackground(CARD_BG);
-        
-        // Header with severity color
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(getSeverityColor(report.severity));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        
-        JLabel severityLabel = new JLabel(report.severity.toUpperCase() + " SEVERITY REPORT");
-        severityLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        severityLabel.setForeground(Color.WHITE);
-        
-        JLabel idLabel = new JLabel("ID: " + report.reportId);
-        idLabel.setFont(REGULAR_FONT);
-        idLabel.setForeground(Color.WHITE);
-        
-        headerPanel.add(severityLabel, BorderLayout.WEST);
-        headerPanel.add(idLabel, BorderLayout.EAST);
-        
-        // Content panel
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(CARD_BG);
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        
-        // Vehicle and driver info
-        JPanel infoGrid = new JPanel(new GridLayout(0, 2, 10, 10));
-        infoGrid.setBackground(CARD_BG);
-        infoGrid.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(BORDER_COLOR, 1, true),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-        
-        infoGrid.add(createInfoLabel("Vehicle ID:"));
-        infoGrid.add(new JLabel(report.vehicleId));
-        infoGrid.add(createInfoLabel("Driver:"));
-        infoGrid.add(new JLabel(getDriverDisplayInfo(report.driverName)));
-        infoGrid.add(createInfoLabel("Report Date:"));
-        infoGrid.add(new JLabel(dateTimeFormat.format(report.reportDate)));
-        infoGrid.add(createInfoLabel("Status:"));
-        JLabel statusLabel = new JLabel(report.status);
-        statusLabel.setForeground(getStatusColor(report.status));
-        statusLabel.setFont(STATUS_FONT);
-        infoGrid.add(statusLabel);
-        
-        contentPanel.add(infoGrid);
-        contentPanel.add(Box.createVerticalStrut(15));
-        
-        // Description
-        JLabel descTitle = new JLabel("Description:");
-        descTitle.setFont(HEADER_FONT);
-        descTitle.setForeground(TEXT_PRIMARY);
-        contentPanel.add(descTitle);
-        contentPanel.add(Box.createVerticalStrut(5));
-        
-        JTextArea descArea = new JTextArea(report.description);
-        descArea.setFont(REGULAR_FONT);
-        descArea.setLineWrap(true);
-        descArea.setWrapStyleWord(true);
-        descArea.setEditable(false);
-        descArea.setBackground(new Color(248, 249, 250));
-        descArea.setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(BORDER_COLOR, 1, true),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-        descArea.setPreferredSize(new Dimension(450, 100));
-        contentPanel.add(descArea);
-        
-        // Admin notes
-        if (report.adminNotes != null && !report.adminNotes.isEmpty()) {
-            contentPanel.add(Box.createVerticalStrut(10));
-            JLabel notesTitle = new JLabel("Admin Notes:");
-            notesTitle.setFont(HEADER_FONT);
-            notesTitle.setForeground(TEXT_PRIMARY);
-            contentPanel.add(notesTitle);
-            contentPanel.add(Box.createVerticalStrut(5));
-            
-            JTextArea notesArea = new JTextArea(report.adminNotes);
-            notesArea.setFont(REGULAR_FONT);
-            notesArea.setLineWrap(true);
-            notesArea.setWrapStyleWord(true);
-            notesArea.setEditable(false);
-            notesArea.setBackground(new Color(248, 249, 250));
-            notesArea.setBorder(BorderFactory.createCompoundBorder(
-                new LineBorder(BORDER_COLOR, 1, true),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-            ));
-            contentPanel.add(notesArea);
-        }
-        
-        JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.setBorder(null);
-        
-        // Button panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        buttonPanel.setBackground(CARD_BG);
-        
-        if ("Pending".equals(report.status)) {
-            JButton scheduleBtn = new JButton("Schedule Maintenance");
-            scheduleBtn.setBackground(SUCCESS);
-            scheduleBtn.setForeground(Color.WHITE);
-            scheduleBtn.setFont(BUTTON_FONT);
-            scheduleBtn.setBorderPainted(false);
-            scheduleBtn.addActionListener(e -> {
-                dialog.dispose();
-                scheduleMaintenanceFromReport(report);
-            });
-            
-            JButton postponeBtn = new JButton("Postpone");
-            postponeBtn.setBackground(WARNING);
-            postponeBtn.setForeground(Color.WHITE);
-            postponeBtn.setFont(BUTTON_FONT);
-            postponeBtn.setBorderPainted(false);
-            postponeBtn.addActionListener(e -> {
-                dialog.dispose();
-                postponeReportDialog(report);
-            });
-            
-            JButton resolveBtn = new JButton("Mark Resolved");
-            resolveBtn.setBackground(PURPLE);
-            resolveBtn.setForeground(Color.WHITE);
-            resolveBtn.setFont(BUTTON_FONT);
-            resolveBtn.setBorderPainted(false);
-            resolveBtn.addActionListener(e -> {
-                dialog.dispose();
-                markReportResolved(report);
-            });
-            
-            buttonPanel.add(scheduleBtn);
-            buttonPanel.add(postponeBtn);
-            buttonPanel.add(resolveBtn);
-        }
-        
-        JButton closeBtn = new JButton("Close");
-        closeBtn.setBackground(PRIMARY);
-        closeBtn.setForeground(Color.WHITE);
-        closeBtn.setFont(BUTTON_FONT);
-        closeBtn.setBorderPainted(false);
-        closeBtn.addActionListener(e -> dialog.dispose());
-        buttonPanel.add(closeBtn);
-        
-        panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(scrollPane, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.add(panel);
-        dialog.setVisible(true);
-    }
-    
-    private JLabel createInfoLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(HEADER_FONT);
-        label.setForeground(TEXT_SECONDARY);
-        return label;
-    }
-    
-    private void scheduleMaintenanceFromReport(DriverReport report) {
-        Vehicle vehicle = findVehicle(report.vehicleId).orElse(null);
-        if (vehicle == null) {
-            showNotification("Vehicle not found: " + report.vehicleId, DANGER);
-            return;
-        }
-        
-        if ("Maintenance".equals(vehicle.status)) {
-            showNotification("Vehicle is already in maintenance", WARNING);
-            return;
-        }
-        
-        String maintenanceDesc = String.format("[Report: %s] %s - %s", 
-            report.reportId, report.severity, report.description);
-        
-        int confirm = JOptionPane.showConfirmDialog(mainPanel,
-            "Schedule maintenance for " + vehicle.id + " (" + vehicle.model + ")?\n\n" +
-            "Based on report: " + report.description + "\n\n" +
-            "The vehicle will be marked as 'Maintenance' and the driver will be unassigned.",
-            "Schedule Maintenance",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            // Unassign driver
-            String driverId = getDriverIdForVehicle(vehicle.id);
-            if (driverId != null) {
-                updateDriverVehicleAssignment(driverId, null);
-            }
-            
-            // Add to maintenance
-            if (maintenanceManagement != null) {
-                maintenanceManagement.addVehicleToMaintenance(vehicle.id, vehicle.model, maintenanceDesc);
-            }
-            
-            // Update vehicle status
-            vehicle.status = "Maintenance";
-            
-            // Update report
-            report.status = "Scheduled";
-            report.adminNotes = "Maintenance scheduled on " + displayDateFormat.format(new Date());
-            
-            saveData();
-            saveDriverReports();
-            refreshTable();
-            updateStats();
-            
-            showNotification("Maintenance scheduled for " + vehicle.id, SUCCESS);
-        }
-    }
-    
-    private void postponeReportDialog(DriverReport report) {
-        String[] options = {"1 Day", "3 Days", "1 Week", "2 Weeks", "1 Month", "Custom"};
-        int choice = JOptionPane.showOptionDialog(mainPanel,
-            "Postpone report for how long?\n\n" +
-            "Report: " + report.description,
-            "Postpone Report",
-            JOptionPane.DEFAULT_OPTION,
-            JOptionPane.QUESTION_MESSAGE,
-            null, options, options[0]);
-        
-        Calendar cal = Calendar.getInstance();
-        String postponeDuration = "";
-        
-        switch (choice) {
-            case 0:
-                cal.add(Calendar.DAY_OF_MONTH, 1);
-                postponeDuration = "1 day";
-                break;
-            case 1:
-                cal.add(Calendar.DAY_OF_MONTH, 3);
-                postponeDuration = "3 days";
-                break;
-            case 2:
-                cal.add(Calendar.DAY_OF_MONTH, 7);
-                postponeDuration = "1 week";
-                break;
-            case 3:
-                cal.add(Calendar.DAY_OF_MONTH, 14);
-                postponeDuration = "2 weeks";
-                break;
-            case 4:
-                cal.add(Calendar.MONTH, 1);
-                postponeDuration = "1 month";
-                break;
-            case 5:
-                String dateStr = JOptionPane.showInputDialog(mainPanel, 
-                    "Enter new date (yyyy-MM-dd):", 
-                    displayDateFormat.format(new Date()));
-                if (dateStr == null || dateStr.trim().isEmpty()) return;
-                try {
-                    cal.setTime(dateFormat.parse(dateStr));
-                    postponeDuration = "until " + displayDateFormat.format(cal.getTime());
-                } catch (Exception ex) {
-                    showNotification("Invalid date format", DANGER);
-                    return;
-                }
-                break;
-            default:
-                return;
-        }
-        
-        report.status = "Postponed";
-        report.adminNotes = "Postponed " + postponeDuration + " on " + displayDateFormat.format(new Date());
-        saveDriverReports();
-        refreshTable();
-        updateStats();
-        
-        showNotification("Report postponed " + postponeDuration, INFO);
-    }
-    
-    private void markReportResolved(DriverReport report) {
-        String resolution = JOptionPane.showInputDialog(mainPanel,
-            "Enter resolution notes for this report:",
-            "Mark as Resolved",
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (resolution == null) return;
-        
-        report.status = "Resolved";
-        if (report.adminNotes != null && !report.adminNotes.isEmpty()) {
-            report.adminNotes += "\n[RESOLVED] " + resolution + " on " + displayDateFormat.format(new Date());
-        } else {
-            report.adminNotes = "[RESOLVED] " + resolution + " on " + displayDateFormat.format(new Date());
-        }
-        
-        saveDriverReports();
-        refreshTable();
-        updateStats();
-        
-        showNotification("Report marked as resolved", SUCCESS);
-    }
-    
-    private void deleteReportDialog(DriverReport report) {
-        int confirm = JOptionPane.showConfirmDialog(mainPanel,
-            "Delete report #" + report.reportId + "?\n\n" +
-            "Vehicle: " + report.vehicleId + "\n" +
-            "Driver: " + getDriverDisplayInfo(report.driverName) + "\n" +
-            "Description: " + report.description,
-            "Confirm Delete",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            driverReports.remove(report);
-            saveDriverReports();
-            refreshTable();
-            updateStats();
-            showNotification("Report deleted", SUCCESS);
-        }
-    }
-    
-    private Color getSeverityColor(String severity) {
-        switch (severity) {
-            case "Critical": return DANGER;
-            case "High": return new Color(255, 87, 34);
-            case "Medium": return WARNING;
-            default: return INFO;
-        }
-    }
-    
-    private Color getStatusColor(String status) {
-        switch (status) {
-            case "Pending": return WARNING;
-            case "Scheduled": return INFO;
-            case "Resolved": return SUCCESS;
-            default: return TEXT_SECONDARY;
         }
     }
 
@@ -2132,7 +1610,12 @@ public class VehicleManagement {
             String driverDisplay;
             if (driverId != null) {
                 DriverData driver = driverCache.get(driverId);
-                driverDisplay = driver != null ? getDriverDisplayInfo(driver.name) : "Unassigned";
+                if (driver != null) {
+                    String licenseDisplay = getLicenseDisplayString(driver.licenseType);
+                    driverDisplay = driver.name + " [" + licenseDisplay + "]";
+                } else {
+                    driverDisplay = "Unassigned";
+                }
             } else if (v.driverName != null && !v.driverName.equals("Unassigned")) {
                 driverDisplay = v.driverName;
             } else {
@@ -2177,6 +1660,13 @@ public class VehicleManagement {
         String driverId = getDriverIdForVehicle(v.id);
         String driverName = driverId != null && driverCache.get(driverId) != null ? 
             driverCache.get(driverId).name : "Unassigned";
+        String licenseInfo = "";
+        if (driverId != null && driverCache.get(driverId) != null) {
+            String licenseType = driverCache.get(driverId).licenseType;
+            licenseInfo = " [" + getLicenseDisplayString(licenseType) + "]";
+        }
+        
+        String requiredLicense = getRequiredLicenseDisplay(v.type);
         
         String message = String.format(
             "Vehicle ID: %s\n" +
@@ -2186,11 +1676,12 @@ public class VehicleManagement {
             "Fuel Type: %s\n" +
             "Status: %s\n" +
             "Road Tax Expiry: %s%s\n" +
-            "Driver: %s\n" +
+            "Driver: %s%s\n" +
+            "Required License: %s\n" +
             "Pending Reports: %d",
             v.id, v.model, v.type, v.numberPlate, v.fuelType, v.status,
             displayDateFormat.format(v.roadTaxExpiry), taxExpired ? " (OVERDUE!)" : "",
-            driverName, reportCount
+            driverName, licenseInfo, requiredLicense, reportCount
         );
         
         JOptionPane.showMessageDialog(mainPanel, message, 
@@ -2233,7 +1724,7 @@ public class VehicleManagement {
         JOptionPane.showMessageDialog(mainPanel, msg, "Error", JOptionPane.ERROR_MESSAGE);
     }
 
-    // ==================== PUBLIC METHODS ====================
+    // ==================== PUBLIC METHODS FOR INTEGRATION ====================
     
     public JPanel getMainPanel() { 
         return mainPanel; 
@@ -2299,44 +1790,98 @@ public class VehicleManagement {
     public List<Vehicle> getAllVehicles() {
         return new ArrayList<>(vehicles);
     }
-
-    // ==================== INTEGRATION METHODS ====================
+    
+    // ========== INTEGRATION METHODS FOR ORDER MANAGEMENT ==========
+    
+    public List<Vehicle> getAvailableVehicles() {
+        List<Vehicle> available = new ArrayList<>();
+        for (Vehicle v : vehicles) {
+            if ("Active".equals(v.status)) {
+                String driverId = getDriverIdForVehicle(v.id);
+                if (driverId == null || driverId.isEmpty()) {
+                    available.add(v);
+                }
+            }
+        }
+        return available;
+    }
     
     public Vehicle getVehicleById(String id) {
         return findVehicle(id).orElse(null);
     }
     
+    public boolean assignVehicleToDriver(String vehicleId, String driverId, String driverName) {
+        Optional<Vehicle> vehicleOpt = findVehicle(vehicleId);
+        if (!vehicleOpt.isPresent()) {
+            return false;
+        }
+        
+        Vehicle v = vehicleOpt.get();
+        
+        if (!"Active".equals(v.status)) {
+            return false;
+        }
+        
+        String currentDriverId = getDriverIdForVehicle(vehicleId);
+        if (currentDriverId != null && !currentDriverId.isEmpty()) {
+            return false;
+        }
+        
+        DriverData driver = driverCache.get(driverId);
+        if (driver != null && !canDriverDriveVehicleType(driver.licenseType, v.type)) {
+            return false;
+        }
+        
+        v.driverName = driverName;
+        saveData();
+        
+        updateDriverInFile(driverId, vehicleId, "On Delivery");
+        loadDriversFromFile();
+        
+        refreshTable();
+        return true;
+    }
+    
+    public boolean unassignVehicle(String vehicleId) {
+        String driverId = getDriverIdForVehicle(vehicleId);
+        if (driverId != null) {
+            updateDriverInFile(driverId, null, "Available");
+        }
+        
+        Optional<Vehicle> vehicleOpt = findVehicle(vehicleId);
+        if (vehicleOpt.isPresent()) {
+            vehicleOpt.get().driverName = null;
+            saveData();
+            refreshTable();
+            return true;
+        }
+        return false;
+    }
+    
+    public String getVehicleDisplayString(Vehicle v) {
+        String driverName = v.driverName != null && !v.driverName.equals("Unassigned") ? v.driverName : "No Driver";
+        return String.format("%s - %s (%s) | %s | %s", 
+            v.id, v.model, v.type, v.numberPlate, driverName);
+    }
+    
+    public boolean isVehicleAvailable(String vehicleId) {
+        Vehicle v = getVehicleById(vehicleId);
+        if (v == null) return false;
+        if (!"Active".equals(v.status)) return false;
+        String driverId = getDriverIdForVehicle(vehicleId);
+        return (driverId == null || driverId.isEmpty());
+    }
+    
+    public String getAssignedDriverIdForVehicle(String vehicleId) {
+        return getDriverIdForVehicle(vehicleId);
+    }
+
     public void updateVehicleStatus(String vehicleId, String newStatus) {
         findVehicle(vehicleId).ifPresent(v -> {
             v.status = newStatus;
             saveData();
             refreshTable();
         });
-    }
-    
-    public boolean assignDriverToVehicle(String driverId, String vehicleId) {
-        Optional<Vehicle> vehicleOpt = findVehicle(vehicleId);
-        DriverData driver = driverCache.get(driverId);
-        
-        if (vehicleOpt.isPresent() && driver != null) {
-            Vehicle v = vehicleOpt.get();
-            
-            if ("Maintenance".equals(v.status)) {
-                return false;
-            }
-            
-            String currentDriverId = getDriverIdForVehicle(vehicleId);
-            if (currentDriverId != null) {
-                updateDriverVehicleAssignment(currentDriverId, null);
-            }
-            
-            updateDriverVehicleAssignment(driverId, vehicleId);
-            v.status = "Active";
-            saveData();
-            refreshTable();
-            return true;
-        }
-        return false;
     }
     
     public boolean isVehicleInMaintenance(String vehicleId) {
@@ -2392,7 +1937,7 @@ public class VehicleManagement {
     }
     
     private static class DriverData {
-        String id, name, phone, email, licenseNumber, licenseExpiry, workStatus, approvalStatus, vehicleId;
+        String id, name, phone, email, licenseNumber, workStatus, approvalStatus, vehicleId, licenseType;
     }
 
     private static class DriverReport {

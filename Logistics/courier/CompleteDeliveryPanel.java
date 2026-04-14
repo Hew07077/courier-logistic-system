@@ -23,15 +23,15 @@ public class CompleteDeliveryPanel extends JPanel {
     private static final Color WARNING = new Color(225, 173, 1);
     private static final Color DANGER = new Color(220, 53, 69);
     private static final Color INFO = new Color(23, 162, 184);
+    private static final Color PURPLE = new Color(111, 66, 193);
+    private static final Color OUT_FOR_DELIVERY_COLOR = new Color(0, 123, 255);
     
     private JComboBox<String> orderSelectCombo;
     private JComboBox<String> statusCombo;
     private JTextArea signatureArea;
     private JLabel photoFileNameLabel;
     private File deliveryPhotoFile;
-    private JLabel orderDetailsLabel;
-    private JPanel photoPanel;
-    private JLabel photoLabel;
+    private JPanel orderDetailsPanel;
     
     private List<Order> myOrders;
     private OrderStorage orderStorage;
@@ -53,22 +53,10 @@ public class CompleteDeliveryPanel extends JPanel {
     }
     
     public void clearForm() {
-        if (orderSelectCombo != null) {
-            orderSelectCombo.setSelectedIndex(-1);
-        }
-        if (statusCombo != null && statusCombo.getModel().getSize() > 0) {
-            statusCombo.setSelectedIndex(0);
-        }
+        if (orderSelectCombo != null) orderSelectCombo.setSelectedIndex(-1);
+        if (statusCombo != null && statusCombo.getModel().getSize() > 0) statusCombo.setSelectedIndex(0);
         if (signatureArea != null) signatureArea.setText("");
         deliveryPhotoFile = null;
-        if (photoFileNameLabel != null) {
-            photoFileNameLabel.setText("No file selected");
-            photoFileNameLabel.setForeground(TEXT_GRAY);
-        }
-        if (photoLabel != null && photoPanel != null) {
-            photoLabel.setVisible(false);
-            photoPanel.setVisible(false);
-        }
         updateOrderDetailsAndStatusOptions();
     }
     
@@ -87,7 +75,6 @@ public class CompleteDeliveryPanel extends JPanel {
     private void initUI() {
         JPanel headerPanel = createHeader();
         JPanel formPanel = createFormPanel();
-        
         add(headerPanel, BorderLayout.NORTH);
         add(formPanel, BorderLayout.CENTER);
     }
@@ -138,7 +125,6 @@ public class CompleteDeliveryPanel extends JPanel {
         gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 0.7;
         orderSelectCombo = new JComboBox<>();
         orderSelectCombo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        orderSelectCombo.setBackground(Color.WHITE);
         orderSelectCombo.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
             BorderFactory.createEmptyBorder(8, 12, 8, 12)));
@@ -153,27 +139,28 @@ public class CompleteDeliveryPanel extends JPanel {
         formPanel.add(Box.createVerticalStrut(10), gbc);
         row++;
         
-        // Order Details Display
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
-        gbc.insets = new Insets(10, 15, 10, 15);
-        gbc.weighty = 0.5;
-        orderDetailsLabel = new JLabel();
-        orderDetailsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        orderDetailsLabel.setForeground(TEXT_GRAY);
-        orderDetailsLabel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(232, 245, 233), 1),
+        // Order Details Panel - 显示时间轴
+        orderDetailsPanel = new JPanel();
+        orderDetailsPanel.setLayout(new BoxLayout(orderDetailsPanel, BoxLayout.Y_AXIS));
+        orderDetailsPanel.setBackground(new Color(248, 249, 250));
+        orderDetailsPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR, 1),
             BorderFactory.createEmptyBorder(15, 15, 15, 15)));
-        orderDetailsLabel.setBackground(new Color(245, 250, 245));
-        orderDetailsLabel.setOpaque(true);
-        orderDetailsLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        orderDetailsLabel.setVerticalAlignment(SwingConstants.CENTER);
-        orderDetailsLabel.setPreferredSize(new Dimension(500, 120));
-        formPanel.add(orderDetailsLabel, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weighty = 0.5;
+        JScrollPane detailsScroll = new JScrollPane(orderDetailsPanel);
+        detailsScroll.setBorder(null);
+        detailsScroll.setPreferredSize(new Dimension(500, 280));
+        formPanel.add(detailsScroll, gbc);
         row++;
         
         // Spacer
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
         gbc.insets = new Insets(5, 15, 5, 15);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weighty = 0;
         formPanel.add(Box.createVerticalStrut(10), gbc);
         row++;
         
@@ -188,7 +175,6 @@ public class CompleteDeliveryPanel extends JPanel {
         // Status Selection
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
         gbc.insets = new Insets(12, 15, 12, 15);
-        gbc.weighty = 0;
         JLabel statusLabel = new JLabel("New Status:*");
         statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         formPanel.add(statusLabel, gbc);
@@ -196,41 +182,12 @@ public class CompleteDeliveryPanel extends JPanel {
         gbc.gridx = 1; gbc.gridwidth = 2;
         statusCombo = new JComboBox<>();
         statusCombo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        statusCombo.setBackground(Color.WHITE);
         statusCombo.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
             BorderFactory.createEmptyBorder(8, 12, 8, 12)));
         statusCombo.setPreferredSize(new Dimension(400, 40));
-        statusCombo.addActionListener(e -> togglePhotoPanel());
+        statusCombo.addActionListener(e -> {});
         formPanel.add(statusCombo, gbc);
-        row++;
-        
-        // Photo Panel
-        photoLabel = new JLabel("Delivery Photo:*");
-        photoLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
-        formPanel.add(photoLabel, gbc);
-        
-        photoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        photoPanel.setBackground(Color.WHITE);
-        
-        JButton uploadPhotoBtn = new JButton("Choose Photo");
-        uploadPhotoBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        uploadPhotoBtn.setBackground(INFO);
-        uploadPhotoBtn.setForeground(Color.WHITE);
-        uploadPhotoBtn.setBorderPainted(false);
-        uploadPhotoBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        uploadPhotoBtn.addActionListener(e -> selectDeliveryPhoto());
-        
-        photoFileNameLabel = new JLabel("No file selected");
-        photoFileNameLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));
-        photoFileNameLabel.setForeground(TEXT_GRAY);
-        
-        photoPanel.add(uploadPhotoBtn);
-        photoPanel.add(photoFileNameLabel);
-        
-        gbc.gridx = 1; gbc.gridwidth = 2;
-        formPanel.add(photoPanel, gbc);
         row++;
         
         // Signature
@@ -253,7 +210,7 @@ public class CompleteDeliveryPanel extends JPanel {
         
         // Note
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
-        JLabel noteLabel = new JLabel("* Signature is required for all status updates. Photo is required only for 'Delivered' status.", SwingConstants.CENTER);
+        JLabel noteLabel = new JLabel("* Signature is required for all status updates.", SwingConstants.CENTER);
         noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         noteLabel.setForeground(TEXT_GRAY);
         formPanel.add(noteLabel, gbc);
@@ -287,15 +244,11 @@ public class CompleteDeliveryPanel extends JPanel {
         formPanel.add(buttonPanel, gbc);
         
         refreshOrderSelectCombo();
-        photoLabel.setVisible(false);
-        photoPanel.setVisible(false);
-        
         return formPanel;
     }
     
     private void refreshOrderSelectCombo() {
         if (orderSelectCombo == null) return;
-        
         orderSelectCombo.removeAllItems();
         
         List<Order> activeOrders = myOrders.stream()
@@ -307,45 +260,32 @@ public class CompleteDeliveryPanel extends JPanel {
             if (statusCombo != null) statusCombo.setEnabled(false);
         } else {
             for (Order o : activeOrders) {
-                orderSelectCombo.addItem(o.id + " - " + o.recipientName + " (" + o.getCourierStatus() + ")");
+                String courierStatus = o.getCourierStatus();
+                orderSelectCombo.addItem(o.id + " - " + o.recipientName + " (" + courierStatus + ")");
             }
-            if (statusCombo != null) {
-                statusCombo.setEnabled(true);
-            }
+            if (statusCombo != null) statusCombo.setEnabled(true);
         }
-        
         orderSelectCombo.setSelectedIndex(-1);
-        
-        orderSelectCombo.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, 
-                    int index, boolean isSelected, boolean cellHasFocus) {
-                if (index == -1 && value == null) {
-                    setText("-- Select Parcel --");
-                    setForeground(TEXT_GRAY);
-                    setFont(getFont().deriveFont(Font.ITALIC));
-                } else {
-                    super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                    setForeground(Color.BLACK);
-                    setFont(getFont().deriveFont(Font.PLAIN));
-                }
-                return this;
-            }
-        });
     }
     
     private void updateOrderDetailsAndStatusOptions() {
         int selectedIndex = orderSelectCombo.getSelectedIndex();
         
         if (selectedIndex == -1) {
-            orderDetailsLabel.setText("<html><b>Select a parcel</b><br>Please choose an order from the dropdown above.</html>");
+            orderDetailsPanel.removeAll();
+            JLabel emptyLabel = new JLabel("<html><center>Select a parcel<br>Please choose an order from the dropdown above.</center></html>");
+            emptyLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            emptyLabel.setForeground(TEXT_GRAY);
+            emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            orderDetailsPanel.add(emptyLabel);
+            orderDetailsPanel.revalidate();
+            orderDetailsPanel.repaint();
             if (statusCombo != null) statusCombo.setEnabled(false);
             return;
         }
         
         String selected = (String) orderSelectCombo.getSelectedItem();
         if (selected == null || selected.equals("No active orders")) {
-            orderDetailsLabel.setText("<html><b>No active orders available</b><br>All orders have been delivered.</html>");
             if (statusCombo != null) statusCombo.setEnabled(false);
             return;
         }
@@ -355,46 +295,179 @@ public class CompleteDeliveryPanel extends JPanel {
         Order order = orderStorage.findOrder(orderId);
         
         if (order != null) {
-            String courierStatus = order.getCourierStatus();
-            String details = String.format("<html>" +
-                "<b>Order ID:</b> %s<br>" +
-                "<b>Recipient:</b> %s<br>" +
-                "<b>Phone:</b> %s<br>" +
-                "<b>Address:</b> %s<br>" +
-                "<b>Current Status:</b> <span style='color: %s;'>%s</span></html>",
-                order.id, order.recipientName, order.recipientPhone,
-                order.recipientAddress.length() > 50 ? order.recipientAddress.substring(0, 47) + "..." : order.recipientAddress,
-                getStatusHexColor(courierStatus), courierStatus);
-            orderDetailsLabel.setText(details);
+            updateOrderDetailsPanel(order);
             updateStatusOptions(order);
         }
     }
     
-    private String getStatusHexColor(String status) {
+    private void updateOrderDetailsPanel(Order order) {
+        orderDetailsPanel.removeAll();
+        
+        // Order ID and Status
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(false);
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        
+        JLabel orderIdLabel = new JLabel("Order: " + order.id);
+        orderIdLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        orderIdLabel.setForeground(PRIMARY_GREEN);
+        headerPanel.add(orderIdLabel, BorderLayout.WEST);
+        
+        String courierStatus = order.getCourierStatus();
+        Color statusColor = getStatusColorForBadge(courierStatus);
+        JLabel statusLabel = new JLabel("  " + courierStatus + "  ");
+        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        statusLabel.setOpaque(true);
+        statusLabel.setBackground(statusColor);
+        statusLabel.setForeground(Color.WHITE);
+        statusLabel.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+        headerPanel.add(statusLabel, BorderLayout.EAST);
+        
+        orderDetailsPanel.add(headerPanel);
+        
+        // Recipient Info
+        JPanel recipientPanel = new JPanel(new GridLayout(2, 1, 0, 5));
+        recipientPanel.setOpaque(false);
+        recipientPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
+        
+        JLabel recipientLabel = new JLabel("📦 " + order.recipientName);
+        recipientLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        recipientPanel.add(recipientLabel);
+        
+        JLabel phoneLabel = new JLabel("📞 " + order.recipientPhone);
+        phoneLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        phoneLabel.setForeground(TEXT_GRAY);
+        recipientPanel.add(phoneLabel);
+        
+        orderDetailsPanel.add(recipientPanel);
+        orderDetailsPanel.add(Box.createVerticalStrut(5));
+        
+        // Price
+        double estimatedCost = order.getEstimatedCost();
+        JPanel pricePanel = new JPanel(new BorderLayout());
+        pricePanel.setOpaque(false);
+        pricePanel.setBackground(new Color(232, 245, 233));
+        pricePanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(SUCCESS, 1),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+        
+        JLabel priceTitleLabel = new JLabel("💰 Amount:");
+        priceTitleLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        pricePanel.add(priceTitleLabel, BorderLayout.WEST);
+        
+        JLabel priceValueLabel = new JLabel(String.format("RM %.2f", estimatedCost));
+        priceValueLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        priceValueLabel.setForeground(SUCCESS);
+        pricePanel.add(priceValueLabel, BorderLayout.EAST);
+        
+        orderDetailsPanel.add(pricePanel);
+        orderDetailsPanel.add(Box.createVerticalStrut(10));
+        
+        // Timeline Section
+        JLabel timelineLabel = new JLabel("📅 Delivery Timeline");
+        timelineLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        timelineLabel.setForeground(PRIMARY_GREEN);
+        orderDetailsPanel.add(timelineLabel);
+        orderDetailsPanel.add(Box.createVerticalStrut(8));
+        
+        JPanel timelinePanel = new JPanel();
+        timelinePanel.setLayout(new BoxLayout(timelinePanel, BoxLayout.Y_AXIS));
+        timelinePanel.setOpaque(false);
+        
+        // Order Created
+        timelinePanel.add(createTimelineRow("Order Created", order.orderDate, true));
+        timelinePanel.add(createTimelineConnectorLine(order.pickupTime != null && !order.pickupTime.isEmpty()));
+        
+        // Picked Up
+        boolean pickedUpCompleted = order.pickupTime != null && !order.pickupTime.isEmpty();
+        timelinePanel.add(createTimelineRow("Picked Up", 
+            pickedUpCompleted ? order.getPickupTimeFormatted() : "Not yet", 
+            pickedUpCompleted));
+        timelinePanel.add(createTimelineConnectorLine(order.inTransitTime != null && !order.inTransitTime.isEmpty()));
+        
+        // In Transit
+        boolean inTransitCompleted = order.inTransitTime != null && !order.inTransitTime.isEmpty();
+        timelinePanel.add(createTimelineRow("In Transit", 
+            inTransitCompleted ? order.getInTransitTimeFormatted() : "Not yet", 
+            inTransitCompleted));
+        timelinePanel.add(createTimelineConnectorLine(order.outForDeliveryTime != null && !order.outForDeliveryTime.isEmpty()));
+        
+        // Out for Delivery
+        boolean outForDeliveryCompleted = order.outForDeliveryTime != null && !order.outForDeliveryTime.isEmpty();
+        timelinePanel.add(createTimelineRow("Out for Delivery", 
+            outForDeliveryCompleted ? order.getOutForDeliveryTimeFormatted() : "Not yet", 
+            outForDeliveryCompleted));
+        timelinePanel.add(createTimelineConnectorLine("Delivered".equals(order.status)));
+        
+        // Delivered
+        boolean deliveredCompleted = "Delivered".equals(order.status);
+        timelinePanel.add(createTimelineRow("Delivered", 
+            deliveredCompleted ? order.getDeliveryTimeFormatted() : "Not yet", 
+            deliveredCompleted));
+        
+        orderDetailsPanel.add(timelinePanel);
+        
+        orderDetailsPanel.revalidate();
+        orderDetailsPanel.repaint();
+    }
+    
+    private JPanel createTimelineRow(String title, String time, boolean completed) {
+        JPanel row = new JPanel(new BorderLayout(10, 0));
+        row.setOpaque(false);
+        row.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
+        
+        String icon = completed ? "✅ " : "⏳ ";
+        JLabel titleLabel = new JLabel(icon + title);
+        titleLabel.setFont(new Font("Segoe UI", completed ? Font.BOLD : Font.PLAIN, 12));
+        titleLabel.setForeground(completed ? SUCCESS : TEXT_GRAY);
+        row.add(titleLabel, BorderLayout.WEST);
+        
+        String displayTime = (time != null && !time.isEmpty() && !"Not yet".equals(time)) ? time : "-";
+        JLabel timeLabel = new JLabel(displayTime);
+        timeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        timeLabel.setForeground(completed ? SUCCESS : TEXT_GRAY);
+        row.add(timeLabel, BorderLayout.EAST);
+        
+        return row;
+    }
+    
+    private JPanel createTimelineConnectorLine(boolean completed) {
+        JPanel connector = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(completed ? SUCCESS : new Color(206, 212, 218));
+                g2d.setStroke(new BasicStroke(2));
+                int x = 12;
+                g2d.drawLine(x, 0, x, getHeight());
+            }
+        };
+        connector.setPreferredSize(new Dimension(25, 20));
+        connector.setBackground(new Color(248, 249, 250));
+        return connector;
+    }
+    
+    private Color getStatusColorForBadge(String status) {
         switch(status) {
-            case "Pending": return "#E5A100";
-            case "Picked Up": return "#6F42C1";
-            case "In Transit": return "#17A2B8";
-            case "Out for Delivery": return "#0D6EFD";
-            case "Delayed": return "#DC3545";
-            case "Delivered": return "#28A745";
-            case "Failed": return "#DC3545";
-            default: return "#6C757D";
+            case "Pending": return WARNING;
+            case "Picked Up": return PURPLE;
+            case "In Transit": return INFO;
+            case "Out for Delivery": return OUT_FOR_DELIVERY_COLOR;
+            case "Delivered": return SUCCESS;
+            case "Delayed": return DANGER;
+            case "Failed": return DANGER;
+            default: return PRIMARY_GREEN;
         }
     }
     
-    /**
-     * 根据当前Courier状态，提供可用的下一个状态选项
-     */
     private void updateStatusOptions(Order order) {
         DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
-        
         String currentCourierStatus = order.getCourierStatus();
         
-        // 添加占位符作为默认选中项
         model.addElement("-- Select Status --");
         
-        // 根据Courier当前状态决定可选的下一个状态
         switch(currentCourierStatus) {
             case "Pending":
                 model.addElement("Picked Up");
@@ -433,116 +506,48 @@ public class CompleteDeliveryPanel extends JPanel {
         }
         
         statusCombo.setModel(model);
-        
-        // 设置自定义渲染器来显示占位符样式
-        statusCombo.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, 
-                    int index, boolean isSelected, boolean cellHasFocus) {
-                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                
-                if (value != null && value.toString().equals("-- Select Status --")) {
-                    setForeground(TEXT_GRAY);
-                    setFont(getFont().deriveFont(Font.ITALIC));
-                    if (!isSelected) {
-                        setBackground(Color.WHITE);
-                    }
-                } else {
-                    setForeground(Color.BLACK);
-                    setFont(getFont().deriveFont(Font.PLAIN));
-                }
-                
-                return this;
-            }
-        });
-        
-        // 默认选中占位符
         statusCombo.setSelectedIndex(0);
     }
     
-    private void togglePhotoPanel() {
-        if (statusCombo == null) return;
-        Object selected = statusCombo.getSelectedItem();
-        if (selected == null) {
-            photoLabel.setVisible(false);
-            photoPanel.setVisible(false);
-            return;
-        }
-        
-        String selectedStatus = selected.toString();
-        boolean isDelivered = "Delivered".equals(selectedStatus);
-        
-        photoLabel.setVisible(isDelivered);
-        photoPanel.setVisible(isDelivered);
-        
-        if (!isDelivered) {
-            deliveryPhotoFile = null;
-            photoFileNameLabel.setText("No file selected");
-            photoFileNameLabel.setForeground(TEXT_GRAY);
-        }
-    }
-    
-    private void selectDeliveryPhoto() {
-        JFileChooser fileChooser = new JFileChooser();
-        FileNameExtensionFilter filter = new FileNameExtensionFilter("Image Files (JPG, PNG)", "jpg", "jpeg", "png");
-        fileChooser.setFileFilter(filter);
-        
-        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            deliveryPhotoFile = fileChooser.getSelectedFile();
-            photoFileNameLabel.setText(deliveryPhotoFile.getName());
-            photoFileNameLabel.setForeground(SUCCESS);
-        }
-    }
-    
-    /**
-     * 检查Courier状态转换是否有效
-     */
     private boolean isValidCourierTransition(String current, String next) {
         if (current.equals(next)) return false;
-        
         switch(current) {
             case "Pending":
-                return next.equals("Picked Up") || next.equals("Delayed");
+                return next.equals("Picked Up") || next.equals("Delayed") || next.equals("Failed");
             case "Picked Up":
-                return next.equals("In Transit") || next.equals("Delayed");
+                return next.equals("In Transit") || next.equals("Delayed") || next.equals("Failed");
             case "In Transit":
-                return next.equals("Out for Delivery") || next.equals("Delayed");
+                return next.equals("Out for Delivery") || next.equals("Delayed") || next.equals("Failed");
             case "Out for Delivery":
-                return next.equals("Delivered") || next.equals("Delayed");
+                return next.equals("Delivered") || next.equals("Delayed") || next.equals("Failed");
             case "Delayed":
                 return next.equals("Picked Up") || next.equals("In Transit") || 
-                       next.equals("Out for Delivery") || next.equals("Delivered");
+                       next.equals("Out for Delivery") || next.equals("Delivered") || next.equals("Failed");
             default:
                 return false;
         }
     }
     
+    // ========== 修复: 处理状态更新并记录时间戳 ==========
+    
     private void processStatusUpdate() {
         int selectedIndex = orderSelectCombo.getSelectedIndex();
-        
         if (selectedIndex == -1) {
-            if (parentDashboard != null) {
-                parentDashboard.showNotification("Please select an order to update", WARNING);
-            }
+            showNotification("Please select an order to update", WARNING);
             return;
         }
         
         String selected = (String) orderSelectCombo.getSelectedItem();
         if (selected == null || selected.equals("No active orders")) {
-            if (parentDashboard != null) {
-                parentDashboard.showNotification("Please select an order to update", WARNING);
-            }
+            showNotification("Please select an order to update", WARNING);
             return;
         }
         
         String orderId = selected.split(" - ")[0];
         
-        // 验证是否选择了有效的状态（不是占位符）
         Object statusSelected = statusCombo.getSelectedItem();
         if (statusSelected == null || statusSelected.toString().equals("-- Select Status --")) {
-            if (parentDashboard != null) {
-                parentDashboard.showNotification("Please select a new status", WARNING);
-            }
+            showNotification("Please select a new status", WARNING);
             return;
         }
         
@@ -550,117 +555,144 @@ public class CompleteDeliveryPanel extends JPanel {
         
         if ("Failed".equals(newCourierStatus)) {
             Order order = orderStorage.findOrder(orderId);
-            if (order != null) {
-                showFailedDeliveryDialog(order);
-            }
+            if (order != null) showFailedDeliveryDialog(order);
             return;
         }
         
         String signature = signatureArea.getText().trim();
-        
         if (signature.isEmpty()) {
-            if (parentDashboard != null) {
-                parentDashboard.showNotification("Recipient signature is required", WARNING);
-            }
+            showNotification("Recipient signature is required", WARNING);
             signatureArea.requestFocus();
-            return;
-        }
-        
-        if ("Delivered".equals(newCourierStatus) && deliveryPhotoFile == null) {
-            if (parentDashboard != null) {
-                parentDashboard.showNotification("Photo proof is required for delivery completion", WARNING);
-            }
             return;
         }
         
         Order order = orderStorage.findOrder(orderId);
         if (order == null) {
-            if (parentDashboard != null) {
-                parentDashboard.showNotification("Order not found", DANGER);
-            }
+            showNotification("Order not found", DANGER);
             return;
         }
         
         if ("Delivered".equals(order.status)) {
-            if (parentDashboard != null) {
-                parentDashboard.showNotification("This order has already been delivered", WARNING);
-            }
+            showNotification("This order has already been delivered", WARNING);
             return;
         }
         
         if ("Failed".equals(order.status)) {
-            if (parentDashboard != null) {
-                parentDashboard.showNotification("This order has already been marked as failed.", WARNING);
-            }
+            showNotification("This order has already been marked as failed.", WARNING);
             return;
         }
         
         String currentCourierStatus = order.getCourierStatus();
         
-        // 检查转换是否有效
         if (!isValidCourierTransition(currentCourierStatus, newCourierStatus)) {
-            if (parentDashboard != null) {
-                parentDashboard.showNotification("Invalid status transition from '" + currentCourierStatus + "' to '" + newCourierStatus + "'", WARNING);
-            }
+            showNotification("Invalid status transition from '" + currentCourierStatus + "' to '" + newCourierStatus + "'", WARNING);
             return;
         }
         
+        // 确认对话框显示将要设置的状态
         int confirm = JOptionPane.showConfirmDialog(this,
-            String.format("Update Order Status\n\nOrder: %s\nRecipient: %s\nCurrent Status: %s\nNew Status: %s\n\nSignature: %s",
-                orderId, order.recipientName, currentCourierStatus, newCourierStatus, signature),
+            String.format("Update Order Status\n\nOrder: %s\nRecipient: %s\nCurrent Status: %s\nNew Status: %s\n\nSignature: %s\n\nAmount: %s",
+                orderId, order.recipientName, currentCourierStatus, newCourierStatus, signature, order.getFormattedEstimatedCost()),
             "Confirm Status Update", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            boolean success;
-            
-            if ("Delivered".equals(newCourierStatus)) {
-                success = orderStorage.completeOrder(orderId, 0, 0, 
-                    deliveryPhotoFile != null ? deliveryPhotoFile.getAbsolutePath() : "", 
-                    signature);
-            } else if ("Delayed".equals(newCourierStatus)) {
-                order.markAsDelayed("Delayed by courier: " + signature);
-                orderStorage.updateOrder(order);
-                success = true;
-            } else {
-                order.updateFromCourierStatus(newCourierStatus);
-                order.notes = (order.notes != null ? order.notes + "\n" : "") + 
-                    "Status updated to " + newCourierStatus + " - Signature: " + signature + 
-                    " on " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-                orderStorage.updateOrder(order);
-                success = true;
-            }
-            
-            if (success) {
-                orderStorage.forceReload();
-                
-                Order savedOrder = orderStorage.findOrder(orderId);
-                if (savedOrder != null) {
-                    if (parentDashboard != null) {
-                        parentDashboard.showNotification("Order status updated to: " + newCourierStatus, SUCCESS);
-                        parentDashboard.refreshData();
-                    }
-                    clearForm();
+        String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        
+        System.out.println("=== Updating Order Status ===");
+        System.out.println("Order ID: " + order.id);
+        System.out.println("New Status: " + newCourierStatus);
+        System.out.println("Current time: " + now);
+        
+        // 根据新状态设置对应的时间戳
+        switch(newCourierStatus) {
+            case "Picked Up":
+                if (order.pickupTime == null || order.pickupTime.isEmpty()) {
+                    order.pickupTime = now;
+                    System.out.println("Set pickupTime: " + order.pickupTime);
                     
-                    JOptionPane.showMessageDialog(this,
-                        String.format("Status Updated Successfully!\n\nOrder ID: %s\nNew Status: %s\nRecipient: %s",
-                            orderId, newCourierStatus, order.recipientName),
-                        "Success", JOptionPane.INFORMATION_MESSAGE);
-                } else {
-                    if (parentDashboard != null) {
-                        parentDashboard.showNotification("Warning: Order may not have been saved properly", WARNING);
+                    // 重要：司机取件后，将司机状态改为 On Delivery
+                    updateDriverStatusToOnDelivery(order.driverId);
+                }
+                break;
+                case "In Transit":
+                    if (order.inTransitTime == null || order.inTransitTime.isEmpty()) {
+                        order.inTransitTime = now;
+                        System.out.println("Set inTransitTime: " + order.inTransitTime);
                     }
-                }
-            } else {
-                if (parentDashboard != null) {
-                    parentDashboard.showNotification("Failed to update order status", DANGER);
-                }
+                    break;
+                case "Out for Delivery":
+                    if (order.outForDeliveryTime == null || order.outForDeliveryTime.isEmpty()) {
+                        order.outForDeliveryTime = now;
+                        System.out.println("Set outForDeliveryTime: " + order.outForDeliveryTime);
+                    }
+                    break;
+                case "Delivered":
+                    if (order.deliveryTime == null || order.deliveryTime.isEmpty()) {
+                        order.deliveryTime = now;
+                        System.out.println("Set deliveryTime: " + order.deliveryTime);
+                    }
+                    if (order.actualDelivery == null || order.actualDelivery.isEmpty()) {
+                        order.actualDelivery = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+                        System.out.println("Set actualDelivery: " + order.actualDelivery);
+                    }
+                    break;
+                case "Delayed":
+                    order.reason = "Delayed by courier: " + signature;
+                    break;
             }
+            
+            // 更新系统状态
+            order.updateFromCourierStatus(newCourierStatus);
+            
+            // 添加备注
+            order.notes = (order.notes != null ? order.notes + "\n" : "") + 
+                "Status updated to " + newCourierStatus + " - Signature: " + signature + 
+                " on " + now;
+            
+            // 保存订单
+            orderStorage.updateOrder(order);
+            orderStorage.forceReload();
+            
+            // 验证保存是否成功
+            Order savedOrder = orderStorage.findOrder(orderId);
+            if (savedOrder != null) {
+                System.out.println("Order saved successfully - New status: " + savedOrder.status);
+                System.out.println("Pickup time: " + savedOrder.pickupTime);
+                System.out.println("In transit time: " + savedOrder.inTransitTime);
+                System.out.println("Out for delivery time: " + savedOrder.outForDeliveryTime);
+                System.out.println("Delivery time: " + savedOrder.deliveryTime);
+            }
+            
+            showNotification("Order status updated to: " + newCourierStatus, SUCCESS);
+            if (parentDashboard != null) parentDashboard.refreshData();
+            clearForm();
+            
+            JOptionPane.showMessageDialog(this,
+                String.format("Status Updated Successfully!\n\nOrder ID: %s\nNew Status: %s\nRecipient: %s\nTime: %s\nAmount: %s",
+                    orderId, newCourierStatus, order.recipientName, now, order.getFormattedEstimatedCost()),
+                "Success", JOptionPane.INFORMATION_MESSAGE);
         }
     }
+
+    private void updateDriverStatusToOnDelivery(String driverId) {
+    if (driverId == null || driverId.isEmpty()) return;
+    
+    try {
+        logistics.driver.DriverStorage driverStorage = new logistics.driver.DriverStorage();
+        logistics.driver.Driver driver = driverStorage.findDriver(driverId);
+        if (driver != null && !"On Delivery".equals(driver.workStatus)) {
+            driver.workStatus = "On Delivery";
+            driverStorage.updateDriver(driver);
+            System.out.println("Driver " + driverId + " status updated to On Delivery");
+        }
+    } catch (Exception e) {
+        System.err.println("Error updating driver status: " + e.getMessage());
+    }
+}
     
     private void showFailedDeliveryDialog(Order order) {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Mark Delivery as Failed - " + order.id, true);
-        dialog.setSize(500, 450);
+        dialog.setSize(500, 480);
         dialog.setLocationRelativeTo(this);
         
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
@@ -683,7 +715,8 @@ public class CompleteDeliveryPanel extends JPanel {
         int y = 0;
         
         gbc.gridx = 0; gbc.gridy = y; gbc.gridwidth = 2;
-        JLabel orderInfoLabel = new JLabel("<html><b>Order:</b> " + order.id + "<br><b>Recipient:</b> " + order.recipientName + "<br><b>Address:</b> " + order.recipientAddress + "</html>");
+        JLabel orderInfoLabel = new JLabel("<html><b>Order:</b> " + order.id + "<br><b>Recipient:</b> " + order.recipientName + 
+            "<br><b>Address:</b> " + order.recipientAddress + "<br><b>Amount:</b> " + order.getFormattedEstimatedCost() + "</html>");
         orderInfoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         orderInfoLabel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
@@ -768,61 +801,42 @@ public class CompleteDeliveryPanel extends JPanel {
             String signature = failedSignatureArea.getText().trim();
             
             if (selectedReason == null || selectedReason.equals("Select reason...")) {
-                if (parentDashboard != null) {
-                    parentDashboard.showNotification("Please select a failure reason", WARNING);
-                }
+                showNotification("Please select a failure reason", WARNING);
                 return;
             }
-            
             if (details.isEmpty()) {
-                if (parentDashboard != null) {
-                    parentDashboard.showNotification("Please provide failure details", WARNING);
-                }
+                showNotification("Please provide failure details", WARNING);
                 return;
             }
-            
             if (signature.isEmpty()) {
-                if (parentDashboard != null) {
-                    parentDashboard.showNotification("Signature is required", WARNING);
-                }
+                showNotification("Signature is required", WARNING);
                 return;
             }
             
             String fullReason = selectedReason + ": " + details;
+            String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
             
             int confirm = JOptionPane.showConfirmDialog(dialog,
                 "Are you sure you want to mark this delivery as FAILED?\n\n" +
-                "Order: " + order.id + "\n" +
-                "Reason: " + fullReason + "\n\n" +
-                "This order will be marked as FAILED and will appear in your history.\n" +
-                "This action cannot be undone.",
-                "Confirm Failed Delivery",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE);
+                "Order: " + order.id + "\nReason: " + fullReason + "\nAmount: " + order.getFormattedEstimatedCost(),
+                "Confirm Failed Delivery", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
             
             if (confirm == JOptionPane.YES_OPTION) {
                 order.markAsFailed(fullReason);
+                order.deliveryTime = now;
                 order.notes = (order.notes != null ? order.notes + "\n" : "") +
-                    "FAILED DELIVERY - Reason: " + fullReason + 
-                    " - Signature: " + signature +
-                    " on " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+                    "FAILED DELIVERY - Reason: " + fullReason + " - Signature: " + signature + " on " + now;
                 
                 orderStorage.updateOrder(order);
                 orderStorage.forceReload();
                 
-                if (parentDashboard != null) {
-                    parentDashboard.showNotification("Delivery marked as FAILED.", WARNING);
-                    parentDashboard.refreshData();
-                }
+                if (parentDashboard != null) parentDashboard.refreshData();
                 clearForm();
                 dialog.dispose();
                 
                 JOptionPane.showMessageDialog(this,
-                    "Delivery marked as Failed\n\n" +
-                    "Order ID: " + order.id + "\n" +
-                    "Reason: " + fullReason,
-                    "Failed Delivery",
-                    JOptionPane.WARNING_MESSAGE);
+                    "Delivery marked as Failed\n\nOrder ID: " + order.id + "\nReason: " + fullReason,
+                    "Failed Delivery", JOptionPane.WARNING_MESSAGE);
             }
         });
         
@@ -832,5 +846,16 @@ public class CompleteDeliveryPanel extends JPanel {
         
         dialog.add(mainPanel);
         dialog.setVisible(true);
+    }
+    
+    private void showNotification(String message, Color color) {
+        if (parentDashboard != null) {
+            parentDashboard.showNotification(message, color);
+        } else {
+            String title = color == SUCCESS ? "Success" : (color == WARNING ? "Warning" : "Error");
+            JOptionPane.showMessageDialog(this, message, title, 
+                color == SUCCESS ? JOptionPane.INFORMATION_MESSAGE : 
+                (color == WARNING ? JOptionPane.WARNING_MESSAGE : JOptionPane.ERROR_MESSAGE));
+        }
     }
 }

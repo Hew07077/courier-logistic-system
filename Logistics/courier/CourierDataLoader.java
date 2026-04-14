@@ -19,16 +19,19 @@ public class CourierDataLoader {
         
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
+            boolean firstLine = true;
             while ((line = br.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty() || line.startsWith("#")) continue;
+                if (firstLine) {
+                    firstLine = false;
+                    continue;
+                }
                 
                 CourierData d = CourierData.fromFileString(line);
                 if (d != null) couriers.add(d);
             }
-        } catch (IOException e) {
-            // Silent fail
-        }
+        } catch (IOException e) {}
     }
     
     public CourierData findCourierById(String id) {
@@ -51,5 +54,10 @@ public class CourierDataLoader {
     
     public int getTotalCount() {
         return couriers.size();
+    }
+    
+    public void refreshData() {
+        couriers.clear();
+        loadCouriers();
     }
 }

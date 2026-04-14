@@ -27,18 +27,16 @@ public class DriverManagement {
     
     private DriverStorage storage;
     
-    // References to other management modules
     private VehicleManagement vehicleManagement;
     private OrderManagement orderManagement;
     
-    // Filter state
     private String currentApprovalFilter = null;
     private String currentWorkFilter = null;
     private int currentFilterIndex = -1;
     
-    // Photo related
     private static final String PHOTO_DIR = "driver_photos/";
-    private String currentPhotoPath = null;
+    private String currentPhotoPath = null;      // IC photo path
+    private String licensePhotoPath = null;      // License photo path
     
     // Modern color scheme
     private static final Color PRIMARY = new Color(46, 125, 50);
@@ -56,8 +54,6 @@ public class DriverManagement {
     private static final Color HOVER_COLOR = new Color(245, 247, 250);
     private static final Color SELECTION_COLOR = new Color(232, 245, 233);
     private static final Color ACTIVE_FILTER_BORDER = PRIMARY;
-    
-    // Approval status colors
     private static final Color APPROVED_COLOR = new Color(40, 167, 69);
     private static final Color PENDING_COLOR = new Color(255, 193, 7);
     private static final Color REJECTED_COLOR = new Color(220, 53, 69);
@@ -78,154 +74,106 @@ public class DriverManagement {
         this.vehicleManagement = vehicleMgmt;
         this.orderManagement = orderMgmt;
         storage = new DriverStorage();
-        ensurePhotoDirectoryExists();
         createMainPanel();
         refreshTable();
+        System.out.println("DriverManagement initialized with " + storage.getTotalCount() + " drivers");
     }
     
-    public void setVehicleManagement(VehicleManagement vehicleMgmt) {
-        this.vehicleManagement = vehicleMgmt;
-    }
+    // ========== LICENSE TYPE DISPLAY HELPER ==========
     
-    public void setOrderManagement(OrderManagement orderMgmt) {
-        this.orderManagement = orderMgmt;
-    }
-    
-    private void ensurePhotoDirectoryExists() {
-        File directory = new File(PHOTO_DIR);
-        if (!directory.exists()) {
-            directory.mkdirs();
+    private String getLicenseDisplayString(String licenseType) {
+        if (licenseType == null) return "Not specified";
+        String upper = licenseType.toUpperCase();
+        switch(upper) {
+            case "B": return "B (Motorcycle)";
+            case "B1": return "B1 (Motorcycle)";
+            case "B2": return "B2 (Motorcycle)";
+            case "D": return "D (Car/Van)";
+            case "DA": return "DA (Car/Van)";
+            case "E": return "E (Truck/Van)";
+            case "E1": return "E1 (Truck/Van)";
+            case "E2": return "E2 (Truck/Van)";
+            default: return licenseType;
         }
     }
     
-    private String savePhoto(File sourceFile, String driverId) {
-        if (sourceFile == null) return null;
-        
-        ensurePhotoDirectoryExists();
-        
-        String fileName = sourceFile.getName();
-        String extension = fileName.substring(fileName.lastIndexOf('.'));
-        
-        String newFileName = driverId + extension;
-        File destFile = new File(PHOTO_DIR + newFileName);
-        
-        try {
-            java.nio.file.Files.copy(sourceFile.toPath(), destFile.toPath(), 
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            return PHOTO_DIR + newFileName;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
+    // ========== PUBLIC METHODS FOR ORDER MANAGEMENT ==========
+    
+    public List<Driver> getAllDrivers() {
+        return storage.getAllDrivers();
     }
     
-    private ImageIcon loadDriverPhoto(String photoPath, int width, int height) {
-        if (photoPath == null || photoPath.isEmpty()) {
-            return createDefaultPhoto(width, height, null);
-        }
+    public List<Driver> getAvailableDrivers() {
+        List<Driver> allDrivers = storage.getAllDrivers();
+        List<Driver> available = new ArrayList<>();
         
-        try {
-            File photoFile = new File(photoPath);
-            if (!photoFile.exists()) {
-                return createDefaultPhoto(width, height, null);
+        for (Driver d : allDrivers) {
+            if ("APPROVED".equals(d.approvalStatus) && "Available".equals(d.workStatus)) {
+                available.add(d);
             }
-            
-            BufferedImage img = ImageIO.read(photoFile);
-            Image scaledImg = img.getScaledInstance(width, height, Image.SCALE_SMOOTH);
-            return new ImageIcon(scaledImg);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return createDefaultPhoto(width, height, null);
+        }
+        return available;
+    }
+    
+    public Driver getDriverById(String id) {
+        return storage.findDriver(id);
+    }
+    
+    public void updateDriverStatus(String driverId, String newStatus) {
+        Driver driver = storage.findDriver(driverId);
+        if (driver != null) {
+            driver.workStatus = newStatus;
+            storage.updateDriver(driver);
+            refreshTable();
         }
     }
     
-    private ImageIcon createDefaultPhoto(int width, int height, String initial) {
-        BufferedImage defaultImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = defaultImg.createGraphics();
-        
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setColor(PRIMARY);
-        g2d.fillOval(0, 0, width, height);
-        
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Segoe UI", Font.BOLD, height / 2));
-        FontMetrics fm = g2d.getFontMetrics();
-        
-        String text = initial != null && !initial.isEmpty() ? initial.substring(0, 1).toUpperCase() : "?";
-        int x = (width - fm.stringWidth(text)) / 2;
-        int y = ((height - fm.getHeight()) / 2) + fm.getAscent();
-        g2d.drawString(text, x, y);
-        
-        g2d.dispose();
-        return new ImageIcon(defaultImg);
+    public boolean assignVehicleToDriver(String driverId, String vehicleId) {
+        Driver driver = storage.findDriver(driverId);
+        if (driver != null && "APPROVED".equals(driver.approvalStatus)) {
+            driver.vehicleId = vehicleId;
+            storage.updateDriver(driver);
+            refreshTable();
+            return true;
+        }
+        return false;
     }
     
-    private JPanel createPhotoUploadPanel(String driverId, Driver existingDriver) {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(CARD_BG);
-        panel.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(BORDER_COLOR), "Driver Photo",
-            TitledBorder.LEFT, TitledBorder.TOP, HEADER_FONT, PRIMARY));
+    public List<Driver> getAvailableDriversWithVehicles() {
+        List<Driver> allDrivers = storage.getAllDrivers();
+        List<Driver> available = new ArrayList<>();
         
-        JLabel photoLabel = new JLabel();
-        photoLabel.setPreferredSize(new Dimension(150, 150));
-        photoLabel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        photoLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        
-        if (existingDriver != null && existingDriver.photoPath != null) {
-            photoLabel.setIcon(loadDriverPhoto(existingDriver.photoPath, 150, 150));
-            currentPhotoPath = existingDriver.photoPath;
-        } else {
-            String initial = existingDriver != null ? existingDriver.name : "";
-            photoLabel.setIcon(createDefaultPhoto(150, 150, initial));
-        }
-        
-        JButton uploadBtn = new JButton("Upload Photo");
-        uploadBtn.setFont(REGULAR_FONT);
-        uploadBtn.setForeground(Color.WHITE);
-        uploadBtn.setBackground(PRIMARY);
-        uploadBtn.setBorderPainted(false);
-        uploadBtn.setFocusPainted(false);
-        uploadBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        uploadBtn.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser();
-            fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
-                "Image Files", "jpg", "jpeg", "png", "gif", "bmp"));
-            
-            int result = fileChooser.showOpenDialog(panel);
-            if (result == JFileChooser.APPROVE_OPTION) {
-                File selectedFile = fileChooser.getSelectedFile();
-                String tempId = driverId != null ? driverId : "temp_" + System.currentTimeMillis();
-                currentPhotoPath = savePhoto(selectedFile, tempId);
-                
-                ImageIcon icon = loadDriverPhoto(currentPhotoPath, 150, 150);
-                photoLabel.setIcon(icon);
+        for (Driver d : allDrivers) {
+            if ("APPROVED".equals(d.approvalStatus) 
+                && "Available".equals(d.workStatus)
+                && d.vehicleId != null && !d.vehicleId.isEmpty()) {
+                available.add(d);
             }
-        });
-        
-        JButton removeBtn = new JButton("Remove");
-        removeBtn.setFont(REGULAR_FONT);
-        removeBtn.setForeground(Color.WHITE);
-        removeBtn.setBackground(DANGER);
-        removeBtn.setBorderPainted(false);
-        removeBtn.setFocusPainted(false);
-        removeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        removeBtn.addActionListener(e -> {
-            currentPhotoPath = null;
-            String initial = existingDriver != null ? existingDriver.name : "";
-            photoLabel.setIcon(createDefaultPhoto(150, 150, initial));
-        });
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout());
-        buttonPanel.setBackground(CARD_BG);
-        buttonPanel.add(uploadBtn);
-        buttonPanel.add(removeBtn);
-        
-        panel.add(photoLabel, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        return panel;
+        }
+        return available;
     }
+    
+    public void ensureAtLeastOneAvailableDriver() {
+        List<Driver> drivers = storage.getAllDrivers();
+        boolean hasAvailable = false;
+        
+        for (Driver d : drivers) {
+            if ("APPROVED".equals(d.approvalStatus) && "Available".equals(d.workStatus)) {
+                hasAvailable = true;
+                break;
+            }
+        }
+        
+        if (!hasAvailable && !drivers.isEmpty()) {
+            Driver firstDriver = drivers.get(0);
+            firstDriver.approvalStatus = "APPROVED";
+            firstDriver.workStatus = "Available";
+            storage.updateDriver(firstDriver);
+            refreshTable();
+        }
+    }
+    
+    // ========== UI CREATION METHODS ==========
     
     private void createMainPanel() {
         mainPanel = new JPanel(new BorderLayout(15, 15));
@@ -266,7 +214,7 @@ public class DriverManagement {
     }
     
     private JPanel createStatsPanel() {
-        statsPanel = new JPanel(new GridLayout(2, 5, 15, 10));
+        statsPanel = new JPanel(new GridLayout(1, 7, 12, 0));
         statsPanel.setBackground(BG_COLOR);
         statsPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
@@ -337,7 +285,6 @@ public class DriverManagement {
         
         statValues[index] = valueLabel;
         
-        // Make approval status cards clickable (index 1,2,3)
         if (index >= 1 && index <= 3) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             final String filterStatus = title;
@@ -370,7 +317,6 @@ public class DriverManagement {
             });
         }
         
-        // Make work status cards clickable (index 4,5,6)
         if (index >= 4 && index <= 6) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             final String filterStatus = title;
@@ -403,7 +349,6 @@ public class DriverManagement {
             });
         }
         
-        // Total card - clear filters
         if (index == 0) {
             card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             card.addMouseListener(new MouseAdapter() {
@@ -438,13 +383,11 @@ public class DriverManagement {
         resetCardBorders();
         
         if (currentFilterIndex == cardIndex) {
-            // Clear filter
             currentApprovalFilter = null;
             currentWorkFilter = null;
             currentFilterIndex = -1;
             applyFilters();
         } else {
-            // Apply new filter
             currentApprovalFilter = status;
             currentWorkFilter = null;
             currentFilterIndex = cardIndex;
@@ -463,13 +406,11 @@ public class DriverManagement {
         resetCardBorders();
         
         if (currentFilterIndex == cardIndex) {
-            // Clear filter
             currentApprovalFilter = null;
             currentWorkFilter = null;
             currentFilterIndex = -1;
             applyFilters();
         } else {
-            // Apply new filter
             currentApprovalFilter = null;
             currentWorkFilter = status;
             currentFilterIndex = cardIndex;
@@ -495,12 +436,10 @@ public class DriverManagement {
     private void applyFilters() {
         List<RowFilter<DefaultTableModel, Integer>> filters = new ArrayList<>();
         
-        // Add approval status filter (column 10)
         if (currentApprovalFilter != null) {
-            filters.add(RowFilter.regexFilter("^" + currentApprovalFilter + "$", 10));
+            filters.add(RowFilter.regexFilter("^" + currentApprovalFilter + "$", 8));
         }
         
-        // Add work status filter (column 3 - original status column)
         if (currentWorkFilter != null) {
             String status = currentWorkFilter;
             if (status.equals("Available")) {
@@ -523,7 +462,7 @@ public class DriverManagement {
         JScrollPane scrollPane = new JScrollPane(createTable());
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getViewport().setBackground(CARD_BG);
-        scrollPane.setPreferredSize(new Dimension(1200, 400));
+        scrollPane.setPreferredSize(new Dimension(1100, 400));
         
         panel.add(scrollPane, BorderLayout.CENTER);
         
@@ -531,8 +470,9 @@ public class DriverManagement {
     }
     
     private JTable createTable() {
-        String[] columns = {"ID", "Name", "Phone", "Work Status", "License No", "License Expiry", 
-                            "Vehicle ID", "Deliveries", "Rating", "Join Date", "Approval Status", "Remarks"};
+        // Removed License No and License Expiry columns, added License Type
+        String[] columns = {"ID", "Name", "Phone", "Work Status", "License Type", 
+                            "Vehicle ID", "Deliveries", "Join Date", "Approval Status", "Remarks"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int col) { return false; }
@@ -562,18 +502,16 @@ public class DriverManagement {
         driversTable.getColumnModel().getColumn(1).setPreferredWidth(150);
         driversTable.getColumnModel().getColumn(2).setPreferredWidth(100);
         driversTable.getColumnModel().getColumn(3).setPreferredWidth(100);
-        driversTable.getColumnModel().getColumn(4).setPreferredWidth(100);
-        driversTable.getColumnModel().getColumn(5).setPreferredWidth(100);
-        driversTable.getColumnModel().getColumn(6).setPreferredWidth(80);
-        driversTable.getColumnModel().getColumn(7).setPreferredWidth(70);
-        driversTable.getColumnModel().getColumn(8).setPreferredWidth(70);
-        driversTable.getColumnModel().getColumn(9).setPreferredWidth(100);
-        driversTable.getColumnModel().getColumn(10).setPreferredWidth(100);
-        driversTable.getColumnModel().getColumn(11).setPreferredWidth(150);
+        driversTable.getColumnModel().getColumn(4).setPreferredWidth(120);
+        driversTable.getColumnModel().getColumn(5).setPreferredWidth(80);
+        driversTable.getColumnModel().getColumn(6).setPreferredWidth(70);
+        driversTable.getColumnModel().getColumn(7).setPreferredWidth(100);
+        driversTable.getColumnModel().getColumn(8).setPreferredWidth(100);
+        driversTable.getColumnModel().getColumn(9).setPreferredWidth(150);
         
         driversTable.getColumnModel().getColumn(3).setCellRenderer(new WorkStatusCellRenderer());
-        driversTable.getColumnModel().getColumn(8).setCellRenderer(new RatingCellRenderer());
-        driversTable.getColumnModel().getColumn(10).setCellRenderer(new ApprovalStatusCellRenderer());
+        driversTable.getColumnModel().getColumn(4).setCellRenderer(new LicenseTypeCellRenderer());
+        driversTable.getColumnModel().getColumn(8).setCellRenderer(new ApprovalStatusCellRenderer());
         
         driversTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -627,6 +565,32 @@ public class DriverManagement {
         }
     }
     
+    private class LicenseTypeCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            
+            JLabel label = (JLabel) super.getTableCellRendererComponent(
+                table, value, isSelected, hasFocus, row, column);
+            
+            label.setHorizontalAlignment(SwingConstants.CENTER);
+            
+            if (!isSelected && value != null) {
+                String license = value.toString();
+                if (license.contains("Motorcycle")) {
+                    label.setForeground(new Color(156, 39, 176));
+                } else if (license.contains("Car/Van")) {
+                    label.setForeground(new Color(0, 123, 255));
+                } else if (license.contains("Truck/Van")) {
+                    label.setForeground(new Color(255, 87, 34));
+                }
+                label.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            }
+            
+            return label;
+        }
+    }
+    
     private class ApprovalStatusCellRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
@@ -661,35 +625,6 @@ public class DriverManagement {
         }
     }
     
-    private class RatingCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                boolean isSelected, boolean hasFocus, int row, int column) {
-            
-            JLabel label = (JLabel) super.getTableCellRendererComponent(
-                table, value, isSelected, hasFocus, row, column);
-            
-            label.setHorizontalAlignment(SwingConstants.CENTER);
-            
-            if (value != null && !isSelected) {
-                try {
-                    double rating = Double.parseDouble(value.toString());
-                    if (rating >= 4.5) {
-                        label.setForeground(SUCCESS);
-                    } else if (rating >= 3.5) {
-                        label.setForeground(WARNING);
-                    } else {
-                        label.setForeground(DANGER);
-                    }
-                } catch (Exception e) {
-                    // Ignore
-                }
-            }
-            
-            return label;
-        }
-    }
-    
     private JPanel createButtonPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
         panel.setBackground(BG_COLOR);
@@ -697,10 +632,6 @@ public class DriverManagement {
         JButton addBtn = createButton("Add Driver", SUCCESS, new Color(30, 126, 52));
         addBtn.addActionListener(e -> addDriver());
         panel.add(addBtn);
-        
-        JButton editBtn = createButton("Edit", WARNING, new Color(204, 154, 6));
-        editBtn.addActionListener(e -> editDriver());
-        panel.add(editBtn);
         
         JButton viewBtn = createButton("View Details", INFO, new Color(17, 122, 139));
         viewBtn.addActionListener(e -> showDriverDetails());
@@ -710,15 +641,10 @@ public class DriverManagement {
         deleteBtn.addActionListener(e -> deleteDriver());
         panel.add(deleteBtn);
         
-        JButton assignBtn = createButton("Assign Vehicle", PRIMARY, PRIMARY_DARK);
-        assignBtn.addActionListener(e -> assignVehicle());
-        panel.add(assignBtn);
-        
         JButton scheduleBtn = createButton("Schedule", new Color(111, 66, 193), new Color(81, 45, 168));
         scheduleBtn.addActionListener(e -> scheduleDriver());
         panel.add(scheduleBtn);
         
-        // Approval buttons
         panel.add(Box.createHorizontalStrut(20));
         
         JLabel approvalLabel = new JLabel("Approval Actions:");
@@ -759,7 +685,7 @@ public class DriverManagement {
         return btn;
     }
     
-    // ==================== APPROVAL METHODS ====================
+    // ========== APPROVAL METHODS ==========
     
     private void approveDriver() {
         int row = driversTable.getSelectedRow();
@@ -772,7 +698,7 @@ public class DriverManagement {
         int modelRow = driversTable.convertRowIndexToModel(row);
         String id = (String) tableModel.getValueAt(modelRow, 0);
         String name = (String) tableModel.getValueAt(modelRow, 1);
-        String currentApproval = (String) tableModel.getValueAt(modelRow, 10);
+        String currentApproval = (String) tableModel.getValueAt(modelRow, 8);
         
         if ("APPROVED".equals(currentApproval)) {
             JOptionPane.showMessageDialog(mainPanel, "Driver is already approved!", 
@@ -806,7 +732,7 @@ public class DriverManagement {
         int modelRow = driversTable.convertRowIndexToModel(row);
         String id = (String) tableModel.getValueAt(modelRow, 0);
         String name = (String) tableModel.getValueAt(modelRow, 1);
-        String currentApproval = (String) tableModel.getValueAt(modelRow, 10);
+        String currentApproval = (String) tableModel.getValueAt(modelRow, 8);
         
         if ("REJECTED".equals(currentApproval)) {
             JOptionPane.showMessageDialog(mainPanel, "Driver is already rejected!", 
@@ -839,6 +765,8 @@ public class DriverManagement {
         }
     }
     
+    // ========== SHOW DRIVER DETAILS ==========
+    
     private void showDriverDetails() {
         int row = driversTable.getSelectedRow();
         if (row < 0) {
@@ -854,7 +782,7 @@ public class DriverManagement {
         
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
                                       "Driver Details - " + driver.name, true);
-        dialog.setSize(700, 700);
+        dialog.setSize(650, 580);
         dialog.setLocationRelativeTo(mainPanel);
         
         JPanel panel = new JPanel(new BorderLayout(15, 15));
@@ -906,6 +834,7 @@ public class DriverManagement {
         detailsPanel.setLayout(new BoxLayout(detailsPanel, BoxLayout.Y_AXIS));
         detailsPanel.setBackground(CARD_BG);
         
+        // Contact Information Section
         detailsPanel.add(createDetailSection("Contact Information", new String[]{
             "Phone: " + driver.phone,
             "Email: " + (driver.email != null ? driver.email : "-"),
@@ -916,25 +845,21 @@ public class DriverManagement {
         
         detailsPanel.add(Box.createVerticalStrut(10));
         
-        detailsPanel.add(createDetailSection("License Information", new String[]{
-            "License Number: " + driver.licenseNumber,
-            "License Type: " + (driver.licenseType != null ? driver.licenseType : "-"),
-            "Expiry Date: " + driver.licenseExpiry,
-            "Status: " + (isLicenseExpiring(driver.licenseExpiry) ? "⚠️ Expiring Soon" : "Valid"),
-            "IC Number: " + (driver.icNumber != null ? driver.icNumber : "-")
-        }));
+        // License Information Section - Only License Type and License Photo
+        detailsPanel.add(createLicenseInfoSection(driver));
         
         detailsPanel.add(Box.createVerticalStrut(10));
         
+        // Assignment Information Section
         detailsPanel.add(createDetailSection("Assignment Information", new String[]{
             "Vehicle: " + (driver.vehicleId != null ? driver.vehicleId : "Not Assigned"),
             "Join Date: " + driver.joinDate,
-            "Total Deliveries: " + driver.totalDeliveries,
-            "Rating: " + driver.getFormattedRating()
+            "Total Deliveries: " + driver.totalDeliveries
         }));
         
         detailsPanel.add(Box.createVerticalStrut(10));
         
+        // Approval Information Section
         detailsPanel.add(createDetailSection("Approval Information", new String[]{
             "Approval Status: " + driver.approvalStatus,
             "Remarks: " + (driver.remarks != null ? driver.remarks : "No remarks")
@@ -1005,26 +930,197 @@ public class DriverManagement {
         dialog.setVisible(true);
     }
     
+    private JPanel createLicenseInfoSection(Driver driver) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(CARD_BG);
+        
+        JLabel titleLabel = new JLabel("License Information");
+        titleLabel.setFont(HEADER_FONT);
+        titleLabel.setForeground(PRIMARY);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
+        
+        JPanel contentPanel = new JPanel(new GridBagLayout());
+        contentPanel.setBackground(CARD_BG);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.weightx = 1.0;
+        
+        // License Type row
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0.3;
+        JLabel typeLabel = new JLabel("License Type:");
+        typeLabel.setFont(REGULAR_FONT);
+        typeLabel.setForeground(TEXT_PRIMARY);
+        contentPanel.add(typeLabel, gbc);
+        
+        gbc.gridx = 1;
+        gbc.weightx = 0.7;
+        String licenseType = (driver.licenseType != null && !driver.licenseType.isEmpty()) ? driver.licenseType : "-";
+        String licenseDisplay = getLicenseDisplayString(licenseType);
+        JLabel typeValueLabel = new JLabel(licenseDisplay);
+        typeValueLabel.setFont(REGULAR_FONT);
+        typeValueLabel.setForeground(TEXT_PRIMARY);
+        contentPanel.add(typeValueLabel, gbc);
+        
+        // License Photo row
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0.3;
+        JLabel photoLabel = new JLabel("License Photo:");
+        photoLabel.setFont(REGULAR_FONT);
+        photoLabel.setForeground(TEXT_PRIMARY);
+        contentPanel.add(photoLabel, gbc);
+        
+        gbc.gridx = 1;
+        gbc.weightx = 0.7;
+        
+        String licensePhotoPath = extractLicensePhotoPath(driver.notes);
+        
+        JPanel licensePhotoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        licensePhotoPanel.setBackground(CARD_BG);
+        licensePhotoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        JLabel licensePhotoIconLabel = new JLabel();
+        licensePhotoIconLabel.setPreferredSize(new Dimension(100, 100));
+        licensePhotoIconLabel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        licensePhotoIconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        
+        if (licensePhotoPath != null && !licensePhotoPath.isEmpty()) {
+            ImageIcon icon = loadDriverPhoto(licensePhotoPath, 100, 100);
+            if (icon != null) {
+                licensePhotoIconLabel.setIcon(icon);
+            } else {
+                licensePhotoIconLabel.setText("No Image");
+                licensePhotoIconLabel.setFont(SMALL_FONT);
+            }
+        } else {
+            licensePhotoIconLabel.setText("No License Photo");
+            licensePhotoIconLabel.setFont(SMALL_FONT);
+        }
+        
+        JButton viewPhotoBtn = new JButton("View Full Size");
+        viewPhotoBtn.setFont(SMALL_FONT);
+        viewPhotoBtn.setBackground(INFO);
+        viewPhotoBtn.setForeground(Color.WHITE);
+        viewPhotoBtn.setBorderPainted(false);
+        viewPhotoBtn.setFocusPainted(false);
+        viewPhotoBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        viewPhotoBtn.setPreferredSize(new Dimension(100, 28));
+        viewPhotoBtn.addActionListener(e -> {
+            if (licensePhotoPath != null && !licensePhotoPath.isEmpty()) {
+                showFullSizeImage(licensePhotoPath, "License Photo");
+            } else {
+                JOptionPane.showMessageDialog(panel, "No license photo available.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+        
+        licensePhotoPanel.add(licensePhotoIconLabel);
+        licensePhotoPanel.add(Box.createHorizontalStrut(10));
+        licensePhotoPanel.add(viewPhotoBtn);
+        
+        contentPanel.add(licensePhotoPanel, gbc);
+        
+        panel.add(titleLabel, BorderLayout.NORTH);
+        panel.add(contentPanel, BorderLayout.CENTER);
+        
+        return panel;
+    }
+    
+    private String extractLicensePhotoPath(String notes) {
+        if (notes == null || notes.isEmpty()) {
+            return null;
+        }
+        
+        if (notes.contains("License Photo:")) {
+            try {
+                int start = notes.indexOf("License Photo:") + 14;
+                int end = notes.indexOf(";", start);
+                if (end == -1) end = notes.indexOf("\n", start);
+                if (end == -1) end = notes.indexOf("|", start);
+                if (end == -1) end = notes.length();
+                String path = notes.substring(start, end).trim();
+                if (!path.isEmpty()) {
+                    return path;
+                }
+            } catch (Exception e) {}
+        }
+        
+        return null;
+    }
+    
+    private void showFullSizeImage(String imagePath, String title) {
+        if (imagePath == null || imagePath.isEmpty()) {
+            JOptionPane.showMessageDialog(mainPanel, "No image available.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        try {
+            File imageFile = new File(imagePath);
+            if (!imageFile.exists()) {
+                JOptionPane.showMessageDialog(mainPanel, "Image file not found: " + imagePath, "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            BufferedImage originalImage = ImageIO.read(imageFile);
+            if (originalImage == null) {
+                JOptionPane.showMessageDialog(mainPanel, "Unable to load image.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            int maxWidth = screenSize.width - 100;
+            int maxHeight = screenSize.height - 100;
+            
+            int imgWidth = originalImage.getWidth();
+            int imgHeight = originalImage.getHeight();
+            
+            double scale = Math.min(1.0, Math.min((double) maxWidth / imgWidth, (double) maxHeight / imgHeight));
+            int scaledWidth = (int) (imgWidth * scale);
+            int scaledHeight = (int) (imgHeight * scale);
+            
+            Image scaledImage = originalImage.getScaledInstance(scaledWidth, scaledHeight, Image.SCALE_SMOOTH);
+            
+            JDialog imageDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(mainPanel), title, true);
+            imageDialog.setLayout(new BorderLayout());
+            
+            JLabel imageLabel = new JLabel(new ImageIcon(scaledImage));
+            imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            
+            JScrollPane scrollPane = new JScrollPane(imageLabel);
+            scrollPane.getViewport().setBackground(Color.BLACK);
+            
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            JButton closeBtn = new JButton("Close");
+            closeBtn.setFont(REGULAR_FONT);
+            closeBtn.setBackground(PRIMARY);
+            closeBtn.setForeground(Color.WHITE);
+            closeBtn.setBorderPainted(false);
+            closeBtn.setFocusPainted(false);
+            closeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            closeBtn.addActionListener(e -> imageDialog.dispose());
+            buttonPanel.add(closeBtn);
+            
+            imageDialog.add(scrollPane, BorderLayout.CENTER);
+            imageDialog.add(buttonPanel, BorderLayout.SOUTH);
+            imageDialog.setSize(scaledWidth + 50, scaledHeight + 80);
+            imageDialog.setLocationRelativeTo(mainPanel);
+            imageDialog.setVisible(true);
+            
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(mainPanel, "Error loading image: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+    
     private Color getApprovalColor(String status) {
         if ("APPROVED".equals(status)) return APPROVED_COLOR;
         if ("PENDING".equals(status)) return PENDING_COLOR;
         if ("REJECTED".equals(status)) return REJECTED_COLOR;
         return TEXT_SECONDARY;
-    }
-    
-    private boolean isLicenseExpiring(String expiryDate) {
-        if (expiryDate == null) return false;
-        try {
-            Date expiry = new SimpleDateFormat("yyyy-MM-dd").parse(expiryDate);
-            Date today = new Date();
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(today);
-            cal.add(Calendar.MONTH, 3);
-            Date threeMonthsLater = cal.getTime();
-            return expiry.before(threeMonthsLater);
-        } catch (Exception e) {
-            return false;
-        }
     }
     
     private JPanel createDetailSection(String title, String[] lines) {
@@ -1053,250 +1149,304 @@ public class DriverManagement {
         return panel;
     }
     
+    // ========== ADD DRIVER ==========
+    
     private void addDriver() {
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
-                                      "Add New Driver", true);
-        dialog.setSize(850, 700);
+                                      "Apply as Courier", true);
+        dialog.setSize(500, 580);
         dialog.setLocationRelativeTo(mainPanel);
+        dialog.setResizable(false);
         
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.setBackground(CARD_BG);
         
-        JLabel titleLabel = new JLabel("Add New Driver");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        JLabel titleLabel = new JLabel("APPLY AS COURIER");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
         titleLabel.setForeground(PRIMARY);
-        
-        JPanel contentPanel = new JPanel(new GridBagLayout());
-        contentPanel.setBackground(CARD_BG);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
-        gbc.insets = new Insets(5, 10, 5, 10);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(CARD_BG);
-        GridBagConstraints fGbc = new GridBagConstraints();
-        fGbc.fill = GridBagConstraints.HORIZONTAL;
-        fGbc.insets = new Insets(5, 10, 5, 10);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         
-        String[] labels = {"Full Name:*", "Phone:*", "Email:", "License Number:*", 
-                          "License Expiry:* (YYYY-MM-DD)", "License Type:", "IC Number:", 
-                          "Emergency Contact:", "Emergency Phone:", "Address:"};
+        JTextField nameField = new JTextField(15);
+        JTextField emailField = new JTextField(15);
+        JTextField phoneField = new JTextField(15);
+        JTextField icField = new JTextField(15);
         
-        JTextField[] textFields = new JTextField[9];
-        JScrollPane addressScrollPane = null;
+        // License Type Combo - Updated with all types
+        JComboBox<String> licenseTypeCombo = new JComboBox<>(new String[]{
+            "B", "B1", "B2", "D", "DA", "E", "E1", "E2"
+        });
+        licenseTypeCombo.setFont(REGULAR_FONT);
+        licenseTypeCombo.setBackground(CARD_BG);
+        licenseTypeCombo.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            BorderFactory.createEmptyBorder(8, 10, 8, 10)
+        ));
         
-        for (int i = 0; i < labels.length; i++) {
-            fGbc.gridx = 0;
-            fGbc.gridy = i;
-            fGbc.weightx = 0.3;
-            JLabel label = new JLabel(labels[i]);
-            label.setFont(HEADER_FONT);
-            formPanel.add(label, fGbc);
-            
-            fGbc.gridx = 1;
-            fGbc.weightx = 0.7;
-            
-            if (labels[i].contains("Address")) {
-                JTextArea textArea = new JTextArea(3, 20);
-                textArea.setFont(REGULAR_FONT);
-                textArea.setLineWrap(true);
-                textArea.setWrapStyleWord(true);
-                textArea.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(BORDER_COLOR),
-                    BorderFactory.createEmptyBorder(5, 8, 5, 8)
-                ));
-                addressScrollPane = new JScrollPane(textArea);
-                addressScrollPane.setPreferredSize(new Dimension(250, 60));
-                formPanel.add(addressScrollPane, fGbc);
-            } else {
-                if (i < 9) {
-                    textFields[i] = new JTextField(20);
-                    textFields[i].setFont(REGULAR_FONT);
-                    textFields[i].setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(BORDER_COLOR),
-                        BorderFactory.createEmptyBorder(5, 8, 5, 8)
-                    ));
-                    formPanel.add(textFields[i], fGbc);
-                }
+        // IC Upload
+        JLabel icFileNameLabel = new JLabel("No file");
+        icFileNameLabel.setFont(new Font("Segoe UI", Font.ITALIC, 10));
+        JButton uploadICBtn = new JButton("Upload");
+        uploadICBtn.setFont(SMALL_FONT);
+        uploadICBtn.setBackground(new Color(100, 100, 100));
+        uploadICBtn.setForeground(Color.WHITE);
+        uploadICBtn.setFocusPainted(false);
+        uploadICBtn.setBorderPainted(false);
+        uploadICBtn.setPreferredSize(new Dimension(90, 30));
+        uploadICBtn.addActionListener(e -> {
+            JFileChooser fc = new JFileChooser();
+            fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                "Images", "jpg", "png", "jpeg"));
+            if (fc.showOpenDialog(dialog) == JFileChooser.APPROVE_OPTION) {
+                currentPhotoPath = fc.getSelectedFile().getAbsolutePath();
+                icFileNameLabel.setText(fc.getSelectedFile().getName());
             }
-        }
+        });
         
-        // Work Status selection
-        fGbc.gridx = 0;
-        fGbc.gridy = labels.length;
-        fGbc.weightx = 0.3;
-        JLabel statusLabel = new JLabel("Initial Work Status:");
-        statusLabel.setFont(HEADER_FONT);
-        formPanel.add(statusLabel, fGbc);
+        // License Upload
+        JLabel licenseFileNameLabel = new JLabel("No file");
+        licenseFileNameLabel.setFont(new Font("Segoe UI", Font.ITALIC, 10));
+        JButton uploadLicenseBtn = new JButton("Upload");
+        uploadLicenseBtn.setFont(SMALL_FONT);
+        uploadLicenseBtn.setBackground(new Color(100, 100, 100));
+        uploadLicenseBtn.setForeground(Color.WHITE);
+        uploadLicenseBtn.setFocusPainted(false);
+        uploadLicenseBtn.setBorderPainted(false);
+        uploadLicenseBtn.setPreferredSize(new Dimension(90, 30));
+        uploadLicenseBtn.addActionListener(e -> {
+            JFileChooser fc = new JFileChooser();
+            fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                "Images", "jpg", "png", "jpeg"));
+            if (fc.showOpenDialog(dialog) == JFileChooser.APPROVE_OPTION) {
+                licensePhotoPath = fc.getSelectedFile().getAbsolutePath();
+                licenseFileNameLabel.setText(fc.getSelectedFile().getName());
+            }
+        });
         
-        fGbc.gridx = 1;
-        fGbc.weightx = 0.7;
-        JComboBox<String> statusCombo = new JComboBox<>(new String[]{"Available", "Off Duty"});
-        statusCombo.setFont(REGULAR_FONT);
-        statusCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        formPanel.add(statusCombo, fGbc);
+        int row = 0;
         
-        // Approval Status - default to APPROVED for admin-added drivers
-        fGbc.gridx = 0;
-        fGbc.gridy = labels.length + 1;
-        fGbc.weightx = 0.3;
-        JLabel approvalLabel = new JLabel("Approval Status:");
-        approvalLabel.setFont(HEADER_FONT);
-        formPanel.add(approvalLabel, fGbc);
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
+        gbc.weightx = 0.3;
+        formPanel.add(new JLabel("Full Name:*"), gbc);
+        gbc.gridx = 1; gbc.weightx = 0.7;
+        nameField.setPreferredSize(new Dimension(220, 30));
+        formPanel.add(nameField, gbc);
+        row++;
         
-        fGbc.gridx = 1;
-        fGbc.weightx = 0.7;
-        JComboBox<String> approvalCombo = new JComboBox<>(new String[]{"APPROVED", "PENDING", "REJECTED"});
-        approvalCombo.setSelectedItem("APPROVED");
-        approvalCombo.setFont(REGULAR_FONT);
-        approvalCombo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        formPanel.add(approvalCombo, fGbc);
-        
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 0.6;
-        gbc.weighty = 1.0;
-        gbc.anchor = GridBagConstraints.NORTHWEST;
-        contentPanel.add(new JScrollPane(formPanel), gbc);
-        
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(new JLabel("Email:*"), gbc);
         gbc.gridx = 1;
-        gbc.weightx = 0.4;
-        gbc.weighty = 1.0;
-        gbc.anchor = GridBagConstraints.NORTH;
+        emailField.setPreferredSize(new Dimension(220, 30));
+        formPanel.add(emailField, gbc);
+        row++;
         
-        String tempId = "temp_" + System.currentTimeMillis();
-        JPanel photoPanel = createPhotoUploadPanel(tempId, null);
-        contentPanel.add(photoPanel, gbc);
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(new JLabel("Phone:*"), gbc);
+        gbc.gridx = 1;
+        phoneField.setPreferredSize(new Dimension(220, 30));
+        formPanel.add(phoneField, gbc);
+        row++;
         
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(new JLabel("IC Number:*"), gbc);
+        gbc.gridx = 1;
+        icField.setPreferredSize(new Dimension(220, 30));
+        formPanel.add(icField, gbc);
+        row++;
+        
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(new JLabel("Upload IC:*"), gbc);
+        gbc.gridx = 1;
+        JPanel icPanel = new JPanel(new BorderLayout(5, 0));
+        icPanel.setBackground(CARD_BG);
+        icPanel.add(uploadICBtn, BorderLayout.WEST);
+        icPanel.add(icFileNameLabel, BorderLayout.CENTER);
+        formPanel.add(icPanel, gbc);
+        row++;
+        
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(new JLabel("License Type:*"), gbc);
+        gbc.gridx = 1;
+        licenseTypeCombo.setPreferredSize(new Dimension(220, 30));
+        formPanel.add(licenseTypeCombo, gbc);
+        row++;
+        
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(new JLabel("Upload License:*"), gbc);
+        gbc.gridx = 1;
+        JPanel licensePanel = new JPanel(new BorderLayout(5, 0));
+        licensePanel.setBackground(CARD_BG);
+        licensePanel.add(uploadLicenseBtn, BorderLayout.WEST);
+        licensePanel.add(licenseFileNameLabel, BorderLayout.CENTER);
+        formPanel.add(licensePanel, gbc);
+        row++;
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         buttonPanel.setBackground(CARD_BG);
         
-        JButton saveBtn = new JButton("Save Driver");
-        saveBtn.setFont(BUTTON_FONT);
-        saveBtn.setForeground(Color.WHITE);
-        saveBtn.setBackground(SUCCESS);
-        saveBtn.setBorderPainted(false);
-        saveBtn.setPreferredSize(new Dimension(100, 35));
+        JButton submitBtn = new JButton("SUBMIT APPLICATION");
+        submitBtn.setFont(BUTTON_FONT);
+        submitBtn.setForeground(Color.WHITE);
+        submitBtn.setBackground(PRIMARY);
+        submitBtn.setBorderPainted(false);
+        submitBtn.setPreferredSize(new Dimension(180, 45));
         
-        JButton cancelBtn = new JButton("Cancel");
+        JButton cancelBtn = new JButton("CANCEL");
         cancelBtn.setFont(BUTTON_FONT);
-        cancelBtn.setForeground(TEXT_SECONDARY);
-        cancelBtn.setBackground(CARD_BG);
-        cancelBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        cancelBtn.setPreferredSize(new Dimension(100, 35));
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setBackground(TEXT_SECONDARY);
+        cancelBtn.setBorderPainted(false);
+        cancelBtn.setPreferredSize(new Dimension(180, 45));
         cancelBtn.addActionListener(e -> {
             currentPhotoPath = null;
+            licensePhotoPath = null;
             dialog.dispose();
         });
         
-        final JTextField[] finalTextFields = textFields;
-        final JComboBox<String> finalStatusCombo = statusCombo;
-        final JComboBox<String> finalApprovalCombo = approvalCombo;
-        final JScrollPane finalAddressScrollPane = addressScrollPane;
-        
-        saveBtn.addActionListener(e -> {
-            if (validateAndSaveDriverWithPhoto(dialog, finalTextFields, finalStatusCombo, 
-                                               finalApprovalCombo, finalAddressScrollPane, tempId)) {
-                dialog.dispose();
+        submitBtn.addActionListener(e -> {
+            if (validateCourierForm(nameField, emailField, phoneField, icField, licenseTypeCombo)) {
+                saveNewCourierDriver(dialog, nameField, emailField, phoneField, icField,
+                                    licenseTypeCombo, licenseFileNameLabel.getText());
             }
         });
         
+        buttonPanel.add(submitBtn);
         buttonPanel.add(cancelBtn);
-        buttonPanel.add(saveBtn);
         
         panel.add(titleLabel, BorderLayout.NORTH);
-        panel.add(contentPanel, BorderLayout.CENTER);
+        panel.add(formPanel, BorderLayout.CENTER);
         panel.add(buttonPanel, BorderLayout.SOUTH);
         
         dialog.add(panel);
         dialog.setVisible(true);
     }
     
-    private boolean validateAndSaveDriverWithPhoto(JDialog dialog, JTextField[] textFields, 
-                                                  JComboBox<String> statusCombo,
-                                                  JComboBox<String> approvalCombo,
-                                                  JScrollPane addressScrollPane,
-                                                  String tempId) {
+    private boolean validateCourierForm(JTextField nameField, JTextField emailField,
+                                         JTextField phoneField, JTextField icField,
+                                         JComboBox<String> licenseTypeCombo) {
+        String name = nameField.getText().trim();
+        String email = emailField.getText().trim();
+        String phone = phoneField.getText().trim();
+        String ic = icField.getText().trim();
+        
+        if (name.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Please fill in all fields!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            nameField.requestFocus();
+            return false;
+        }
+        if (email.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Please fill in all fields!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            emailField.requestFocus();
+            return false;
+        }
+        if (phone.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Please fill in all fields!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            phoneField.requestFocus();
+            return false;
+        }
+        if (ic.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Please fill in all fields!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            icField.requestFocus();
+            return false;
+        }
+        
+        if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            JOptionPane.showMessageDialog(null, "Invalid email format! Example: name@domain.com", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            emailField.requestFocus();
+            return false;
+        }
+        
+        String cleanPhone = phone.replaceAll("-", "").replaceAll("\\s+", "");
+        if (!cleanPhone.matches("^[0-9]{10,11}$")) {
+            JOptionPane.showMessageDialog(null, "Invalid phone number! Only digits allowed (10-11 digits)", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            phoneField.requestFocus();
+            return false;
+        }
+        
+        if (!ic.matches("^[0-9]{12}$")) {
+            JOptionPane.showMessageDialog(null, "Invalid IC number! Only digits allowed (12 digits)", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            icField.requestFocus();
+            return false;
+        }
+        
+        if (storage.isIcNumberExists(ic)) {
+            JOptionPane.showMessageDialog(null, "This IC number is already registered!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            icField.requestFocus();
+            return false;
+        }
+        
+        if (storage.isEmailExists(email)) {
+            JOptionPane.showMessageDialog(null, "This email is already registered!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            emailField.requestFocus();
+            return false;
+        }
+        
+        if (storage.isPhoneExists(phone)) {
+            JOptionPane.showMessageDialog(null, "This phone number is already registered!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            phoneField.requestFocus();
+            return false;
+        }
+        
+        if (currentPhotoPath == null || licensePhotoPath == null) {
+            JOptionPane.showMessageDialog(null, "Please upload both IC and License photos!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    private void saveNewCourierDriver(JDialog dialog, JTextField nameField, JTextField emailField,
+                                       JTextField phoneField, JTextField icField,
+                                       JComboBox<String> licenseTypeCombo, String licenseFileName) {
         try {
-            if (textFields[0].getText().trim().isEmpty() || 
-                textFields[1].getText().trim().isEmpty() || 
-                textFields[3].getText().trim().isEmpty() || 
-                textFields[4].getText().trim().isEmpty()) {
-                
-                JOptionPane.showMessageDialog(dialog, 
-                    "Please fill in all required fields (*)", 
-                    "Validation Error", JOptionPane.WARNING_MESSAGE);
-                return false;
-            }
-            
-            String address = "";
-            if (addressScrollPane != null) {
-                JTextArea addressArea = (JTextArea) addressScrollPane.getViewport().getView();
-                address = addressArea.getText().trim();
-            }
-            
             String driverId = storage.generateNewId();
+            String password = "courier" + (int)(Math.random() * 9000 + 1000);
+            String licenseExpiry = "2025-12-31";
+            String licenseType = (String) licenseTypeCombo.getSelectedItem();
+            
             Driver driver = new Driver(
                 driverId,
-                textFields[0].getText().trim(),
-                textFields[1].getText().trim(),
-                textFields[2].getText().trim(),
-                textFields[3].getText().trim(),
-                textFields[4].getText().trim()
+                nameField.getText().trim(),
+                phoneField.getText().trim(),
+                emailField.getText().trim(),
+                "",  // license number - removed
+                licenseExpiry
             );
             
-            if (textFields.length > 5 && textFields[5] != null && !textFields[5].getText().trim().isEmpty()) {
-                driver.licenseType = textFields[5].getText().trim();
-            }
-            if (textFields.length > 6 && textFields[6] != null && !textFields[6].getText().trim().isEmpty()) {
-                driver.icNumber = textFields[6].getText().trim();
-            }
-            if (textFields.length > 7 && textFields[7] != null && !textFields[7].getText().trim().isEmpty()) {
-                driver.emergencyContact = textFields[7].getText().trim();
-            }
-            if (textFields.length > 8 && textFields[8] != null && !textFields[8].getText().trim().isEmpty()) {
-                driver.emergencyPhone = textFields[8].getText().trim();
-            }
-            if (!address.isEmpty()) {
-                driver.address = address;
-            }
+            driver.icNumber = icField.getText().trim();
+            driver.licenseType = licenseType;
+            driver.photoPath = currentPhotoPath;
+            driver.passwordHash = hashPassword(password);
+            driver.approvalStatus = "PENDING";
+            driver.workStatus = "Off Duty";
             
-            driver.workStatus = (String) statusCombo.getSelectedItem();
-            driver.approvalStatus = (String) approvalCombo.getSelectedItem();
-            
-            if (currentPhotoPath != null && currentPhotoPath.contains("temp_")) {
-                File tempFile = new File(currentPhotoPath);
-                String extension = currentPhotoPath.substring(currentPhotoPath.lastIndexOf('.'));
-                String newPath = PHOTO_DIR + driverId + extension;
-                File newFile = new File(newPath);
-                
-                if (tempFile.renameTo(newFile)) {
-                    driver.photoPath = newPath;
-                }
-            } else if (currentPhotoPath != null) {
-                driver.photoPath = currentPhotoPath;
-            }
-            
-            // Generate a default password for admin-added drivers
-            driver.passwordHash = hashPassword("driver" + driverId.toLowerCase());
+            driver.notes = "License Photo: " + licensePhotoPath;
             
             storage.addDriver(driver);
             refreshTable();
             
-            JOptionPane.showMessageDialog(dialog, 
-                "Driver added successfully!\nID: " + driverId + "\nDefault password: driver" + driverId.toLowerCase(), 
-                "Success", JOptionPane.INFORMATION_MESSAGE);
+            String msg = String.format(
+                "Application Submitted!\n\nUser ID: %s\nPassword: %s\nLicense Type: %s\n\nPlease save these credentials.\n\n" +
+                "Your application is pending admin approval.",
+                driverId, password, getLicenseDisplayString(licenseType));
+            
+            JOptionPane.showMessageDialog(dialog, msg, "Application Submitted", JOptionPane.INFORMATION_MESSAGE);
             
             currentPhotoPath = null;
-            return true;
+            licensePhotoPath = null;
+            dialog.dispose();
             
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(dialog, 
-                "Error adding driver: " + e.getMessage(), 
+            JOptionPane.showMessageDialog(dialog,
+                "Error adding driver: " + e.getMessage(),
                 "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
         }
     }
     
@@ -1316,192 +1466,6 @@ public class DriverManagement {
         }
     }
     
-    private void editDriver() {
-        int row = driversTable.getSelectedRow();
-        if (row < 0) {
-            JOptionPane.showMessageDialog(mainPanel, "Please select a driver to edit", 
-                "No Selection", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        int modelRow = driversTable.convertRowIndexToModel(row);
-        String id = (String) tableModel.getValueAt(modelRow, 0);
-        Driver driver = storage.findDriver(id);
-        if (driver == null) return;
-        
-        JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(mainPanel), 
-                                      "Edit Driver - " + driver.name, true);
-        dialog.setSize(850, 750);
-        dialog.setLocationRelativeTo(mainPanel);
-        
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setBackground(CARD_BG);
-        
-        JLabel titleLabel = new JLabel("Edit Driver");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        titleLabel.setForeground(PRIMARY);
-        
-        JPanel contentPanel = new JPanel(new GridBagLayout());
-        contentPanel.setBackground(CARD_BG);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
-        gbc.insets = new Insets(5, 10, 5, 10);
-        
-        JPanel formPanel = new JPanel(new GridBagLayout());
-        formPanel.setBackground(CARD_BG);
-        GridBagConstraints fGbc = new GridBagConstraints();
-        fGbc.fill = GridBagConstraints.HORIZONTAL;
-        fGbc.insets = new Insets(5, 10, 5, 10);
-        
-        String[] labels = {"Name:*", "Phone:*", "Email:", "License Number:*", 
-                          "License Expiry:*", "License Type:", "IC Number:",
-                          "Work Status:", "Approval Status:", "Vehicle ID:", 
-                          "Emergency Contact:", "Emergency Phone:", "Address:", "Notes:", "Remarks:"};
-        
-        JTextField nameField = new JTextField(driver.name, 20);
-        JTextField phoneField = new JTextField(driver.phone, 20);
-        JTextField emailField = new JTextField(driver.email != null ? driver.email : "", 20);
-        JTextField licenseField = new JTextField(driver.licenseNumber, 20);
-        JTextField expiryField = new JTextField(driver.licenseExpiry, 20);
-        JTextField licenseTypeField = new JTextField(driver.licenseType != null ? driver.licenseType : "", 20);
-        JTextField icField = new JTextField(driver.icNumber != null ? driver.icNumber : "", 20);
-        
-        JComboBox<String> workStatusCombo = new JComboBox<>(
-            new String[]{"Available", "On Delivery", "Off Duty", "On Leave"});
-        workStatusCombo.setSelectedItem(driver.workStatus);
-        
-        JComboBox<String> approvalStatusCombo = new JComboBox<>(
-            new String[]{"PENDING", "APPROVED", "REJECTED"});
-        approvalStatusCombo.setSelectedItem(driver.approvalStatus);
-        
-        JTextField vehicleField = new JTextField(driver.vehicleId != null ? driver.vehicleId : "", 20);
-        JTextField emergencyContactField = new JTextField(
-            driver.emergencyContact != null ? driver.emergencyContact : "", 20);
-        JTextField emergencyPhoneField = new JTextField(
-            driver.emergencyPhone != null ? driver.emergencyPhone : "", 20);
-        
-        JTextArea addressArea = new JTextArea(driver.address != null ? driver.address : "", 3, 20);
-        addressArea.setLineWrap(true);
-        addressArea.setWrapStyleWord(true);
-        JScrollPane addressScroll = new JScrollPane(addressArea);
-        addressScroll.setPreferredSize(new Dimension(250, 60));
-        
-        JTextArea notesArea = new JTextArea(driver.notes != null ? driver.notes : "", 3, 20);
-        notesArea.setLineWrap(true);
-        notesArea.setWrapStyleWord(true);
-        JScrollPane notesScroll = new JScrollPane(notesArea);
-        notesScroll.setPreferredSize(new Dimension(250, 60));
-        
-        JTextArea remarksArea = new JTextArea(driver.remarks != null ? driver.remarks : "", 2, 20);
-        remarksArea.setLineWrap(true);
-        remarksArea.setWrapStyleWord(true);
-        JScrollPane remarksScroll = new JScrollPane(remarksArea);
-        remarksScroll.setPreferredSize(new Dimension(250, 40));
-        
-        JComponent[] fields = {
-            nameField, phoneField, emailField, licenseField, expiryField,
-            licenseTypeField, icField, workStatusCombo, approvalStatusCombo,
-            vehicleField, emergencyContactField, emergencyPhoneField,
-            addressScroll, notesScroll, remarksScroll
-        };
-        
-        for (int i = 0; i < labels.length; i++) {
-            fGbc.gridx = 0;
-            fGbc.gridy = i;
-            fGbc.weightx = 0.3;
-            JLabel label = new JLabel(labels[i]);
-            label.setFont(HEADER_FONT);
-            formPanel.add(label, fGbc);
-            
-            fGbc.gridx = 1;
-            fGbc.weightx = 0.7;
-            formPanel.add(fields[i], fGbc);
-        }
-        
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 0.6;
-        gbc.weighty = 1.0;
-        gbc.anchor = GridBagConstraints.NORTHWEST;
-        contentPanel.add(new JScrollPane(formPanel), gbc);
-        
-        gbc.gridx = 1;
-        gbc.weightx = 0.4;
-        gbc.weighty = 1.0;
-        gbc.anchor = GridBagConstraints.NORTH;
-        
-        JPanel photoPanel = createPhotoUploadPanel(driver.id, driver);
-        contentPanel.add(photoPanel, gbc);
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setBackground(CARD_BG);
-        
-        JButton saveBtn = new JButton("Save Changes");
-        saveBtn.setFont(BUTTON_FONT);
-        saveBtn.setForeground(Color.WHITE);
-        saveBtn.setBackground(WARNING);
-        saveBtn.setBorderPainted(false);
-        saveBtn.setPreferredSize(new Dimension(120, 35));
-        
-        JButton cancelBtn = new JButton("Cancel");
-        cancelBtn.setFont(BUTTON_FONT);
-        cancelBtn.setForeground(TEXT_SECONDARY);
-        cancelBtn.setBackground(CARD_BG);
-        cancelBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        cancelBtn.setPreferredSize(new Dimension(100, 35));
-        cancelBtn.addActionListener(e -> {
-            currentPhotoPath = null;
-            dialog.dispose();
-        });
-        
-        saveBtn.addActionListener(e -> {
-            String oldVehicleId = driver.vehicleId;
-            
-            driver.name = nameField.getText().trim();
-            driver.phone = phoneField.getText().trim();
-            driver.email = emailField.getText().trim().isEmpty() ? null : emailField.getText().trim();
-            driver.licenseNumber = licenseField.getText().trim();
-            driver.licenseExpiry = expiryField.getText().trim();
-            driver.licenseType = licenseTypeField.getText().trim().isEmpty() ? null : licenseTypeField.getText().trim();
-            driver.icNumber = icField.getText().trim().isEmpty() ? null : icField.getText().trim();
-            driver.workStatus = (String) workStatusCombo.getSelectedItem();
-            driver.approvalStatus = (String) approvalStatusCombo.getSelectedItem();
-            driver.vehicleId = vehicleField.getText().trim().isEmpty() ? null : vehicleField.getText().trim();
-            driver.emergencyContact = emergencyContactField.getText().trim().isEmpty() ? null : emergencyContactField.getText().trim();
-            driver.emergencyPhone = emergencyPhoneField.getText().trim().isEmpty() ? null : emergencyPhoneField.getText().trim();
-            driver.address = addressArea.getText().trim().isEmpty() ? null : addressArea.getText().trim();
-            driver.notes = notesArea.getText().trim().isEmpty() ? null : notesArea.getText().trim();
-            driver.remarks = remarksArea.getText().trim().isEmpty() ? null : remarksArea.getText().trim();
-            driver.photoPath = currentPhotoPath;
-            
-            if (vehicleManagement != null) {
-                if (oldVehicleId != null && !oldVehicleId.equals(driver.vehicleId)) {
-                    vehicleManagement.assignDriverToVehicle(null, oldVehicleId);
-                }
-                if (driver.vehicleId != null && !driver.vehicleId.equals(oldVehicleId)) {
-                    vehicleManagement.assignDriverToVehicle(driver.name, driver.vehicleId);
-                }
-            }
-            
-            storage.updateDriver(driver);
-            refreshTable();
-            JOptionPane.showMessageDialog(dialog, "Driver updated successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
-            currentPhotoPath = null;
-            dialog.dispose();
-        });
-        
-        buttonPanel.add(cancelBtn);
-        buttonPanel.add(saveBtn);
-        
-        panel.add(titleLabel, BorderLayout.NORTH);
-        panel.add(contentPanel, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.add(panel);
-        dialog.setVisible(true);
-    }
-    
     private void deleteDriver() {
         int row = driversTable.getSelectedRow();
         if (row < 0) {
@@ -1513,7 +1477,7 @@ public class DriverManagement {
         int modelRow = driversTable.convertRowIndexToModel(row);
         String id = (String) tableModel.getValueAt(modelRow, 0);
         String name = (String) tableModel.getValueAt(modelRow, 1);
-        String approval = (String) tableModel.getValueAt(modelRow, 10);
+        String approval = (String) tableModel.getValueAt(modelRow, 8);
         
         String warning = "Are you sure you want to delete driver " + name + " (" + id + ")?";
         if ("APPROVED".equals(approval)) {
@@ -1546,56 +1510,6 @@ public class DriverManagement {
         }
     }
     
-    private void assignVehicle() {
-        int row = driversTable.getSelectedRow();
-        if (row < 0) {
-            JOptionPane.showMessageDialog(mainPanel, "Please select a driver", 
-                "No Selection", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        int modelRow = driversTable.convertRowIndexToModel(row);
-        String id = (String) tableModel.getValueAt(modelRow, 0);
-        String approval = (String) tableModel.getValueAt(modelRow, 10);
-        
-        if (!"APPROVED".equals(approval)) {
-            JOptionPane.showMessageDialog(mainPanel, 
-                "Only approved drivers can be assigned vehicles.", 
-                "Driver Not Approved", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        Driver driver = storage.findDriver(id);
-        if (driver == null) return;
-        
-        String vehicleId = JOptionPane.showInputDialog(mainPanel,
-            "Enter Vehicle ID to assign to " + driver.name + ":",
-            driver.vehicleId != null ? driver.vehicleId : "");
-        
-        if (vehicleId != null) {
-            String oldVehicleId = driver.vehicleId;
-            driver.vehicleId = vehicleId.trim().isEmpty() ? null : vehicleId.trim();
-            
-            if (vehicleManagement != null) {
-                if (oldVehicleId != null && !oldVehicleId.equals(driver.vehicleId)) {
-                    vehicleManagement.assignDriverToVehicle(null, oldVehicleId);
-                }
-                if (driver.vehicleId != null) {
-                    vehicleManagement.assignDriverToVehicle(driver.name, driver.vehicleId);
-                }
-            }
-            
-            storage.updateDriver(driver);
-            refreshTable();
-            
-            if (driver.vehicleId != null) {
-                JOptionPane.showMessageDialog(mainPanel, 
-                    "Vehicle " + vehicleId + " assigned to " + driver.name,
-                    "Success", JOptionPane.INFORMATION_MESSAGE);
-            }
-        }
-    }
-    
     private void scheduleDriver() {
         int row = driversTable.getSelectedRow();
         if (row < 0) {
@@ -1607,7 +1521,7 @@ public class DriverManagement {
         int modelRow = driversTable.convertRowIndexToModel(row);
         String id = (String) tableModel.getValueAt(modelRow, 0);
         String name = (String) tableModel.getValueAt(modelRow, 1);
-        String approval = (String) tableModel.getValueAt(modelRow, 10);
+        String approval = (String) tableModel.getValueAt(modelRow, 8);
         
         if (!"APPROVED".equals(approval)) {
             JOptionPane.showMessageDialog(mainPanel, 
@@ -1628,7 +1542,6 @@ public class DriverManagement {
             options[0]);
         
         if (shift != null) {
-            // Update work status based on schedule
             Driver driver = storage.findDriver(id);
             if (driver != null) {
                 if (shift.contains("Day Off") || shift.contains("On Leave")) {
@@ -1649,17 +1562,17 @@ public class DriverManagement {
     
     private void refreshTable() {
         tableModel.setRowCount(0);
-        for (Driver d : storage.getAllDrivers()) {
+        List<Driver> allDrivers = storage.getAllDrivers();
+        
+        for (Driver d : allDrivers) {
             tableModel.addRow(new Object[]{
                 d.id,
                 d.name,
                 d.phone,
                 d.workStatus,
-                d.licenseNumber,
-                d.licenseExpiry,
+                getLicenseDisplayString(d.licenseType),
                 d.vehicleId != null ? d.vehicleId : "-",
                 d.totalDeliveries,
-                d.rating,
                 d.joinDate,
                 d.approvalStatus != null ? d.approvalStatus : "PENDING",
                 d.remarks != null ? d.remarks : "-"
@@ -1692,7 +1605,74 @@ public class DriverManagement {
         });
     }
     
-    // ==================== PUBLIC METHODS FOR ADMIN DASHBOARD ====================
+    // ========== PHOTO METHODS ==========
+    
+    private String savePhoto(File sourceFile, String driverId) {
+        if (sourceFile == null) return null;
+        
+        File directory = new File(PHOTO_DIR);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+        
+        String fileName = sourceFile.getName();
+        String extension = fileName.substring(fileName.lastIndexOf('.'));
+        
+        String newFileName = driverId + extension;
+        File destFile = new File(PHOTO_DIR + newFileName);
+        
+        try {
+            java.nio.file.Files.copy(sourceFile.toPath(), destFile.toPath(), 
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            return PHOTO_DIR + newFileName;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    private ImageIcon loadDriverPhoto(String photoPath, int width, int height) {
+        if (photoPath == null || photoPath.isEmpty()) {
+            return createDefaultPhoto(width, height, null);
+        }
+        
+        try {
+            File photoFile = new File(photoPath);
+            if (!photoFile.exists()) {
+                return createDefaultPhoto(width, height, null);
+            }
+            
+            BufferedImage img = ImageIO.read(photoFile);
+            Image scaledImg = img.getScaledInstance(width, height, Image.SCALE_SMOOTH);
+            return new ImageIcon(scaledImg);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return createDefaultPhoto(width, height, null);
+        }
+    }
+    
+    private ImageIcon createDefaultPhoto(int width, int height, String initial) {
+        BufferedImage defaultImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = defaultImg.createGraphics();
+        
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setColor(PRIMARY);
+        g2d.fillOval(0, 0, width, height);
+        
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Segoe UI", Font.BOLD, height / 2));
+        FontMetrics fm = g2d.getFontMetrics();
+        
+        String text = initial != null && !initial.isEmpty() ? initial.substring(0, 1).toUpperCase() : "?";
+        int x = (width - fm.stringWidth(text)) / 2;
+        int y = ((height - fm.getHeight()) / 2) + fm.getAscent();
+        g2d.drawString(text, x, y);
+        
+        g2d.dispose();
+        return new ImageIcon(defaultImg);
+    }
+    
+    // ========== PUBLIC METHODS FOR DASHBOARD ==========
     
     public JPanel getMainPanel() { 
         refreshTable();
@@ -1705,88 +1685,24 @@ public class DriverManagement {
     }
     
     public void refreshData() { 
+        storage = new DriverStorage();
         refreshTable(); 
     }
     
-    // Statistics methods for dashboard
-    public int getTotalCount() {
-        return storage.getTotalCount();
+    public int getTotalCount() { return storage.getTotalCount(); }
+    public int getApprovedCount() { return storage.getApprovedCount(); }
+    public int getPendingCount() { return storage.getPendingCount(); }
+    public int getRejectedCount() { return storage.getRejectedCount(); }
+    public int getAvailableCount() { return storage.getAvailableCount(); }
+    public int getOnDeliveryCount() { return storage.getOnDeliveryCount(); }
+    public int getOnDutyCount() { return storage.getAvailableCount() + storage.getOnDeliveryCount(); }
+    public int getOffDutyCount() { return storage.getOffDutyCount(); }
+    
+    public void setVehicleManagement(VehicleManagement vehicleMgmt) {
+        this.vehicleManagement = vehicleMgmt;
     }
     
-    public int getApprovedCount() {
-        return storage.getApprovedCount();
-    }
-    
-    public int getPendingCount() {
-        return storage.getPendingCount();
-    }
-    
-    public int getRejectedCount() {
-        return storage.getRejectedCount();
-    }
-    
-    public int getAvailableCount() {
-        return storage.getAvailableCount();
-    }
-    
-    public int getOnDeliveryCount() {
-        return storage.getOnDeliveryCount();
-    }
-    
-    public int getOnDutyCount() {
-        return storage.getAvailableCount() + storage.getOnDeliveryCount();
-    }
-    
-    public int getOffDutyCount() {
-        return storage.getOffDutyCount();
-    }
-    
-    // ==================== INTEGRATION METHODS ====================
-    
-    private Driver findDriverByName(String name) {
-        if (name == null) return null;
-        for (Driver driver : storage.getAllDrivers()) {
-            if (driver.name.equalsIgnoreCase(name)) {
-                return driver;
-            }
-        }
-        return null;
-    }
-    
-    public Driver getDriverByName(String name) {
-        return findDriverByName(name);
-    }
-    
-    public Driver getDriverById(String id) {
-        return storage.findDriver(id);
-    }
-    
-    public void updateDriverStatus(String driverName, String newStatus) {
-        Driver driver = findDriverByName(driverName);
-        if (driver != null) {
-            driver.workStatus = newStatus;
-            storage.updateDriver(driver);
-            refreshTable();
-        }
-    }
-    
-    public boolean assignVehicleToDriver(String driverName, String vehicleId) {
-        Driver driver = findDriverByName(driverName);
-        if (driver != null && "APPROVED".equals(driver.approvalStatus)) {
-            driver.vehicleId = vehicleId;
-            driver.workStatus = "Active";
-            storage.updateDriver(driver);
-            refreshTable();
-            return true;
-        }
-        return false;
-    }
-    
-    public List<Driver> getAvailableDrivers() {
-        return storage.getAvailableDrivers();
-    }
-    
-    public List<Driver> getPendingDrivers() {
-        return storage.getPendingDrivers();
+    public void setOrderManagement(OrderManagement orderMgmt) {
+        this.orderManagement = orderMgmt;
     }
 }

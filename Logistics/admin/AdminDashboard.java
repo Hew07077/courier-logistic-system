@@ -38,7 +38,6 @@ public class AdminDashboard extends JFrame {
     private VehicleManagement vehicleManagement;
     private DriverManagement driverManagement;
     private MaintenanceManagement maintenanceManagement;
-    private ReportManagement reportManagement;
 
     public AdminDashboard() {
         setTitle("LogiXpress Admin Dashboard");
@@ -48,9 +47,6 @@ public class AdminDashboard extends JFrame {
         
         panelCache = new HashMap<>();
         
-        // Initialize management modules
-        initializeModules();
-        
         // Set system look and feel
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
@@ -58,54 +54,90 @@ public class AdminDashboard extends JFrame {
             e.printStackTrace();
         }
 
+        // 先初始化模块（同步执行，确保面板可用）
+        initializeModules();
+        
         initUI();
         
-        // Load initial data
+        // 刷新数据
         refreshAllModules();
+        refreshCurrentView();
     }
 
     private void initializeModules() {
-        // 首先创建 DriverManagement，因为它被其他模块依赖
-        driverManagement = new DriverManagement();
+        System.out.println("Initializing modules...");
         
-        // 创建 VehicleManagement
-        vehicleManagement = new VehicleManagement();
-        
-        // 创建其他模块，传递必要的依赖
-        orderManagement = new OrderManagement(driverManagement, vehicleManagement);
-        maintenanceManagement = new MaintenanceManagement();
-        reportManagement = new ReportManagement();
-        
-        // 设置模块间的相互引用
-        driverManagement.setVehicleManagement(vehicleManagement);
-        driverManagement.setOrderManagement(orderManagement);
-        
-        vehicleManagement.setDriverManagement(driverManagement);
-        vehicleManagement.setOrderManagement(orderManagement);
-        vehicleManagement.setMaintenanceManagement(maintenanceManagement);
-        
-        if (maintenanceManagement != null) {
-            maintenanceManagement.setVehicleManagement(vehicleManagement);
+        try {
+            // 首先创建 DriverManagement
+            driverManagement = new DriverManagement();
+            System.out.println("DriverManagement initialized");
+            
+            // 创建 VehicleManagement
+            vehicleManagement = new VehicleManagement();
+            System.out.println("VehicleManagement initialized");
+            
+            // 创建 OrderManagement
+            orderManagement = new OrderManagement(driverManagement, vehicleManagement);
+            System.out.println("OrderManagement initialized");
+            
+            // 创建 MaintenanceManagement
+            maintenanceManagement = new MaintenanceManagement();
+            System.out.println("MaintenanceManagement initialized");
+            
+            // 设置交叉引用
+            driverManagement.setVehicleManagement(vehicleManagement);
+            driverManagement.setOrderManagement(orderManagement);
+            
+            vehicleManagement.setDriverManagement(driverManagement);
+            vehicleManagement.setOrderManagement(orderManagement);
+            vehicleManagement.setMaintenanceManagement(maintenanceManagement);
+            
+            if (maintenanceManagement != null) {
+                maintenanceManagement.setVehicleManagement(vehicleManagement);
+            }
+            
+            // 缓存面板
+            panelCache.put("ORDER", orderManagement.getMainPanel());
+            panelCache.put("VEHICLE", vehicleManagement.getMainPanel());
+            panelCache.put("DRIVER", driverManagement.getMainPanel());
+            panelCache.put("MAINTENANCE", maintenanceManagement.getMainPanel());
+            
+            System.out.println("All modules initialized successfully. Panel cache size: " + panelCache.size());
+            
+        } catch (Exception e) {
+            System.err.println("Error initializing modules: " + e.getMessage());
+            e.printStackTrace();
+            
+            // 如果出错，创建空面板作为后备
+            JPanel errorPanel = createErrorPanel("Error loading module: " + e.getMessage());
+            panelCache.put("ORDER", errorPanel);
+            panelCache.put("VEHICLE", errorPanel);
+            panelCache.put("DRIVER", errorPanel);
+            panelCache.put("MAINTENANCE", errorPanel);
         }
-        
-        // 为 OrderManagement 设置 VehicleManagement
-        orderManagement.setVehicleManagement(vehicleManagement);
-        
-        // 缓存面板
-        panelCache.put("ORDER", orderManagement.getMainPanel());
-        panelCache.put("VEHICLE", vehicleManagement.getMainPanel());
-        panelCache.put("DRIVER", driverManagement.getMainPanel());
-        panelCache.put("MAINTENANCE", maintenanceManagement.getMainPanel());
-        panelCache.put("REPORTS", reportManagement.getMainPanel());
+    }
+    
+    private JPanel createErrorPanel(String message) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(BG_LIGHT);
+        JLabel errorLabel = new JLabel(message);
+        errorLabel.setForeground(Color.RED);
+        panel.add(errorLabel);
+        return panel;
     }
 
     private void refreshAllModules() {
-        // Refresh data from databases/files
-        orderManagement.refreshData();
-        vehicleManagement.refreshData();
-        driverManagement.refreshData();
-        maintenanceManagement.refreshData();
-        reportManagement.refreshData();
+        System.out.println("Refreshing all modules...");
+        try {
+            if (orderManagement != null) orderManagement.refreshData();
+            if (vehicleManagement != null) vehicleManagement.refreshData();
+            if (driverManagement != null) driverManagement.refreshData();
+            if (maintenanceManagement != null) maintenanceManagement.refreshData();
+            System.out.println("All modules refreshed");
+        } catch (Exception e) {
+            System.err.println("Error refreshing modules: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void initUI() {
@@ -122,16 +154,19 @@ public class AdminDashboard extends JFrame {
         bar.setPreferredSize(new Dimension(getWidth(), 80));
         bar.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 25));
 
-        // Left side with logo
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
         leftPanel.setOpaque(false);
 
-        // Load and resize logo
-        ImageIcon logoIcon = loadLogo("logo.jpeg");
+        ImageIcon logoIcon = loadLogo("logo.at.png");
         if (logoIcon != null) {
             Image img = logoIcon.getImage();
             Image resizedImg = img.getScaledInstance(50, 50, Image.SCALE_SMOOTH);
             JLabel logoLabel = new JLabel(new ImageIcon(resizedImg));
+            leftPanel.add(logoLabel);
+        } else {
+            JLabel logoLabel = new JLabel("LX");
+            logoLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
+            logoLabel.setForeground(Color.WHITE);
             leftPanel.add(logoLabel);
         }
 
@@ -150,11 +185,9 @@ public class AdminDashboard extends JFrame {
 
         bar.add(leftPanel, BorderLayout.WEST);
 
-        // Right side with time and logout
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 20));
         rightPanel.setOpaque(false);
 
-        // Time panel with icon
         JPanel timePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         timePanel.setOpaque(false);
 
@@ -163,7 +196,6 @@ public class AdminDashboard extends JFrame {
         timeLabel.setForeground(Color.WHITE);
         timePanel.add(timeLabel);
 
-        // Update time
         Timer timer = new Timer(1000, e -> 
             timeLabel.setText(new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss").format(new Date()))
         );
@@ -171,7 +203,6 @@ public class AdminDashboard extends JFrame {
 
         rightPanel.add(timePanel);
 
-        // Refresh button
         JButton refreshBtn = createButton("Refresh", new Color(40, 167, 69));
         refreshBtn.addActionListener(e -> {
             refreshAllModules();
@@ -180,16 +211,13 @@ public class AdminDashboard extends JFrame {
         });
         rightPanel.add(refreshBtn);
 
-        // Logout button
         JButton logout = createButton("Logout", new Color(220, 53, 69));
         logout.addActionListener(e -> {
             int confirm = JOptionPane.showConfirmDialog(this, 
                 "Are you sure you want to logout?", "Confirm Logout", 
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
             if (confirm == JOptionPane.YES_OPTION) {
-                dispose(); // Close admin dashboard
-                
-                // Open login screen
+                dispose();
                 SwingUtilities.invokeLater(() -> {
                     Login login = new Login();
                     login.setVisible(true);
@@ -209,18 +237,22 @@ public class AdminDashboard extends JFrame {
         sidebar.setBackground(ORANGE_PRIMARY);
         sidebar.setPreferredSize(new Dimension(280, getHeight()));
 
-        // Logo area
         JPanel logoPanel = new JPanel(new BorderLayout());
         logoPanel.setOpaque(false);
         logoPanel.setBorder(BorderFactory.createEmptyBorder(30, 15, 25, 15));
 
-        ImageIcon mainLogoIcon = loadLogo("logo.jpeg");
+        ImageIcon mainLogoIcon = loadLogo("logo.a.jpeg");
         if (mainLogoIcon != null) {
             Image img = mainLogoIcon.getImage();
             Image resizedImg = img.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
             JLabel logoImage = new JLabel(new ImageIcon(resizedImg));
             logoImage.setHorizontalAlignment(SwingConstants.CENTER);
             logoPanel.add(logoImage, BorderLayout.NORTH);
+        } else {
+            JLabel logoText = new JLabel("LX", SwingConstants.CENTER);
+            logoText.setFont(new Font("Segoe UI", Font.BOLD, 48));
+            logoText.setForeground(Color.WHITE);
+            logoPanel.add(logoText, BorderLayout.NORTH);
         }
 
         JLabel logo = new JLabel("LogiXpress", SwingConstants.CENTER);
@@ -236,32 +268,33 @@ public class AdminDashboard extends JFrame {
 
         sidebar.add(logoPanel, BorderLayout.NORTH);
 
-        // Menu items with notification badges
-        JPanel menu = new JPanel(new GridLayout(5, 1, 0, 8));
+        JPanel menu = new JPanel(new GridLayout(4, 1, 0, 8));
         menu.setOpaque(false);
         menu.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
 
-        menu.add(createNavButton("Order & Delivery", "ORDER", 
-            getNotificationText(orderManagement.getPendingCount()), true));
-        menu.add(createNavButton("Vehicle & Logistics", "VEHICLE", 
-            getNotificationText(vehicleManagement.getActiveCount()), false));
-        menu.add(createNavButton("Driver Management", "DRIVER", 
-            getNotificationText(driverManagement.getOnDutyCount()), false));
-        menu.add(createNavButton("Maintenance", "MAINTENANCE", 
-            getNotificationText(maintenanceManagement.getScheduledCount()), false));
-        menu.add(createNavButton("Reports", "REPORTS", 
-            "Analytics & insights", false));
+        int pendingCount = orderManagement != null ? orderManagement.getPendingCount() : 0;
+        int activeCount = vehicleManagement != null ? vehicleManagement.getActiveCount() : 0;
+        int onDutyCount = driverManagement != null ? driverManagement.getOnDutyCount() : 0;
+        int scheduledCount = maintenanceManagement != null ? maintenanceManagement.getScheduledCount() : 0;
+
+        JButton orderBtn = createNavButton("Order & Delivery", "ORDER", 
+            pendingCount > 0 ? "● " + pendingCount + " pending" : "All good", true);
+        JButton vehicleBtn = createNavButton("Vehicle & Logistics", "VEHICLE", 
+            activeCount > 0 ? "● " + activeCount + " active" : "All good", false);
+        JButton driverBtn = createNavButton("Driver Management", "DRIVER", 
+            onDutyCount > 0 ? "● " + onDutyCount + " on duty" : "All good", false);
+        JButton maintenanceBtn = createNavButton("Maintenance", "MAINTENANCE", 
+            scheduledCount > 0 ? "● " + scheduledCount + " pending" : "All good", false);
+        
+        menu.add(orderBtn);
+        menu.add(vehicleBtn);
+        menu.add(driverBtn);
+        menu.add(maintenanceBtn);
 
         sidebar.add(menu, BorderLayout.CENTER);
-
-        // User profile
         sidebar.add(createUserProfile(), BorderLayout.SOUTH);
 
         return sidebar;
-    }
-
-    private String getNotificationText(int count) {
-        return count > 0 ? "● " + count + " pending" : "All good";
     }
 
     private JPanel createUserProfile() {
@@ -287,7 +320,6 @@ public class AdminDashboard extends JFrame {
         return profile;
     }
 
-    // ================= BUTTONS =================
     private JButton createButton(String text, Color bgColor) {
         JButton btn = new JButton(text);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -299,7 +331,6 @@ public class AdminDashboard extends JFrame {
         btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         
-        // Hover effect
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -333,7 +364,6 @@ public class AdminDashboard extends JFrame {
         btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         btn.setForeground(Color.WHITE);
         
-        // Button styling - selected button gets DARKER
         if (selected) {
             btn.setBackground(BUTTON_SELECTED);
             btn.setOpaque(true);
@@ -350,7 +380,6 @@ public class AdminDashboard extends JFrame {
 
         if (selected) activeButton = btn;
 
-        // Hover effect - becomes darker on hover
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -382,14 +411,21 @@ public class AdminDashboard extends JFrame {
             btn.setBackground(BUTTON_SELECTED);
             activeButton = btn;
             
-            cardLayout.show(contentPanel, card);
-            refreshCurrentView();
+            JPanel targetPanel = panelCache.get(card);
+            if (targetPanel != null) {
+                cardLayout.show(contentPanel, card);
+                refreshCurrentView();
+            } else {
+                System.err.println("Panel not found for card: " + card);
+                JOptionPane.showMessageDialog(AdminDashboard.this, 
+                    "Module not loaded properly. Please restart the application.", 
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            }
         });
 
         return btn;
     }
 
-    // ================= LOGO LOADING =================
     private ImageIcon loadLogo(String filename) {
         try {
             java.net.URL imgURL = getClass().getResource(filename);
@@ -414,37 +450,68 @@ public class AdminDashboard extends JFrame {
         contentPanel.setBackground(BG_LIGHT);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Add panels to card layout
-        for (Map.Entry<String, JPanel> entry : panelCache.entrySet()) {
-            contentPanel.add(entry.getValue(), entry.getKey());
+        // 检查 panelCache 是否已填充
+        if (panelCache.isEmpty()) {
+            System.err.println("ERROR: panelCache is empty! Creating fallback panels.");
+            // 创建后备面板
+            JPanel errorPanel = createErrorPanel("Modules failed to load. Please check console for errors.");
+            contentPanel.add(errorPanel, "ORDER");
+            contentPanel.add(errorPanel, "VEHICLE");
+            contentPanel.add(errorPanel, "DRIVER");
+            contentPanel.add(errorPanel, "MAINTENANCE");
+        } else {
+            // 添加所有缓存的面板
+            for (Map.Entry<String, JPanel> entry : panelCache.entrySet()) {
+                contentPanel.add(entry.getValue(), entry.getKey());
+                System.out.println("Added panel for: " + entry.getKey());
+            }
         }
 
-        // Default show ORDER
-        cardLayout.show(contentPanel, "ORDER");
+        // 默认显示 ORDER
+        if (panelCache.containsKey("ORDER")) {
+            cardLayout.show(contentPanel, "ORDER");
+        } else {
+            cardLayout.show(contentPanel, "ORDER");
+        }
 
         return contentPanel;
     }
 
     private void refreshCurrentView() {
-        // Refresh current view's data
         String currentCard = getCurrentCard();
+        System.out.println("Refreshing view: " + currentCard);
+        
         if (currentCard != null) {
-            switch(currentCard) {
-                case "ORDER":
-                    orderManagement.refreshData();
-                    break;
-                case "VEHICLE":
-                    vehicleManagement.refreshData();
-                    break;
-                case "DRIVER":
-                    driverManagement.refreshData();
-                    break;
-                case "MAINTENANCE":
-                    maintenanceManagement.refreshData();
-                    break;
-                case "REPORTS":
-                    reportManagement.refreshData();
-                    break;
+            try {
+                switch(currentCard) {
+                    case "ORDER":
+                        if (orderManagement != null) {
+                            orderManagement.refreshData();
+                            System.out.println("OrderManagement refreshed");
+                        }
+                        break;
+                    case "VEHICLE":
+                        if (vehicleManagement != null) {
+                            vehicleManagement.refreshData();
+                            System.out.println("VehicleManagement refreshed");
+                        }
+                        break;
+                    case "DRIVER":
+                        if (driverManagement != null) {
+                            driverManagement.refreshData();
+                            System.out.println("DriverManagement refreshed");
+                        }
+                        break;
+                    case "MAINTENANCE":
+                        if (maintenanceManagement != null) {
+                            maintenanceManagement.refreshData();
+                            System.out.println("MaintenanceManagement refreshed");
+                        }
+                        break;
+                }
+            } catch (Exception e) {
+                System.err.println("Error refreshing view: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
@@ -457,7 +524,6 @@ public class AdminDashboard extends JFrame {
             if (text.contains("Vehicle")) return "VEHICLE";
             if (text.contains("Driver")) return "DRIVER";
             if (text.contains("Maintenance")) return "MAINTENANCE";
-            if (text.contains("Reports")) return "REPORTS";
         }
         return "ORDER";
     }
@@ -469,18 +535,21 @@ public class AdminDashboard extends JFrame {
         bar.setPreferredSize(new Dimension(getWidth(), 35));
         bar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR));
 
-        // Live statistics
         JLabel status = new JLabel();
         status.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         status.setForeground(TEXT_GRAY);
         
-        // Update status every 30 seconds
-        Timer statusTimer = new Timer(30000, e -> 
-            status.setText(String.format("  System Status: ● Online | Orders: %d | Vehicles: %d | Drivers: %d | Last sync: Just now",
-                orderManagement.getTotalCount(),
-                vehicleManagement.getTotalCount(),
-                driverManagement.getTotalCount()))
-        );
+        Timer statusTimer = new Timer(30000, e -> {
+            try {
+                int orders = orderManagement != null ? orderManagement.getTotalCount() : 0;
+                int vehicles = vehicleManagement != null ? vehicleManagement.getTotalCount() : 0;
+                int drivers = driverManagement != null ? driverManagement.getTotalCount() : 0;
+                status.setText(String.format("  System Status: ● Online | Orders: %d | Vehicles: %d | Drivers: %d | Last sync: Just now",
+                    orders, vehicles, drivers));
+            } catch (Exception ex) {
+                status.setText("  System Status: ● Online | Loading stats...");
+            }
+        });
         statusTimer.setInitialDelay(0);
         statusTimer.start();
         

@@ -408,9 +408,11 @@ public class DeliveriesPanel extends JPanel {
         }
     }
     
+    // DeliveriesPanel.java - 修改 refreshDeliveriesTable 方法中的状态获取
+
     private void refreshDeliveriesTable() {
         deliveriesTableModel.setRowCount(0);
-        
+    
         for (Order o : myOrders) {
             String pickupTime = "-";
             if (o.pickupTime != null && o.pickupTime.length() >= 16) {
@@ -418,35 +420,46 @@ public class DeliveriesPanel extends JPanel {
             } else if (o.pickupTime != null) {
                 pickupTime = o.pickupTime;
             }
-            
+        
             String estDelivery = "-";
             if (o.estimatedDelivery != null && o.estimatedDelivery.length() >= 16) {
                 estDelivery = o.estimatedDelivery.substring(11, 16);
             } else if (o.estimatedDelivery != null) {
                 estDelivery = o.estimatedDelivery;
             }
-            
+        
             String address = o.recipientAddress;
             if (address != null && address.length() > 25) {
                 address = address.substring(0, 22) + "...";
             } else if (address == null) {
                 address = "-";
             }
-            
+        
+            // 使用 getCourierStatus() 获取司机看到的状态
+            String courierStatus = o.getCourierStatus();
+        
             deliveriesTableModel.addRow(new Object[]{
                 o.id, 
                 o.recipientName != null ? o.recipientName : "-",
                 o.recipientPhone != null ? o.recipientPhone : "-",
-                o.getCourierStatus(),
+                courierStatus,  // 使用司机状态
                 pickupTime, 
                 estDelivery, 
                 address,
                 String.format("%.1f kg", o.weight)
             });
         }
-        
+    
+        if (myOrders.isEmpty()) {
+            deliveriesTableModel.addRow(new Object[]{
+                "No orders assigned", "-", "-", "-", "-", "-", "-", "-"
+            });
+        }
+    
         updateDeliveriesStats();
     }
+        
+
     
     private void updateDeliveriesStats() {
         SwingUtilities.invokeLater(() -> {

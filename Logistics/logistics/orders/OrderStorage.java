@@ -1,3 +1,4 @@
+// OrderStorage.java (Complete - with forceReload fix)
 package logistics.orders;
 
 import logistics.driver.Driver;
@@ -62,11 +63,9 @@ public class OrderStorage {
             
             System.out.println("Loaded " + orderCount + " orders from file");
             
-            // Replace the orders list
             orders.clear();
             orders.addAll(newOrders);
             
-            // Update daily counters
             dailyCounters.clear();
             for (Order o : orders) {
                 updateDailyCounter(o.id);
@@ -125,8 +124,7 @@ public class OrderStorage {
     
     public void saveOrders() {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(ORDER_FILE))) {
-            // Write header
-            bw.write("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|actualDelivery|driverId|vehicleId|weight|dimensions|notes|reason|pickupTime|deliveryTime|distance|fuelUsed|deliveryPhoto|recipientSignature|onTime|paymentStatus|paymentMethod|transactionId|paymentDate");
+            bw.write("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|actualDelivery|driverId|vehicleId|weight|dimensions|notes|reason|pickupTime|inTransitTime|outForDeliveryTime|deliveryTime|distance|fuelUsed|deliveryPhoto|recipientSignature|onTime|paymentStatus|paymentMethod|transactionId|paymentDate");
             bw.newLine();
             
             for (Order o : orders) {
@@ -143,22 +141,16 @@ public class OrderStorage {
         }
     }
     
-    /**
-     * Add an order from the sender module
-     */
     public void addOrderFromSender(Object senderOrder) {
         if (senderOrder == null) return;
         
         try {
-            // Use reflection to get the order ID
             Class<?> clazz = senderOrder.getClass();
             String orderId = (String) clazz.getMethod("getId").invoke(senderOrder);
             
-            // Check if order already exists
             Order existing = findOrder(orderId);
             if (existing != null) {
                 System.out.println("Order already exists, updating: " + orderId);
-                // Update existing order with sender data
                 existing.customerName = (String) clazz.getMethod("getCustomerName").invoke(senderOrder);
                 existing.customerPhone = (String) clazz.getMethod("getCustomerPhone").invoke(senderOrder);
                 existing.customerEmail = (String) clazz.getMethod("getCustomerEmail").invoke(senderOrder);
@@ -184,7 +176,6 @@ public class OrderStorage {
                 
                 updateOrder(existing);
             } else {
-                // Convert and add new order
                 Order order = Order.fromSenderOrder(senderOrder);
                 if (order != null) {
                     orders.add(order);
@@ -199,9 +190,6 @@ public class OrderStorage {
         }
     }
     
-    /**
-     * Get all orders for a specific sender email
-     */
     public List<Order> getOrdersBySenderEmail(String email) {
         if (email == null) return new ArrayList<>();
         
@@ -210,9 +198,6 @@ public class OrderStorage {
             .collect(Collectors.toList());
     }
     
-    /**
-     * Update order status
-     */
     public boolean updateOrderStatus(String orderId, String newStatus) {
         Order order = findOrder(orderId);
         if (order != null) {
@@ -223,9 +208,6 @@ public class OrderStorage {
         return false;
     }
     
-    /**
-     * Update payment status
-     */
     public boolean updatePaymentStatus(String orderId, String paymentStatus, 
                                       String paymentMethod, String transactionId, 
                                       String paymentDate) {
@@ -245,65 +227,156 @@ public class OrderStorage {
         orders.clear();
         
         try {
-            // Order 1 - In Transit with DRV001
+            // Order 1 - Pending
             Order o1 = new Order(
                 "20240301001", 
-                "John Doe", "555-123-4567", "john.doe@email.com", "123 Main St, New York, NY 10001",
-                "Jane Smith", "555-987-6543", "456 Oak Ave, Los Angeles, CA 90001",
+                "John Doe", "012-3456789", "john.doe@email.com", "123 Main St, Petaling Jaya, Selangor 46100",
+                "Jane Smith", "012-9876543", "456 Oak Ave, George Town, Penang 10000",
                 2.5, "30x20x15"
             );
-            o1.status = "In Transit";
+            o1.status = "Pending";
             o1.orderDate = "2024-03-01 09:30";
             o1.estimatedDelivery = "2024-03-04";
-            o1.driverId = "DRV001";
-            o1.vehicleId = "TRK001";
-            o1.pickupTime = "2024-03-01 09:30:00";
             o1.paymentStatus = "Paid";
             o1.paymentMethod = "Credit Card";
-            o1.transactionId = "TXN" + System.currentTimeMillis();
+            o1.transactionId = "TXN001";
             o1.paymentDate = "2024-03-01 09:35";
-            o1.notes = "Package Type: Electronics Estimated Cost: RM 85.50";
+            o1.notes = "Package Type: Electronics; Estimated Cost: RM 85.50; Description: Laptop; Total Amount: RM 85.50";
             orders.add(o1);
             
-            // Order 2 - In Transit with DRV001
+            // Order 2 - Assigned
             Order o2 = new Order(
                 "20240301002",
-                "Acme Corporation", "555-234-5678", "shipping@acme.com", "789 Business Park, Chicago, IL 60601",
-                "Bob Wilson", "555-876-5432", "321 Industrial Rd, Detroit, MI 48201",
+                "Acme Corporation", "013-4567890", "shipping@acme.com", "789 Business Park, Shah Alam, Selangor 40000",
+                "Bob Wilson", "013-7654321", "321 Industrial Rd, Johor Bahru, Johor 80000",
                 15.0, "100x80x60"
             );
-            o2.status = "In Transit";
+            o2.status = "Assigned";
             o2.orderDate = "2024-03-01 10:15";
             o2.estimatedDelivery = "2024-03-04";
             o2.driverId = "DRV001";
             o2.vehicleId = "TRK001";
-            o2.pickupTime = "2024-03-01 10:15:00";
             o2.paymentStatus = "Paid";
             o2.paymentMethod = "Bank Transfer";
-            o2.notes = "Package Type: Industrial Equipment Estimated Cost: RM 450.00";
+            o2.transactionId = "TXN002";
+            o2.paymentDate = "2024-03-01 10:20";
+            o2.notes = "Package Type: Industrial Equipment; Estimated Cost: RM 450.00; Description: Machinery parts; Total Amount: RM 450.00";
             orders.add(o2);
             
-            // Order 3 - Delayed with DRV002
+            // Order 3 - Picked Up
             Order o3 = new Order(
                 "20240301003",
-                "Alice Brown", "555-345-6789", "alice.brown@home.com", "555 Residential Ln, Houston, TX 77001",
-                "Charlie Green", "555-765-4321", "777 Commerce St, Dallas, TX 75201",
+                "Alice Brown", "014-5678901", "alice.brown@home.com", "555 Residential Ln, Kuala Lumpur 50000",
+                "Charlie Green", "014-6543210", "777 Commerce St, Ipoh, Perak 30000",
                 0.5, "20x15x10"
             );
-            o3.status = "Delayed";
+            o3.status = "Picked Up";
             o3.orderDate = "2024-03-01 08:45";
-            o3.estimatedDelivery = "2024-03-02";
+            o3.estimatedDelivery = "2024-03-04";
             o3.driverId = "DRV002";
-            o3.reason = "Weather conditions - Heavy snow";
+            o3.vehicleId = "VAN001";
             o3.pickupTime = "2024-03-01 08:45:00";
             o3.paymentStatus = "Paid";
             o3.paymentMethod = "PayPal";
-            o3.notes = "Package Type: Documents Estimated Cost: RM 25.00 Reason: Weather conditions";
+            o3.transactionId = "TXN003";
+            o3.paymentDate = "2024-03-01 08:50";
+            o3.notes = "Package Type: Documents; Estimated Cost: RM 25.00; Description: Legal documents; Total Amount: RM 25.00";
             orders.add(o3);
             
-            // Update daily counters
-            dailyCounters.put("20240301", 3);
-            dailyCounters.put("20240302", 0);
+            // Order 4 - In Transit
+            Order o4 = new Order(
+                "20240301004",
+                "David Tan", "015-6789012", "david.tan@email.com", "123 Jalan SS2, Petaling Jaya, Selangor 47300",
+                "Elena Wong", "015-7890123", "456 Jalan Ipoh, Kuala Lumpur 51200",
+                3.2, "40x30x20"
+            );
+            o4.status = "In Transit";
+            o4.orderDate = "2024-03-01 11:00";
+            o4.estimatedDelivery = "2024-03-04";
+            o4.driverId = "DRV003";
+            o4.vehicleId = "CAR001";
+            o4.pickupTime = "2024-03-01 11:30:00";
+            o4.inTransitTime = "2024-03-01 13:00:00";
+            o4.paymentStatus = "Paid";
+            o4.paymentMethod = "Credit Card";
+            o4.transactionId = "TXN004";
+            o4.paymentDate = "2024-03-01 11:05";
+            o4.notes = "Package Type: Fragile Items; Estimated Cost: RM 75.00; Description: Glassware; Total Amount: RM 75.00";
+            orders.add(o4);
+            
+            // Order 5 - Out for Delivery
+            Order o5 = new Order(
+                "20240301005",
+                "Fiona Lim", "016-7890123", "fiona.lim@email.com", "789 Jalan Gasing, Petaling Jaya, Selangor 46000",
+                "George Khoo", "016-8901234", "321 Jalan Meru, Klang, Selangor 41000",
+                1.8, "25x20x15"
+            );
+            o5.status = "Out for Delivery";
+            o5.orderDate = "2024-03-01 13:00";
+            o5.estimatedDelivery = "2024-03-03";
+            o5.driverId = "DRV004";
+            o5.vehicleId = "MTC001";
+            o5.pickupTime = "2024-03-01 13:30:00";
+            o5.inTransitTime = "2024-03-01 14:00:00";
+            o5.outForDeliveryTime = "2024-03-02 09:00:00";
+            o5.paymentStatus = "Paid";
+            o5.paymentMethod = "Touch 'n Go";
+            o5.transactionId = "TXN005";
+            o5.paymentDate = "2024-03-01 13:10";
+            o5.notes = "Package Type: Clothing; Estimated Cost: RM 45.00; Description: Fashion items; Total Amount: RM 45.00";
+            orders.add(o5);
+            
+            // Order 6 - Delivered
+            Order o6 = new Order(
+                "20240228001",
+                "Henry Ng", "017-8901234", "henry.ng@email.com", "456 Jalan PJS, Subang Jaya, Selangor 47500",
+                "Irene Chang", "017-9012345", "789 Jalan SS15, Subang Jaya, Selangor 47500",
+                0.8, "15x15x10"
+            );
+            o6.status = "Delivered";
+            o6.orderDate = "2024-02-28 14:00";
+            o6.estimatedDelivery = "2024-03-02";
+            o6.actualDelivery = "2024-03-01";
+            o6.driverId = "DRV005";
+            o6.vehicleId = "VAN002";
+            o6.pickupTime = "2024-02-28 14:30:00";
+            o6.inTransitTime = "2024-02-28 15:00:00";
+            o6.outForDeliveryTime = "2024-03-01 08:30:00";
+            o6.deliveryTime = "2024-03-01 14:30:00";
+            o6.distance = 15.5;
+            o6.fuelUsed = 2.3;
+            o6.onTime = true;
+            o6.paymentStatus = "Paid";
+            o6.paymentMethod = "GrabPay";
+            o6.transactionId = "TXN006";
+            o6.paymentDate = "2024-02-28 14:10";
+            o6.notes = "Package Type: Documents; Estimated Cost: RM 20.00; Description: Contracts; Total Amount: RM 20.00";
+            orders.add(o6);
+            
+            // Order 7 - Failed
+            Order o7 = new Order(
+                "20240301006",
+                "Julia Tan", "018-9012345", "julia.tan@email.com", "111 Jalan Ampang, Kuala Lumpur 50450",
+                "Kevin Lee", "018-0123456", "222 Jalan Bukit Bintang, Kuala Lumpur 55100",
+                1.2, "20x15x15"
+            );
+            o7.status = "Failed";
+            o7.orderDate = "2024-03-01 09:00";
+            o7.estimatedDelivery = "2024-03-02";
+            o7.driverId = "DRV001";
+            o7.vehicleId = "TRK001";
+            o7.pickupTime = "2024-03-01 10:00:00";
+            o7.deliveryTime = "2024-03-01 15:30:00";
+            o7.reason = "Recipient not available - Attempted delivery at 3pm, no one home";
+            o7.paymentStatus = "Paid";
+            o7.paymentMethod = "Credit Card";
+            o7.transactionId = "TXN007";
+            o7.paymentDate = "2024-03-01 09:15";
+            o7.notes = "Package Type: Electronics; Estimated Cost: RM 55.00; Description: Phone charger; Total Amount: RM 55.00";
+            orders.add(o7);
+            
+            dailyCounters.put("20240301", 6);
+            dailyCounters.put("20240228", 1);
             
             System.out.println("Sample data created with " + orders.size() + " orders");
             
@@ -313,7 +386,8 @@ public class OrderStorage {
         }
     }
     
-    // CRUD Operations
+    // ==================== CRUD Operations ====================
+    
     public List<Order> getAllOrders() { 
         orders.sort((a, b) -> b.orderDate.compareTo(a.orderDate));
         return orders; 
@@ -333,7 +407,6 @@ public class OrderStorage {
     }
     
     public synchronized void updateOrder(Order updatedOrder) {
-        // 先同步最新的数据
         loadOrders();
         
         boolean found = false;
@@ -349,10 +422,8 @@ public class OrderStorage {
             orders.add(updatedOrder);
         }
         
-        // 立即保存
         saveOrders();
         
-        // 验证保存成功
         Order verify = findOrder(updatedOrder.id);
         if (verify != null && verify.status.equals(updatedOrder.status)) {
             System.out.println("Order " + updatedOrder.id + " saved successfully with status: " + updatedOrder.status);
@@ -368,7 +439,8 @@ public class OrderStorage {
         }
     }
     
-    // Driver integration methods
+    // ==================== Driver Integration ====================
+    
     public boolean assignOrderToDriver(String orderId, String driverId) {
         Order order = findOrder(orderId);
         Driver driver = driverStorage.findDriver(driverId);
@@ -391,7 +463,6 @@ public class OrderStorage {
             if (driver != null) {
                 order.markAsDelivered(distance, fuelUsed, photoPath, signature);
                 
-                // Check if delivery was on time
                 boolean onTime = order.onTime;
                 driver.completeOrder(orderId, onTime, distance, fuelUsed);
                 
@@ -422,7 +493,7 @@ public class OrderStorage {
     public List<Order> getActiveOrdersByDriver(String driverId) {
         return orders.stream()
             .filter(o -> driverId.equals(o.driverId) && 
-                   ("In Transit".equals(o.status) || "Delayed".equals(o.status)))
+                   ("In Transit".equals(o.status) || "Delayed".equals(o.status) || "Assigned".equals(o.status) || "Picked Up".equals(o.status) || "Out for Delivery".equals(o.status)))
             .collect(Collectors.toList());
     }
     
@@ -432,32 +503,8 @@ public class OrderStorage {
             .collect(Collectors.toList());
     }
     
-    public Map<String, Object> getDriverPerformance(String driverId) {
-        Map<String, Object> performance = new HashMap<>();
-        List<Order> driverOrders = getOrdersByDriver(driverId);
-        List<Order> completed = driverOrders.stream()
-            .filter(o -> "Delivered".equals(o.status))
-            .collect(Collectors.toList());
-        
-        performance.put("totalOrders", driverOrders.size());
-        performance.put("completedOrders", completed.size());
-        performance.put("pendingOrders", driverOrders.stream().filter(o -> "Pending".equals(o.status)).count());
-        performance.put("inTransitOrders", driverOrders.stream().filter(o -> "In Transit".equals(o.status)).count());
-        performance.put("delayedOrders", driverOrders.stream().filter(o -> "Delayed".equals(o.status)).count());
-        
-        double totalDistance = completed.stream().mapToDouble(o -> o.distance).sum();
-        double totalFuel = completed.stream().mapToDouble(o -> o.fuelUsed).sum();
-        long onTimeCount = completed.stream().filter(o -> o.onTime).count();
-        
-        performance.put("totalDistance", totalDistance);
-        performance.put("totalFuel", totalFuel);
-        performance.put("onTimeCount", onTimeCount);
-        performance.put("onTimeRate", completed.isEmpty() ? 0 : (double) onTimeCount / completed.size());
-        
-        return performance;
-    }
+    // ==================== Statistics Methods ====================
     
-    // Statistics
     public int getTotalCount() {
         return orders.size();
     }
@@ -466,8 +513,20 @@ public class OrderStorage {
         return (int) orders.stream().filter(o -> "Pending".equals(o.status)).count();
     }
     
+    public int getAssignedCount() {
+        return (int) orders.stream().filter(o -> "Assigned".equals(o.status)).count();
+    }
+    
+    public int getPickupCount() {
+        return (int) orders.stream().filter(o -> "Picked Up".equals(o.status)).count();
+    }
+    
     public int getInTransitCount() {
         return (int) orders.stream().filter(o -> "In Transit".equals(o.status)).count();
+    }
+    
+    public int getOutForDeliveryCount() {
+        return (int) orders.stream().filter(o -> "Out for Delivery".equals(o.status)).count();
     }
     
     public int getDelayedCount() {
@@ -480,6 +539,36 @@ public class OrderStorage {
     
     public int getCancelledCount() {
         return (int) orders.stream().filter(o -> "Cancelled".equals(o.status)).count();
+    }
+    
+    public int getFailedCount() {
+        return (int) orders.stream().filter(o -> "Failed".equals(o.status)).count();
+    }
+    
+    // ==================== Filter Methods ====================
+    
+    public List<Order> getAssignedOrders() {
+        return orders.stream()
+            .filter(o -> "Assigned".equals(o.status))
+            .collect(Collectors.toList());
+    }
+    
+    public List<Order> getPickupOrders() {
+        return orders.stream()
+            .filter(o -> "Picked Up".equals(o.status))
+            .collect(Collectors.toList());
+    }
+    
+    public List<Order> getOutForDeliveryOrders() {
+        return orders.stream()
+            .filter(o -> "Out for Delivery".equals(o.status))
+            .collect(Collectors.toList());
+    }
+    
+    public List<Order> getInTransitOrders() {
+        return orders.stream()
+            .filter(o -> "In Transit".equals(o.status))
+            .collect(Collectors.toList());
     }
     
     public List<Order> getDelayedOrders() {
@@ -509,10 +598,14 @@ public class OrderStorage {
     public Map<String, Integer> getStatusStatistics() {
         Map<String, Integer> stats = new HashMap<>();
         stats.put("Pending", getPendingCount());
+        stats.put("Assigned", getAssignedCount());
+        stats.put("Picked Up", getPickupCount());
         stats.put("In Transit", getInTransitCount());
+        stats.put("Out for Delivery", getOutForDeliveryCount());
         stats.put("Delayed", getDelayedCount());
         stats.put("Delivered", getDeliveredCount());
         stats.put("Cancelled", getCancelledCount());
+        stats.put("Failed", getFailedCount());
         return stats;
     }
     
@@ -549,7 +642,6 @@ public class OrderStorage {
             System.out.println("File can read: " + file.canRead());
             System.out.println("File can write: " + file.canWrite());
             
-            // Read and display first few lines
             try (BufferedReader br = new BufferedReader(new FileReader(file))) {
                 String line;
                 int count = 0;

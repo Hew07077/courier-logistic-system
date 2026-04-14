@@ -142,7 +142,9 @@ public class SenderOrder {
         return "Standard";
     }
     
-    //Extract estimated cost from notes
+    /**
+     * Extract estimated cost from notes
+     */
     public double getEstimatedCost() {
         if (notes != null && !notes.isEmpty()) {
             if (notes.contains("Estimated Cost:")) {
@@ -164,7 +166,9 @@ public class SenderOrder {
         return 0.0;
     }
     
-    //Get formatted estimated cost
+    /**
+     * Get formatted estimated cost
+     */
     public String getFormattedEstimatedCost() {
         double cost = getEstimatedCost();
         if (cost > 0) {
@@ -173,7 +177,9 @@ public class SenderOrder {
         return "RM --.--";
     }
     
-    //Get description from notes
+    /**
+     * Get description from notes
+     */
     public String getDescription() {
         if (notes != null && !notes.isEmpty()) {
             if (notes.contains("Description:")) {

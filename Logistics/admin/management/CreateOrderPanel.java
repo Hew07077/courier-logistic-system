@@ -1,9 +1,14 @@
-// NewOrderPanel.java - With Radio Buttons for Shipping Speed and Full Validation
-package sender;
+// CreateOrderPanel.java - 完整修复版
+package admin.management;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import javax.swing.border.TitledBorder;
+
+import logistics.orders.OrderStorage;
+import sender.SenderOrder;
+import sender.SenderOrderRepository;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
@@ -11,8 +16,14 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 
-public class NewOrderPanel extends JPanel {
-    private SenderDashboard dashboard;
+public class CreateOrderPanel extends JPanel {
+    private OrderManagement parentOrderManagement;
+    private OrderStorage orderStorage;
+
+    // Sender fields (editable by admin)
+    private JTextField senderNameField;
+    private JTextField senderEmailField;
+    private JTextField senderPhoneField;
     
     // Address fields
     private JTextField fromAddressField;
@@ -56,10 +67,6 @@ public class NewOrderPanel extends JPanel {
     private JPanel paymentDetailsPanel;
     private CardLayout paymentDetailsLayout;
 
-    private String senderName;
-    private String senderEmail;
-    private String senderPhone;
-
     private Map<String, Map<String, String>> malaysiaData;
     private List<String> stateList;
     
@@ -94,11 +101,10 @@ public class NewOrderPanel extends JPanel {
         "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"
     };
 
-    public NewOrderPanel(SenderDashboard dashboard) {
-        this.dashboard = dashboard;
-        this.senderName = dashboard.getSenderName();
-        this.senderEmail = dashboard.getSenderEmail();
-        this.senderPhone = dashboard.getSenderPhone();
+    // CONSTRUCTOR
+    public CreateOrderPanel(OrderManagement parentOrderManagement) {
+        this.parentOrderManagement = parentOrderManagement;
+        this.orderStorage = new OrderStorage();
         
         initializeMalaysiaData();
         initialize();
@@ -757,133 +763,225 @@ public class NewOrderPanel extends JPanel {
         }
     }
 
-    // ========== DEFAULT ADDRESS FUNCTIONALITY ==========
-    
-    /**
-     * Create the "Use Default Address" button
-     */
-    private JButton createUseDefaultAddressButton() {
-        JButton defaultAddrBtn = new JButton("Use Default Address");
-        defaultAddrBtn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        defaultAddrBtn.setForeground(new Color(0, 123, 255));
-        defaultAddrBtn.setBackground(Color.WHITE);
-        defaultAddrBtn.setBorder(BorderFactory.createLineBorder(new Color(0, 123, 255)));
-        defaultAddrBtn.setFocusPainted(false);
-        defaultAddrBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        defaultAddrBtn.addActionListener(e -> loadDefaultAddress());
-        return defaultAddrBtn;
-    }
-    
-    /**
-     * Load default address from ProfilePanel and auto-fill the form (only when button clicked)
-     */
-    public void loadDefaultAddress() {
-        ProfilePanel profilePanel = getProfilePanelFromDashboard();
-        if (profilePanel != null) {
-            ProfilePanel.Address defaultAddress = profilePanel.getDefaultAddress();
-            if (defaultAddress != null) {
-                autoFillFromAddress(defaultAddress);
-            } else {
-                JOptionPane.showMessageDialog(this, 
-                    "No default address found. Please set a default address in your profile first.", 
-                    "No Default Address", 
-                    JOptionPane.INFORMATION_MESSAGE);
-            }
-        } else {
-            JOptionPane.showMessageDialog(this, 
-                "Could not access profile. Please try again later.", 
-                "Error", 
-                JOptionPane.ERROR_MESSAGE);
-        }
-    }
-    
-    /**
-     * Get ProfilePanel instance from dashboard
-     */
-    private ProfilePanel getProfilePanelFromDashboard() {
-        if (dashboard != null) {
-            try {
-                java.lang.reflect.Field panelCacheField = dashboard.getClass().getDeclaredField("panelCache");
-                panelCacheField.setAccessible(true);
-                @SuppressWarnings("unchecked")
-                java.util.Map<String, JPanel> panelCache = (java.util.Map<String, JPanel>) panelCacheField.get(dashboard);
-                JPanel profilePanel = panelCache.get("PROFILE");
-                if (profilePanel instanceof ProfilePanel) {
-                    return (ProfilePanel) profilePanel;
+    private JPanel createSenderInfoBox() {
+        JPanel box = new JPanel(new GridBagLayout());
+        box.setBackground(new Color(248, 249, 250));
+        
+        TitledBorder titledBorder = BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(new Color(0, 123, 255), 1),
+            "Sender Information (Enter Customer Details)", TitledBorder.LEFT, TitledBorder.TOP,
+            new Font("Segoe UI", Font.BOLD, 14), new Color(0, 123, 255));
+        box.setBorder(titledBorder);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.weightx = 1.0;
+
+        // Name field
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1;
+        JLabel nameLabel = new JLabel("Sender Name:*");
+        nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        box.add(nameLabel, gbc);
+        
+        gbc.gridx = 1;
+        senderNameField = new JTextField(30);
+        senderNameField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        senderNameField.setForeground(new Color(108, 117, 125));
+        senderNameField.setText("Enter customer name");
+        senderNameField.addFocusListener(new PlaceholderFocusListener(senderNameField, "Enter customer name"));
+        box.add(senderNameField, gbc);
+
+        // Phone field
+        gbc.gridx = 0; gbc.gridy = 1;
+        JLabel phoneLabel = new JLabel("Sender Phone:*");
+        phoneLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        box.add(phoneLabel, gbc);
+        
+        gbc.gridx = 1;
+        senderPhoneField = new JTextField(30);
+        senderPhoneField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        senderPhoneField.setForeground(new Color(108, 117, 125));
+        senderPhoneField.setText("0123456789");
+        senderPhoneField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (senderPhoneField.getText().equals("0123456789")) {
+                    senderPhoneField.setText("");
+                    senderPhoneField.setForeground(Color.BLACK);
                 }
-            } catch (Exception e) {
-                System.err.println("Could not access ProfilePanel via reflection: " + e.getMessage());
             }
-        }
-        return null;
-    }
-    
-    /**
-     * Auto-fill the form from an Address object
-     */
-    private void autoFillFromAddress(ProfilePanel.Address address) {
-        if (address == null) return;
-        
-        // Auto-fill sender address fields
-        String street = address.getStreet();
-        String cityName = address.getCityName();
-        String state = address.getState();
-        String postcode = address.getPostcode();
-        
-        // Set street address
-        if (street != null && !street.isEmpty() && !street.equals("Enter street address")) {
-            fromAddressField.setText(street);
-            fromAddressField.setForeground(Color.BLACK);
-        }
-        
-        // Set state
-        if (state != null && !state.isEmpty()) {
-            fromStateCombo.setSelectedItem(state);
-        }
-        
-        // Set city and postcode
-        SwingUtilities.invokeLater(() -> {
-            if (cityName != null && !cityName.isEmpty()) {
-                setCityWithRetry(cityName, 0);
+            @Override
+            public void focusLost(FocusEvent e) {
+                String text = senderPhoneField.getText().trim();
+                if (text.isEmpty()) {
+                    senderPhoneField.setText("0123456789");
+                    senderPhoneField.setForeground(new Color(108, 117, 125));
+                } else if (isValidMalaysianPhoneNumber(text)) {
+                    String formatted = formatPhoneNumber(text);
+                    senderPhoneField.setText(formatted);
+                    senderPhoneField.setForeground(Color.BLACK);
+                }
             }
-            if (postcode != null && !postcode.isEmpty()) {
-                fromPostcodeField.setText(postcode);
-            }
-            calculateEstimate();
         });
+        box.add(senderPhoneField, gbc);
+
+        // Email field
+        gbc.gridx = 0; gbc.gridy = 2;
+        JLabel emailLabel = new JLabel("Sender Email:*");
+        emailLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        box.add(emailLabel, gbc);
         
-        // Show confirmation message
-        JOptionPane.showMessageDialog(this, 
-            "Default address loaded successfully!\n\n" +
-            "Address: " + street + "\n" +
-            "City: " + cityName + "\n" +
-            "State: " + state + "\n" +
-            "Postcode: " + postcode,
-            "Default Address Loaded", 
-            JOptionPane.INFORMATION_MESSAGE);
+        gbc.gridx = 1;
+        senderEmailField = new JTextField(30);
+        senderEmailField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        senderEmailField.setForeground(new Color(108, 117, 125));
+        senderEmailField.setText("customer@example.com");
+        senderEmailField.addFocusListener(new PlaceholderFocusListener(senderEmailField, "customer@example.com"));
+        box.add(senderEmailField, gbc);
+
+        // Address section header
+        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(10, 5, 5, 5);
+        JLabel addressHeader = new JLabel("Pickup Address:");
+        addressHeader.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        box.add(addressHeader, gbc);
+        gbc.insets = new Insets(5, 5, 5, 5);
+
+        // Address line
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 1;
+        box.add(new JLabel("Address Line:*"), gbc);
+        fromAddressField = new JTextField(30);
+        fromAddressField.setForeground(new Color(108, 117, 125));
+        fromAddressField.setText("Enter street address");
+        fromAddressField.addFocusListener(new PlaceholderFocusListener(fromAddressField, "Enter street address"));
+        fromAddressField.addKeyListener(new KeyAdapter() {
+            @Override public void keyReleased(KeyEvent e) { calculateEstimate(); }
+        });
+        gbc.gridx = 1;
+        box.add(fromAddressField, gbc);
+
+        // State
+        gbc.gridx = 0; gbc.gridy = 5;
+        box.add(new JLabel("State:*"), gbc);
+        fromStateCombo = new JComboBox<>();
+        fromStateCombo.addActionListener(e -> { updateFromCities(); calculateEstimate(); });
+        gbc.gridx = 1;
+        box.add(fromStateCombo, gbc);
+
+        // City
+        gbc.gridx = 0; gbc.gridy = 6;
+        box.add(new JLabel("City:*"), gbc);
+        fromCityCombo = new JComboBox<>();
+        fromCityCombo.addActionListener(e -> { updateFromPostcode(); calculateEstimate(); });
+        gbc.gridx = 1;
+        box.add(fromCityCombo, gbc);
+
+        // Postcode
+        gbc.gridx = 0; gbc.gridy = 7;
+        box.add(new JLabel("Postcode:"), gbc);
+        fromPostcodeField = new JTextField(10);
+        fromPostcodeField.setEditable(false);
+        gbc.gridx = 1;
+        box.add(fromPostcodeField, gbc);
+
+        return box;
     }
-    
-    /**
-     * Set city with retry mechanism (no timer)
-     */
-    private void setCityWithRetry(String cityName, int attempt) {
-        if (attempt > 10) {
-            System.out.println("Could not set city after " + attempt + " attempts");
-            return;
-        }
+
+    private JPanel createRecipientInfoBox() {
+        JPanel box = new JPanel(new GridBagLayout());
+        box.setBackground(new Color(248, 249, 250));
         
-        if (fromCityCombo.getItemCount() > 0) {
-            fromCityCombo.setSelectedItem(cityName);
-        } else {
-            SwingUtilities.invokeLater(() -> setCityWithRetry(cityName, attempt + 1));
-        }
-    }
-    
-    /**
-     * Refresh the form with updated default address from profile
-     */
-    public void refreshDefaultAddress() {
-        loadDefaultAddress();
+        TitledBorder titledBorder = BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(new Color(40, 167, 69), 1),
+            "Recipient Information", TitledBorder.LEFT, TitledBorder.TOP,
+            new Font("Segoe UI", Font.BOLD, 14), new Color(40, 167, 69));
+        box.setBorder(titledBorder);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.weightx = 1.0;
+
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1;
+        box.add(new JLabel("Recipient Name:*"), gbc);
+        recipientNameField = new JTextField(30);
+        recipientNameField.setForeground(new Color(108, 117, 125));
+        recipientNameField.setText("Full name");
+        recipientNameField.addFocusListener(new PlaceholderFocusListener(recipientNameField, "Full name"));
+        gbc.gridx = 1;
+        box.add(recipientNameField, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 1;
+        box.add(new JLabel("Recipient Phone:*"), gbc);
+        recipientPhoneField = new JTextField(30);
+        recipientPhoneField.setForeground(new Color(108, 117, 125));
+        recipientPhoneField.setText("0123456789");
+        recipientPhoneField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (recipientPhoneField.getText().equals("0123456789")) {
+                    recipientPhoneField.setText("");
+                    recipientPhoneField.setForeground(Color.BLACK);
+                }
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                String text = recipientPhoneField.getText().trim();
+                if (text.isEmpty()) {
+                    recipientPhoneField.setText("0123456789");
+                    recipientPhoneField.setForeground(new Color(108, 117, 125));
+                } else if (isValidMalaysianPhoneNumber(text)) {
+                    String formatted = formatPhoneNumber(text);
+                    recipientPhoneField.setText(formatted);
+                    recipientPhoneField.setForeground(Color.BLACK);
+                }
+            }
+        });
+        gbc.gridx = 1;
+        box.add(recipientPhoneField, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(10, 5, 5, 5);
+        box.add(new JLabel("Delivery Address:"), gbc);
+        gbc.insets = new Insets(5, 5, 5, 5);
+
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 1;
+        box.add(new JLabel("Address Line:*"), gbc);
+        toAddressField = new JTextField(30);
+        toAddressField.setForeground(new Color(108, 117, 125));
+        toAddressField.setText("Enter street address");
+        toAddressField.addFocusListener(new PlaceholderFocusListener(toAddressField, "Enter street address"));
+        toAddressField.addKeyListener(new KeyAdapter() {
+            @Override public void keyReleased(KeyEvent e) { calculateEstimate(); }
+        });
+        gbc.gridx = 1;
+        box.add(toAddressField, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 4;
+        box.add(new JLabel("State:*"), gbc);
+        toStateCombo = new JComboBox<>();
+        toStateCombo.addActionListener(e -> { updateToCities(); calculateEstimate(); });
+        gbc.gridx = 1;
+        box.add(toStateCombo, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 5;
+        box.add(new JLabel("City:*"), gbc);
+        toCityCombo = new JComboBox<>();
+        toCityCombo.addActionListener(e -> { updateToPostcode(); calculateEstimate(); });
+        gbc.gridx = 1;
+        box.add(toCityCombo, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 6;
+        box.add(new JLabel("Postcode:"), gbc);
+        toPostcodeField = new JTextField(10);
+        toPostcodeField.setEditable(false);
+        gbc.gridx = 1;
+        box.add(toPostcodeField, gbc);
+
+        return box;
     }
 
     private void showCustomPackageTypeDialog() {
@@ -1053,7 +1151,7 @@ public class NewOrderPanel extends JPanel {
         bankCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Bank"));
         panel.add(bankCombo, gbc);
         
-        addPaymentField(panel, "Card Number:*", "4111 1111 1111 1111", gbc, y++);
+        addPaymentField(panel, "Card Number:*", "4111111111111111", gbc, y++);
         addPaymentField(panel, "Cardholder Name:*", "John Doe", gbc, y++);
         
         gbc.gridy = y++;
@@ -1115,7 +1213,7 @@ public class NewOrderPanel extends JPanel {
         bankCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Bank"));
         panel.add(bankCombo, gbc);
         
-        addPaymentField(panel, "Debit Card Number:*", "4111 1111 1111 1111", gbc, y++);
+        addPaymentField(panel, "Debit Card Number:*", "4111111111111111", gbc, y++);
         addPaymentField(panel, "Cardholder Name:*", "John Doe", gbc, y++);
         
         gbc.gridy = y++;
@@ -1187,7 +1285,7 @@ public class NewOrderPanel extends JPanel {
         gbc.gridy = y++;
         gbc.gridx = 0;
         gbc.gridwidth = 2;
-        JLabel merchantLabel = new JLabel("Transfer to LogiXpress (Maybank: 1234-5678-9012-3456)");
+        JLabel merchantLabel = new JLabel("Transfer to LogiXpress (Maybank: 1234567890123456)");
         merchantLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         merchantLabel.setForeground(new Color(0, 102, 204));
         panel.add(merchantLabel, gbc);
@@ -1235,7 +1333,7 @@ public class NewOrderPanel extends JPanel {
         walletLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         panel.add(walletLabel, gbc);
         
-        addPaymentField(panel, walletName + " Number:*", "012-3456789", gbc, y++);
+        addPaymentField(panel, walletName + " Number:*", "0123456789", gbc, y++);
         
         JLabel noteLabel = new JLabel("You will be redirected to " + walletName + " to complete payment");
         noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
@@ -1296,186 +1394,6 @@ public class NewOrderPanel extends JPanel {
         }
     }
 
-    private JPanel createSenderInfoBox() {
-        JPanel box = new JPanel(new GridBagLayout());
-        box.setBackground(new Color(248, 249, 250));
-        
-        TitledBorder titledBorder = BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(0, 123, 255), 1),
-            "Sender Information", TitledBorder.LEFT, TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 14), new Color(0, 123, 255));
-        box.setBorder(titledBorder);
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.weightx = 1.0;
-
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1;
-        box.add(new JLabel("Name:"), gbc);
-        gbc.gridx = 1;
-        box.add(new JLabel(senderName != null ? senderName : "Not set"), gbc);
-
-        gbc.gridx = 0; gbc.gridy = 1;
-        box.add(new JLabel("Phone:"), gbc);
-        String displayPhone = senderPhone;
-        if (displayPhone != null && !displayPhone.isEmpty()) {
-            displayPhone = formatPhoneNumber(displayPhone);
-        } else {
-            displayPhone = "Not set";
-        }
-        gbc.gridx = 1;
-        box.add(new JLabel(displayPhone), gbc);
-
-        gbc.gridx = 0; gbc.gridy = 2;
-        box.add(new JLabel("Email:"), gbc);
-        gbc.gridx = 1;
-        box.add(new JLabel(senderEmail != null ? senderEmail : "Not set"), gbc);
-
-        gbc.gridx = 0; gbc.gridy = 3;
-        gbc.gridwidth = 2;
-        gbc.insets = new Insets(10, 5, 5, 5);
-        
-        // Add header panel with title and "Use Default Address" button
-        JPanel addressHeaderPanel = new JPanel(new BorderLayout());
-        addressHeaderPanel.setOpaque(false);
-        addressHeaderPanel.add(new JLabel("Pickup Address:"), BorderLayout.WEST);
-        addressHeaderPanel.add(createUseDefaultAddressButton(), BorderLayout.EAST);
-        box.add(addressHeaderPanel, gbc);
-        
-        gbc.insets = new Insets(5, 5, 5, 5);
-
-        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 1;
-        box.add(new JLabel("Address Line:*"), gbc);
-        fromAddressField = new JTextField(30);
-        fromAddressField.setForeground(new Color(108, 117, 125));
-        fromAddressField.setText("Enter street address");
-        fromAddressField.addFocusListener(new PlaceholderFocusListener(fromAddressField, "Enter street address"));
-        fromAddressField.addKeyListener(new KeyAdapter() {
-            @Override public void keyReleased(KeyEvent e) { calculateEstimate(); }
-        });
-        gbc.gridx = 1;
-        box.add(fromAddressField, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 5;
-        box.add(new JLabel("State:*"), gbc);
-        fromStateCombo = new JComboBox<>();
-        fromStateCombo.addActionListener(e -> { updateFromCities(); calculateEstimate(); });
-        gbc.gridx = 1;
-        box.add(fromStateCombo, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 6;
-        box.add(new JLabel("City:*"), gbc);
-        fromCityCombo = new JComboBox<>();
-        fromCityCombo.addActionListener(e -> { updateFromPostcode(); calculateEstimate(); });
-        gbc.gridx = 1;
-        box.add(fromCityCombo, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 7;
-        box.add(new JLabel("Postcode:"), gbc);
-        fromPostcodeField = new JTextField(10);
-        fromPostcodeField.setEditable(false);
-        gbc.gridx = 1;
-        box.add(fromPostcodeField, gbc);
-
-        return box;
-    }
-
-    private JPanel createRecipientInfoBox() {
-        JPanel box = new JPanel(new GridBagLayout());
-        box.setBackground(new Color(248, 249, 250));
-        
-        TitledBorder titledBorder = BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(40, 167, 69), 1),
-            "Recipient Information", TitledBorder.LEFT, TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 14), new Color(40, 167, 69));
-        box.setBorder(titledBorder);
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.weightx = 1.0;
-
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1;
-        box.add(new JLabel("Recipient Name:*"), gbc);
-        recipientNameField = new JTextField(30);
-        recipientNameField.setForeground(new Color(108, 117, 125));
-        recipientNameField.setText("Full name");
-        recipientNameField.addFocusListener(new PlaceholderFocusListener(recipientNameField, "Full name"));
-        gbc.gridx = 1;
-        box.add(recipientNameField, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 1;
-        box.add(new JLabel("Recipient Phone:*"), gbc);
-        recipientPhoneField = new JTextField(30);
-        recipientPhoneField.setForeground(new Color(108, 117, 125));
-        recipientPhoneField.setText("012-3456789");
-        recipientPhoneField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                if (recipientPhoneField.getText().equals("012-3456789")) {
-                    recipientPhoneField.setText("");
-                    recipientPhoneField.setForeground(Color.BLACK);
-                }
-            }
-            @Override
-            public void focusLost(FocusEvent e) {
-                String text = recipientPhoneField.getText().trim();
-                if (text.isEmpty()) {
-                    recipientPhoneField.setText("012-3456789");
-                    recipientPhoneField.setForeground(new Color(108, 117, 125));
-                } else if (isValidMalaysianPhoneNumber(text)) {
-                    String formatted = formatPhoneNumber(text);
-                    recipientPhoneField.setText(formatted);
-                    recipientPhoneField.setForeground(Color.BLACK);
-                }
-            }
-        });
-        gbc.gridx = 1;
-        box.add(recipientPhoneField, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 2;
-        gbc.gridwidth = 2;
-        gbc.insets = new Insets(10, 5, 5, 5);
-        box.add(new JLabel("Delivery Address:"), gbc);
-        gbc.insets = new Insets(5, 5, 5, 5);
-
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 1;
-        box.add(new JLabel("Address Line:*"), gbc);
-        toAddressField = new JTextField(30);
-        toAddressField.setForeground(new Color(108, 117, 125));
-        toAddressField.setText("Enter street address");
-        toAddressField.addFocusListener(new PlaceholderFocusListener(toAddressField, "Enter street address"));
-        toAddressField.addKeyListener(new KeyAdapter() {
-            @Override public void keyReleased(KeyEvent e) { calculateEstimate(); }
-        });
-        gbc.gridx = 1;
-        box.add(toAddressField, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 4;
-        box.add(new JLabel("State:*"), gbc);
-        toStateCombo = new JComboBox<>();
-        toStateCombo.addActionListener(e -> { updateToCities(); calculateEstimate(); });
-        gbc.gridx = 1;
-        box.add(toStateCombo, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 5;
-        box.add(new JLabel("City:*"), gbc);
-        toCityCombo = new JComboBox<>();
-        toCityCombo.addActionListener(e -> { updateToPostcode(); calculateEstimate(); });
-        gbc.gridx = 1;
-        box.add(toCityCombo, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 6;
-        box.add(new JLabel("Postcode:"), gbc);
-        toPostcodeField = new JTextField(10);
-        toPostcodeField.setEditable(false);
-        gbc.gridx = 1;
-        box.add(toPostcodeField, gbc);
-
-        return box;
-    }
-
     // ========== PHONE VALIDATION METHODS ==========
     
     private boolean isValidMalaysianPhoneNumber(String phone) {
@@ -1483,29 +1401,15 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
         
-        String cleaned = phone.trim().replaceAll("\\s+", "");
+        String cleaned = phone.trim().replaceAll("\\s+", "").replaceAll("-", "");
         
-        // Remove all hyphens for validation
-        String noHyphen = cleaned.replaceAll("-", "");
-        
-        // Check if it's a valid Malaysian mobile number
-        // Malaysian mobile prefixes: 010, 011, 012, 013, 014, 015, 016, 017, 018, 019
         boolean valid = false;
         
-        if (noHyphen.matches("^01[0-46-9][0-9]{7,8}$")) {
+        if (cleaned.matches("^01[0-46-9][0-9]{7,8}$")) {
             valid = true;
-        } else if (noHyphen.matches("^601[0-46-9][0-9]{7,8}$")) {
+        } else if (cleaned.matches("^601[0-46-9][0-9]{7,8}$")) {
             valid = true;
-        } else if (noHyphen.matches("^\\+601[0-46-9][0-9]{7,8}$")) {
-            valid = true;
-        }
-        
-        // Also allow the format with hyphens
-        if (!valid && cleaned.matches("^01[0-46-9]-[0-9]{7,8}$")) {
-            valid = true;
-        } else if (!valid && cleaned.matches("^601[0-46-9]-[0-9]{7,8}$")) {
-            valid = true;
-        } else if (!valid && cleaned.matches("^\\+601[0-46-9]-[0-9]{7,8}$")) {
+        } else if (cleaned.matches("^\\+601[0-46-9][0-9]{7,8}$")) {
             valid = true;
         }
         
@@ -1519,14 +1423,12 @@ public class NewOrderPanel extends JPanel {
         
         String cleaned = phone.trim().replaceAll("\\s+", "").replaceAll("-", "");
         
-        // Remove country code if present
         if (cleaned.startsWith("+60")) {
             cleaned = "0" + cleaned.substring(3);
         } else if (cleaned.startsWith("60")) {
             cleaned = "0" + cleaned.substring(2);
         }
         
-        // Format as 012-3456789 or 012-34567890
         if (cleaned.length() >= 10 && cleaned.length() <= 11 && cleaned.startsWith("01")) {
             return cleaned.substring(0, 3) + "-" + cleaned.substring(3);
         }
@@ -1534,26 +1436,45 @@ public class NewOrderPanel extends JPanel {
         return cleaned;
     }
     
-    private boolean validateSenderPhone() {
-        if (senderPhone == null || senderPhone.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, 
-                "Sender phone number not found. Please update your profile.", 
-                "Validation Error", 
-                JOptionPane.ERROR_MESSAGE);
+    private boolean validateSenderInfo() {
+        String name = senderNameField.getText().trim();
+        if (name.isEmpty() || name.equals("Enter customer name")) {
+            JOptionPane.showMessageDialog(this, "Please enter sender name", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            senderNameField.requestFocus();
             return false;
         }
         
-        if (!isValidMalaysianPhoneNumber(senderPhone)) {
+        String phone = senderPhoneField.getText().trim();
+        if (phone.isEmpty() || phone.equals("0123456789")) {
+            JOptionPane.showMessageDialog(this, "Please enter sender phone number", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            senderPhoneField.requestFocus();
+            return false;
+        }
+        
+        if (!isValidMalaysianPhoneNumber(phone)) {
             JOptionPane.showMessageDialog(this, 
-                "Sender phone number is invalid: " + senderPhone + "\n\n" +
-                "Please update your profile with a valid Malaysian phone number.\n\n" +
+                "Please enter a valid Malaysian phone number\n\n" +
                 "Valid formats:\n" +
                 "• 0123456789\n" +
-                "• 012-3456789\n" +
                 "• 60123456789\n" +
-                "• +60123456789", 
+                "• +60123456789\n\n" +
+                "Mobile prefixes: 010, 011, 012, 013, 014, 015, 016, 017, 018, 019", 
                 "Invalid Phone Number", 
                 JOptionPane.ERROR_MESSAGE);
+            senderPhoneField.requestFocus();
+            return false;
+        }
+        
+        String email = senderEmailField.getText().trim();
+        if (email.isEmpty() || email.equals("customer@example.com")) {
+            JOptionPane.showMessageDialog(this, "Please enter sender email", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            senderEmailField.requestFocus();
+            return false;
+        }
+        
+        if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            JOptionPane.showMessageDialog(this, "Please enter a valid email address", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            senderEmailField.requestFocus();
             return false;
         }
         
@@ -1563,7 +1484,7 @@ public class NewOrderPanel extends JPanel {
     private boolean validateRecipientPhone() {
         String phone = recipientPhoneField.getText().trim();
         
-        if (phone.isEmpty() || phone.equals("012-3456789")) {
+        if (phone.isEmpty() || phone.equals("0123456789")) {
             JOptionPane.showMessageDialog(this, 
                 "Please enter recipient phone number", 
                 "Validation Error", 
@@ -1577,11 +1498,8 @@ public class NewOrderPanel extends JPanel {
                 "Please enter a valid Malaysian phone number\n\n" +
                 "Valid formats:\n" +
                 "• 0123456789\n" +
-                "• 012-3456789\n" +
                 "• 60123456789\n" +
-                "• 6012-3456789\n" +
-                "• +60123456789\n" +
-                "• +6012-3456789\n\n" +
+                "• +60123456789\n\n" +
                 "Mobile prefixes: 010, 011, 012, 013, 014, 015, 016, 017, 018, 019", 
                 "Invalid Phone Number", 
                 JOptionPane.ERROR_MESSAGE);
@@ -1589,7 +1507,6 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
         
-        // Format the phone number nicely
         String formatted = formatPhoneNumber(phone);
         recipientPhoneField.setText(formatted);
         recipientPhoneField.setForeground(Color.BLACK);
@@ -1785,39 +1702,93 @@ public class NewOrderPanel extends JPanel {
         return datePrefix + String.format("%03d", maxSequence + 1);
     }
 
+    // ========== FIXED: saveOrderToFile 方法 - 保留所有现有订单 ==========
     private void saveOrderToFile(SenderOrder order) {
+        if (order == null) {
+            System.err.println("Cannot save null order");
+            return;
+        }
+        
         try {
             File file = new File(ORDERS_FILE);
             File parentDir = file.getParentFile();
-            if (parentDir != null && !parentDir.exists()) parentDir.mkdirs();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
+            }
             
             List<String> existingLines = new ArrayList<>();
             boolean orderExists = false;
+            int orderLineIndex = -1;
             
+            // 读取现有文件中的所有行
             if (file.exists()) {
                 try (BufferedReader br = new BufferedReader(new FileReader(file))) {
                     String line;
+                    int lineIndex = 0;
                     while ((line = br.readLine()) != null) {
                         existingLines.add(line);
-                        if (!line.startsWith("#") && line.contains(order.getId())) orderExists = true;
+                        // 检查订单是否已存在（跳过注释行）
+                        if (!line.startsWith("#") && line.contains(order.getId())) {
+                            orderExists = true;
+                            orderLineIndex = lineIndex;
+                            System.out.println("Order already exists at line " + lineIndex + ", will update: " + order.getId());
+                        }
+                        lineIndex++;
                     }
+                } catch (IOException e) {
+                    System.err.println("Error reading existing orders: " + e.getMessage());
                 }
             }
             
+            System.out.println("Existing lines count: " + existingLines.size());
+            System.out.println("Order exists: " + orderExists);
+            
+            // 写入文件
             try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-                if (!file.exists() || file.length() == 0) {
-                    writer.println("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|actualDelivery|driverId|vehicleId|weight|dimensions|notes|reason|pickupTime|deliveryTime|distance|fuelUsed|deliveryPhoto|recipientSignature|onTime|paymentStatus|paymentMethod|transactionId|paymentDate");
-                } else {
-                    for (String line : existingLines) {
-                        if (!orderExists || line.startsWith("#") || !line.contains(order.getId())) {
-                            writer.println(line);
-                        }
+                // 写入 header（如果文件是新的或没有header）
+                boolean hasHeader = false;
+                for (String line : existingLines) {
+                    if (line.startsWith("#")) {
+                        hasHeader = true;
+                        break;
                     }
                 }
+                
+                if (!hasHeader || existingLines.isEmpty()) {
+                    writer.println("# id|customerName|customerPhone|customerEmail|customerAddress|recipientName|recipientPhone|recipientAddress|status|orderDate|estimatedDelivery|actualDelivery|driverId|vehicleId|weight|dimensions|notes|reason|pickupTime|deliveryTime|distance|fuelUsed|deliveryPhoto|recipientSignature|onTime|paymentStatus|paymentMethod|transactionId|paymentDate");
+                }
+                
+                // 写入所有现有的行，但排除要更新的订单（如果存在）
+                for (int i = 0; i < existingLines.size(); i++) {
+                    String line = existingLines.get(i);
+                    // 保留注释行
+                    if (line.startsWith("#")) {
+                        writer.println(line);
+                    } 
+                    // 如果不是当前订单，保留
+                    else if (!orderExists || i != orderLineIndex) {
+                        writer.println(line);
+                    }
+                    // 如果是当前订单的行，跳过（稍后写入新版本）
+                    else {
+                        System.out.println("Skipping old version of order: " + order.getId());
+                    }
+                }
+                
+                // 写入新订单
                 writer.println(buildOrderLine(order));
+                writer.flush();
             }
+            
+            System.out.println("Order saved successfully: " + order.getId());
+            
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Error saving order: " + e.getMessage(), "File Error", JOptionPane.ERROR_MESSAGE);
+            System.err.println("Error saving order: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, 
+                "Error saving order: " + e.getMessage() + "\n\nPlease check file permissions.",
+                "File Error", 
+                JOptionPane.ERROR_MESSAGE);
         }
     }
     
@@ -1828,12 +1799,34 @@ public class NewOrderPanel extends JPanel {
         String cleanNotes = order.getNotes() != null ? order.getNotes().replace("|", ";").replace("\n", " ").replace("\r", " ") : "";
         
         return String.join("|",
-            safeString(order.getId()), safeString(order.getCustomerName()), safeString(order.getCustomerPhone()),
-            safeString(order.getCustomerEmail()), safeString(order.getCustomerAddress()),
-            safeString(order.getRecipientName()), safeString(order.getRecipientPhone()), safeString(order.getRecipientAddress()),
-            "Pending", currentDateTime, estimatedDeliveryDate, "", "", "", String.valueOf(order.getWeight()),
-            safeString(order.getDimensions()), cleanNotes, "", "", "", "0", "0", "", "", "false",
-            "Paid", safeString(order.getPaymentMethod()), safeString(order.getTransactionId()),
+            safeString(order.getId()), 
+            safeString(order.getCustomerName()), 
+            safeString(order.getCustomerPhone()),
+            safeString(order.getCustomerEmail()), 
+            safeString(order.getCustomerAddress()),
+            safeString(order.getRecipientName()), 
+            safeString(order.getRecipientPhone()), 
+            safeString(order.getRecipientAddress()),
+            "Pending", 
+            currentDateTime, 
+            estimatedDeliveryDate, 
+            "", 
+            "", 
+            "", 
+            String.valueOf(order.getWeight()),
+            safeString(order.getDimensions()), 
+            cleanNotes, 
+            "", 
+            "", 
+            "", 
+            "0", 
+            "0", 
+            "", 
+            "", 
+            "false",
+            "Paid", 
+            safeString(order.getPaymentMethod()), 
+            safeString(order.getTransactionId()),
             safeString(order.getPaymentDate() != null ? order.getPaymentDate() : currentDateTime));
     }
     
@@ -1844,14 +1837,11 @@ public class NewOrderPanel extends JPanel {
         return new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
     }
     
-    private String safeString(String s) { return s != null && !s.isEmpty() ? s : ""; }
+    private String safeString(String s) { 
+        return s != null && !s.isEmpty() ? s : ""; 
+    }
 
-    /**
-     * Validate that sender and recipient addresses are not identical
-     * @return true if addresses are different, false if they are the same
-     */
     private boolean validateAddressesNotSame() {
-        // Get sender address components
         String fromAddressLine = fromAddressField.getText().trim();
         if (fromAddressLine.equals("Enter street address")) fromAddressLine = "";
         
@@ -1859,7 +1849,6 @@ public class NewOrderPanel extends JPanel {
         String fromCity = (String) fromCityCombo.getSelectedItem();
         String fromPostcode = fromPostcodeField.getText().trim();
         
-        // Get recipient address components
         String toAddressLine = toAddressField.getText().trim();
         if (toAddressLine.equals("Enter street address")) toAddressLine = "";
         
@@ -1867,11 +1856,9 @@ public class NewOrderPanel extends JPanel {
         String toCity = (String) toCityCombo.getSelectedItem();
         String toPostcode = toPostcodeField.getText().trim();
         
-        // Build full addresses for comparison
         String fromFullAddress = buildFullAddress(fromAddressLine, fromCity, fromState, fromPostcode);
         String toFullAddress = buildFullAddress(toAddressLine, toCity, toState, toPostcode);
         
-        // Check if addresses are identical (case-insensitive, trim whitespace)
         boolean isSame = fromFullAddress.equalsIgnoreCase(toFullAddress);
         
         if (isSame) {
@@ -1887,9 +1874,6 @@ public class NewOrderPanel extends JPanel {
         return true;
     }
     
-    /**
-     * Build a complete address string for comparison
-     */
     private String buildFullAddress(String addressLine, String city, String state, String postcode) {
         StringBuilder sb = new StringBuilder();
         if (addressLine != null && !addressLine.isEmpty()) {
@@ -1910,6 +1894,8 @@ public class NewOrderPanel extends JPanel {
         return sb.toString().trim();
     }
 
+    // ========== CREATE ORDER METHOD ==========
+    
     private void createOrder() {
         if (!validateForm()) return;
 
@@ -1931,8 +1917,19 @@ public class NewOrderPanel extends JPanel {
         try {
             String orderId = generateCustomOrderId();
             String currentDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
-            String transactionId = "TXN" + System.currentTimeMillis() + orderId.substring(0, 3);
+            String transactionId = "TXN" + System.currentTimeMillis() + (orderId.length() > 3 ? orderId.substring(0, 3) : orderId);
             String paymentDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            
+            // Get sender info from editable fields
+            String senderName = senderNameField.getText().trim();
+            if (senderName.equals("Enter customer name")) senderName = "";
+            
+            String senderPhoneVal = senderPhoneField.getText().trim();
+            if (senderPhoneVal.equals("0123456789")) senderPhoneVal = "";
+            senderPhoneVal = formatPhoneNumber(senderPhoneVal);
+            
+            String senderEmailVal = senderEmailField.getText().trim();
+            if (senderEmailVal.equals("customer@example.com")) senderEmailVal = "";
             
             String fromState = (String) fromStateCombo.getSelectedItem();
             String fromCity = (String) fromCityCombo.getSelectedItem();
@@ -1946,24 +1943,50 @@ public class NewOrderPanel extends JPanel {
             String toAddressLine = toAddressField.getText().trim();
             if (toAddressLine.equals("Enter street address")) toAddressLine = "";
             
-            String fromAddress = fromAddressLine + ", " + fromCity + ", " + fromState + " " + fromPostcode;
-            String toAddress = toAddressLine + ", " + toCity + ", " + toState + " " + toPostcode;
+            // Build full addresses
+            String fromAddress = buildAddressString(fromAddressLine, fromCity, fromState, fromPostcode);
+            String toAddress = buildAddressString(toAddressLine, toCity, toState, toPostcode);
             
-            String dimensions = lengthField.getText().trim() + "x" + widthField.getText().trim() + "x" + heightField.getText().trim();
-            if (dimensions.equals("cmxcmxcm")) dimensions = "";
+            String dimensions = buildDimensionsString();
             
             String weightText = weightField.getText().trim();
-            if (weightText.equals("Enter weight in kg")) weightText = "";
+            if (weightText.equals("Enter weight in kg")) weightText = "0";
             double weight = Double.parseDouble(weightText);
             
-            String recipientName = recipientNameField.getText().trim();
-            if (recipientName.equals("Full name")) recipientName = "";
+            String recipientNameVal = recipientNameField.getText().trim();
+            if (recipientNameVal.equals("Full name")) recipientNameVal = "";
             
-            String recipientPhone = recipientPhoneField.getText().trim();
-            if (recipientPhone.equals("012-3456789")) recipientPhone = "";
+            String recipientPhoneVal = recipientPhoneField.getText().trim();
+            if (recipientPhoneVal.equals("0123456789")) recipientPhoneVal = "";
+            recipientPhoneVal = formatPhoneNumber(recipientPhoneVal);
             
-            SenderOrder order = new SenderOrder(orderId, senderName, senderPhone, senderEmail, fromAddress,
-                recipientName, recipientPhone, toAddress, weight, dimensions);
+            // Validate required fields
+            if (senderName.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Sender name is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (senderPhoneVal.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Sender phone is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (senderEmailVal.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Sender email is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (recipientNameVal.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Recipient name is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (recipientPhoneVal.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Recipient phone is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            System.out.println("Creating order with ID: " + orderId);
+            
+            // Create the order
+            SenderOrder order = new SenderOrder(orderId, senderName, senderPhoneVal, senderEmailVal, fromAddress,
+                recipientNameVal, recipientPhoneVal, toAddress, weight, dimensions);
             
             order.setOrderDate(currentDateTime);
             order.setPaymentStatus("Paid");
@@ -1976,6 +1999,7 @@ public class NewOrderPanel extends JPanel {
             
             double distance = calculateDistance(fromState, toState);
             String packageType = getSelectedPackageType();
+            if (packageType == null) packageType = "Standard";
             
             StringBuilder notes = new StringBuilder();
             notes.append("Package Type: ").append(packageType);
@@ -2005,30 +2029,75 @@ public class NewOrderPanel extends JPanel {
             notes.append("; Description: ").append(description);
             order.setNotes(notes.toString());
             
-            JDialog processingDialog = createPaymentProcessingDialog(totalCost, paymentMethod);
+            // Save the order - this now preserves existing orders
+            saveOrderToFile(order);
             
-            new SwingWorker<Void, Void>() {
-                @Override protected Void doInBackground() throws Exception { Thread.sleep(2000); return null; }
-                @Override protected void done() {
-                    processingDialog.dispose();
-                    saveOrderToFile(order);
-                    SenderOrderRepository.getInstance().addOrder(order);
-                    SenderOrderRepository.getInstance().refreshData();
-                    dashboard.refreshStats();
-                    clearForm();
-                    
-                    JOptionPane.showMessageDialog(NewOrderPanel.this,
-                        "✅ Order Created & Payment Successful!\n\nOrder ID: " + orderId + "\nTotal: RM " + String.format("%.2f", totalCost),
-                        "Success", JOptionPane.INFORMATION_MESSAGE);
-                    dashboard.showPanel("TRACK");
-                }
-            }.execute();
-            processingDialog.setVisible(true);
+            // Add to repository
+            SenderOrderRepository.getInstance().addOrder(order);
+            SenderOrderRepository.getInstance().refreshData();
+            
+            if (parentOrderManagement != null) {
+                parentOrderManagement.refreshData();
+            }
+            
+            clearForm();
+            
+            JOptionPane.showMessageDialog(this,
+                "✅ Order Created & Payment Successful!\n\nOrder ID: " + orderId + "\nTotal: RM " + String.format("%.2f", totalCost),
+                "Success", JOptionPane.INFORMATION_MESSAGE);
+            
+            Window window = SwingUtilities.getWindowAncestor(this);
+            if (window instanceof JDialog) {
+                window.dispose();
+            }
+            
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid number format: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error creating order: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
         }
     }
     
+    private String buildAddressString(String addressLine, String city, String state, String postcode) {
+        StringBuilder sb = new StringBuilder();
+        if (addressLine != null && !addressLine.isEmpty()) {
+            sb.append(addressLine);
+        }
+        if (city != null && !city.isEmpty()) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(city);
+        }
+        if (state != null && !state.isEmpty()) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(state);
+        }
+        if (postcode != null && !postcode.isEmpty()) {
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(postcode);
+        }
+        return sb.length() > 0 ? sb.toString() : "Address not specified";
+    }
+    
+    private String buildDimensionsString() {
+        String length = lengthField.getText().trim();
+        String width = widthField.getText().trim();
+        String height = heightField.getText().trim();
+        
+        if (length.equals("cm")) length = "";
+        if (width.equals("cm")) width = "";
+        if (height.equals("cm")) height = "";
+        
+        if (length.isEmpty() && width.isEmpty() && height.isEmpty()) {
+            return "0x0x0";
+        }
+        
+        return (length.isEmpty() ? "0" : length) + "x" + 
+               (width.isEmpty() ? "0" : width) + "x" + 
+               (height.isEmpty() ? "0" : height);
+    }
+
     private JDialog createPaymentProcessingDialog(double amount, String paymentMethod) {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Processing Payment", true);
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
@@ -2068,8 +2137,8 @@ public class NewOrderPanel extends JPanel {
     }
 
     private boolean validateForm() {
-        // Validate sender phone
-        if (!validateSenderPhone()) {
+        // Validate sender information first
+        if (!validateSenderInfo()) {
             return false;
         }
         
@@ -2115,7 +2184,6 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
         
-        // NEW VALIDATION: Check that sender and recipient addresses are not the same
         if (!validateAddressesNotSame()) {
             return false;
         }
@@ -2127,7 +2195,6 @@ public class NewOrderPanel extends JPanel {
             return false;
         }
         
-        // Validate recipient phone
         if (!validateRecipientPhone()) {
             return false;
         }
@@ -2240,6 +2307,15 @@ public class NewOrderPanel extends JPanel {
     }
 
     private void clearForm() {
+        // Clear sender fields
+        senderNameField.setText("Enter customer name");
+        senderNameField.setForeground(new Color(108, 117, 125));
+        senderPhoneField.setText("0123456789");
+        senderPhoneField.setForeground(new Color(108, 117, 125));
+        senderEmailField.setText("customer@example.com");
+        senderEmailField.setForeground(new Color(108, 117, 125));
+        
+        // Clear address fields
         fromAddressField.setText("Enter street address");
         fromAddressField.setForeground(new Color(108, 117, 125));
         fromStateCombo.setSelectedIndex(-1);
@@ -2250,10 +2326,14 @@ public class NewOrderPanel extends JPanel {
         toStateCombo.setSelectedIndex(-1);
         toCityCombo.setSelectedIndex(-1);
         toPostcodeField.setText("");
+        
+        // Clear recipient fields
         recipientNameField.setText("Full name");
         recipientNameField.setForeground(new Color(108, 117, 125));
-        recipientPhoneField.setText("012-3456789");
+        recipientPhoneField.setText("0123456789");
         recipientPhoneField.setForeground(new Color(108, 117, 125));
+        
+        // Clear package fields
         packageTypeCombo.setSelectedIndex(-1);
         customPackageType = null;
         weightField.setText("Enter weight in kg");
@@ -2267,19 +2347,27 @@ public class NewOrderPanel extends JPanel {
         descriptionArea.setText("Describe the package contents...");
         descriptionArea.setForeground(new Color(108, 117, 125));
         
+        // Reset shipping speed
         standardSpeedRadio.setSelected(true);
         
+        // Reset insurance
         insuranceCheckBox.setSelected(false);
         declaredValueField.setText("Enter declared value");
         declaredValueField.setForeground(new Color(108, 117, 125));
         insurancePanel.setVisible(false);
+        
+        // Reset payment
         paymentMethodCombo.setSelectedIndex(-1);
         paymentDetailsLayout.show(paymentDetailsPanel, "EMPTY");
+        
+        // Reset labels
         estimatedCostLabel.setText("RM 0.00");
         deliveryTimeLabel.setText("3-5 business days (Standard)");
         shippingCostDisplayLabel.setText("RM 0.00");
         insuranceCostLabel.setText("RM 0.00");
         distanceLabel.setText("-- km");
+        
+        // Update UI
         updateFromCities();
         updateToCities();
         calculateEstimate();

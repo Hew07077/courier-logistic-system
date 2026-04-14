@@ -1,3 +1,4 @@
+// VehicleReport.java
 package courier;
 
 import logistics.driver.Driver;
@@ -31,7 +32,6 @@ public class VehicleReport {
     
     private Driver currentDriver;
     private String reportsDirectory = "vehicle_reports";
-    private String vehiclesDirectory = "vehicle_data";
     private static final String REPORT_FILENAME = "vehicleReports.txt";
     private static final String VEHICLE_FILE = "vehicles.txt";
     
@@ -41,7 +41,6 @@ public class VehicleReport {
     public VehicleReport(Driver driver) {
         this.currentDriver = driver;
         createReportsDirectory();
-        createVehiclesDirectory();
         loadAllVehicles();
         loadAssignedVehicles();
     }
@@ -51,26 +50,26 @@ public class VehicleReport {
         if (!directory.exists()) directory.mkdirs();
     }
     
-    private void createVehiclesDirectory() {
-        File directory = new File(vehiclesDirectory);
-        if (!directory.exists()) directory.mkdirs();
-    }
-    
     private void loadAllVehicles() {
-        String filePath = vehiclesDirectory + "/" + VEHICLE_FILE;
-        File vehicleFile = new File(filePath);
+        File vehicleFile = new File(VEHICLE_FILE);
         
         if (!vehicleFile.exists()) {
             createSampleVehiclesFile();
             return;
         }
         
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(VEHICLE_FILE))) {
             String line;
-            reader.readLine(); 
+            boolean isFirstLine = true;
             
             while ((line = reader.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
+                
+                if (isFirstLine && line.contains("VEHICLE_ID")) {
+                    isFirstLine = false;
+                    continue;
+                }
+                isFirstLine = false;
                 
                 String[] parts = line.split("\\|");
                 if (parts.length >= 8) {
@@ -83,32 +82,24 @@ public class VehicleReport {
                     String assignedTo = parts[6].trim();
                     String fuelType = parts[7].trim();
                     
-                    String currentMileage = "0";
-                    
                     VehicleInfo vehicle = new VehicleInfo(
-                        vehicleType, licensePlate, vehicleModel, currentMileage,
+                        vehicleType, licensePlate, vehicleModel,
                         roadTaxExpiry, status, assignedTo, fuelType
                     );
                     allVehicles.put(vehicleId, vehicle);
                 }
             }
-        } catch (IOException e) {
-            // Silent fail
-        }
+        } catch (IOException e) {}
     }
     
     private void createSampleVehiclesFile() {
-        String filePath = vehiclesDirectory + "/" + VEHICLE_FILE;
-        try (PrintWriter writer = new PrintWriter(new FileWriter(filePath))) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(VEHICLE_FILE))) {
             writer.println("VEHICLE_ID|VEHICLE_TYPE|LICENSE_PLATE|VEHICLE_MODEL|ROAD_TAX_EXPIRY|STATUS|ASSIGNED_TO|FUEL_TYPE");
-            writer.println("TRK001|Truck|WAB1234|Freightliner Cascadia 125|1746057600000|Active|Ahmad Bin Abdullah|Diesel");
-            writer.println("TRK002|Truck|BBC5678|Peterbilt 579 EPIQ|1743465600000|Maintenance|Tan Siew Ming|Diesel");
-            writer.println("TRK003|Truck|AJM9876|Kenworth T680|1754006400000|Active|Unassigned|Diesel");
-            writer.println("VAN001|Van|NGA7890|Ford Transit 350 HD|1756684800000|Active|Unassigned|Diesel");
-            writer.println("VAN003|Van|CJ6789|Mercedes-Benz Sprinter 2500|1759276800000|Active|Chong Wei Ming|Diesel");
-        } catch (IOException e) {
-            // Silent fail
-        }
+            writer.println("TRK001|Truck|WAB1234|Freightliner Cascadia|1746057600000|Active|Unassigned|Diesel");
+            writer.println("VAN001|Van|NGA7890|Ford Transit|1756684800000|Active|Unassigned|Diesel");
+            writer.println("CAR001|Car|WER5678|Toyota Vios|1764567890000|Active|Unassigned|Petrol");
+            writer.println("MTC001|Motorcycle|BQ1234|Yamaha|1759276800000|Active|Unassigned|Petrol");
+        } catch (IOException e) {}
     }
     
     private void loadAssignedVehicles() {
@@ -129,21 +120,28 @@ public class VehicleReport {
         
         String driverName = currentDriver.name != null ? currentDriver.name.trim() : "";
         
+        // 通过 driverName 查找
         for (Map.Entry<String, VehicleInfo> entry : assignedVehicles.entrySet()) {
             String assignedName = entry.getKey();
             if (assignedName.equalsIgnoreCase(driverName)) return entry.getValue();
         }
         
+        // 通过 vehicleId 查找
         for (Map.Entry<String, VehicleInfo> entry : allVehicles.entrySet()) {
             VehicleInfo vehicle = entry.getValue();
             String assignedTo = vehicle.assignedTo;
             
             if (assignedTo != null && !assignedTo.equalsIgnoreCase("Unassigned")) {
-                if (assignedTo.equalsIgnoreCase(driverName)) {
+                if (assignedTo.equalsIgnoreCase(driverName) || assignedTo.equals(courierId)) {
                     assignedVehicles.put(assignedTo, vehicle);
                     return vehicle;
                 }
             }
+        }
+        
+        // 通过 currentDriver.vehicleId 查找
+        if (currentDriver.vehicleId != null && !currentDriver.vehicleId.isEmpty()) {
+            return allVehicles.get(currentDriver.vehicleId);
         }
         
         return null;
@@ -157,17 +155,23 @@ public class VehicleReport {
     }
     
     public static boolean updateVehicleAssignment(String vehicleId, String assignedTo) {
-        String filePath = "vehicle_data/" + VEHICLE_FILE;
         List<String> lines = new ArrayList<>();
         boolean updated = false;
         
         try {
-            File file = new File(filePath);
+            File file = new File(VEHICLE_FILE);
             if (!file.exists()) return false;
             
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                 String line;
+                boolean isFirstLine = true;
                 while ((line = reader.readLine()) != null) {
+                    if (isFirstLine) {
+                        lines.add(line);
+                        isFirstLine = false;
+                        continue;
+                    }
+                    
                     if (line.startsWith(vehicleId + "|")) {
                         String[] parts = line.split("\\|");
                         if (parts.length >= 8) {
@@ -274,6 +278,7 @@ public class VehicleReport {
         
         int row = 0;
         
+        // Personal Information Section
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JLabel personalSectionLabel = new JLabel("PERSONAL INFORMATION");
         personalSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -337,10 +342,26 @@ public class VehicleReport {
         emailField.setBackground(new Color(240, 240, 240));
         contentPanel.add(emailField, gbc);
         
-        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel licenseLabel = new JLabel("License Type:");
+        licenseLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        licenseLabel.setForeground(TEXT_GRAY);
+        licenseLabel.setPreferredSize(labelSize);
+        contentPanel.add(licenseLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = row++;
+        JTextField licenseField = new JTextField(currentDriver != null ? currentDriver.licenseType : "Not specified");
+        styleTextField(licenseField, fieldSize);
+        licenseField.setEditable(false);
+        licenseField.setBackground(new Color(240, 240, 240));
+        contentPanel.add(licenseField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = row++;
+        gbc.gridwidth = 2;
         contentPanel.add(Box.createVerticalStrut(15), gbc);
         gbc.gridwidth = 1;
         
+        // Vehicle Details Section
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JLabel vehicleSectionLabel = new JLabel("VEHICLE DETAILS");
         vehicleSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -484,44 +505,12 @@ public class VehicleReport {
         }
         contentPanel.add(taxField, gbc);
         
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel mileageLabel = new JLabel("Current Mileage (km):");
-        mileageLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        mileageLabel.setForeground(TEXT_GRAY);
-        mileageLabel.setPreferredSize(labelSize);
-        contentPanel.add(mileageLabel, gbc);
-        
-        gbc.gridx = 1; gbc.gridy = row++;
-        JPanel mileagePanel = new JPanel(new BorderLayout());
-        mileagePanel.setBackground(Color.WHITE);
-        mileagePanel.setPreferredSize(shortFieldSize);
-        
-        JTextField mileageField = new JTextField();
-        styleTextField(mileageField, shortFieldSize);
-        mileageField.setEditable(true);
-        mileageField.setBackground(Color.WHITE);
-        mileageField.setHorizontalAlignment(JTextField.RIGHT);
-        mileageField.setToolTipText("Enter current mileage (numbers only)");
-        if (hasVehicle) {
-            mileageField.setText(assignedVehicle.currentMileage);
-        } else {
-            mileageField.setText("0");
-            mileageField.setEditable(false);
-            mileageField.setBackground(new Color(240, 240, 240));
-        }
-        
-        JLabel kmLabel = new JLabel(" km");
-        kmLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        kmLabel.setBorder(new EmptyBorder(0, 5, 0, 10));
-        
-        mileagePanel.add(mileageField, BorderLayout.CENTER);
-        mileagePanel.add(kmLabel, BorderLayout.EAST);
-        contentPanel.add(mileagePanel, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = row++;
+        gbc.gridwidth = 2;
         contentPanel.add(Box.createVerticalStrut(15), gbc);
         gbc.gridwidth = 1;
         
+        // Report Vehicle Issue Section
         gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
         JLabel reportSectionLabel = new JLabel("REPORT VEHICLE ISSUE");
         reportSectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -544,29 +533,19 @@ public class VehicleReport {
             "Engine - Strange Noise",
             "Engine - Loss of Power",
             "Engine - Overheating",
-            "Engine - Check Engine Light",
             "Brakes - Squeaking/Grinding",
             "Brakes - Soft/Vibrating Pedal",
             "Transmission - Hard Shifting",
             "Transmission - Slipping",
             "Electrical - Battery/Charging",
             "Electrical - Lights",
-            "Electrical - Dashboard Warning",
             "Tires - Low Pressure",
             "Tires - Damage/Wear",
             "Tires - Flat/Burst",
             "Steering - Difficulty/Noise",
-            "Steering - Vehicle Pulling",
-            "Suspension - Bumpy Ride",
-            "Suspension - Noise",
             "AC/Heating - Not Working",
             "AC/Heating - Strange Smell",
-            "Fuel System - Leak",
-            "Fuel System - Poor Economy",
-            "Exhaust - Noise/Smoke",
             "Body - Damage",
-            "Body - Door Issues",
-            "Wipers/Washer - Not Working",
             "Other - Please Specify"
         });
         styleComboBox(issueCombo, comboBoxSize);
@@ -592,11 +571,7 @@ public class VehicleReport {
             boolean isOther = selected != null && selected.equals("Other - Please Specify");
             otherIssueField.setVisible(isOther);
             otherIssueField.setEnabled(isOther);
-            if (!isOther) {
-                otherIssueField.setText("");
-            } else {
-                otherIssueField.requestFocus();
-            }
+            if (!isOther) otherIssueField.setText("");
             contentPanel.revalidate();
             contentPanel.repaint();
         });
@@ -642,21 +617,7 @@ public class VehicleReport {
             "Penang - George Town",
             "Penang - Butterworth",
             "Johor - Johor Bahru",
-            "Johor - Skudai",
             "Perak - Ipoh",
-            "Negeri Sembilan - Seremban",
-            "Melaka - Melaka City",
-            "Pahang - Kuantan",
-            "Terengganu - Kuala Terengganu",
-            "Kelantan - Kota Bharu",
-            "Kedah - Alor Setar",
-            "Perlis - Kangar",
-            "Sabah - Kota Kinabalu",
-            "Sarawak - Kuching",
-            "Sarawak - Miri",
-            "Other - Highway/Roadside",
-            "Other - Customer Location",
-            "Other - Warehouse/Depot",
             "Other - Please Specify"
         });
         styleComboBox(locationCombo, comboBoxSize);
@@ -682,11 +643,7 @@ public class VehicleReport {
             boolean isOther = selected != null && selected.equals("Other - Please Specify");
             otherLocationField.setVisible(isOther);
             otherLocationField.setEnabled(isOther);
-            if (!isOther) {
-                otherLocationField.setText("");
-            } else {
-                otherLocationField.requestFocus();
-            }
+            if (!isOther) otherLocationField.setText("");
             contentPanel.revalidate();
             contentPanel.repaint();
         });
@@ -727,10 +684,8 @@ public class VehicleReport {
         severityGuidePanel.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(BORDER_COLOR), 
             "Priority Guide",
-            TitledBorder.LEFT, 
-            TitledBorder.TOP, 
-            new Font("Segoe UI", Font.BOLD, 11), 
-            TEXT_GRAY));
+            TitledBorder.LEFT, TitledBorder.TOP, 
+            new Font("Segoe UI", Font.BOLD, 11), TEXT_GRAY));
         
         severityGuidePanel.add(createSeverityIndicator("Critical", CRITICAL_COLOR));
         severityGuidePanel.add(createSeverityIndicator("High", HIGH_COLOR));
@@ -758,8 +713,8 @@ public class VehicleReport {
         buttonPanel.setBackground(Color.WHITE);
         
         JButton cancelBtn = createCancelButton(issueCombo, priorityCombo, locationCombo, descArea, otherIssueField, otherLocationField);
-        JButton submitBtn = createSubmitButton(nameField, courierIdField, phoneField, emailField,
-                                               vehicleTypeField, plateField, mileageField,
+        JButton submitBtn = createSubmitButton(nameField, courierIdField, phoneField, emailField, licenseField,
+                                               vehicleTypeField, plateField,
                                                issueCombo, priorityCombo, locationCombo, descArea, 
                                                otherIssueField, otherLocationField, hasVehicle);
         
@@ -876,9 +831,9 @@ public class VehicleReport {
     }
     
     private JButton createSubmitButton(JTextField nameField, JTextField courierIdField,
-                                       JTextField phoneField, JTextField emailField,
+                                       JTextField phoneField, JTextField emailField, JTextField licenseField,
                                        JTextField vehicleTypeField, JTextField plateField,
-                                       JTextField mileageField, JComboBox<String> issueCombo,
+                                       JComboBox<String> issueCombo,
                                        JComboBox<String> priorityCombo, JComboBox<String> locationCombo,
                                        JTextArea descArea, JTextField otherIssueField, 
                                        JTextField otherLocationField, boolean hasVehicle) {
@@ -912,7 +867,7 @@ public class VehicleReport {
                 return;
             }
             
-            if (!validateInputs(vehicleTypeField, plateField, mileageField,
+            if (!validateInputs(vehicleTypeField, plateField,
                                 issueCombo, priorityCombo, locationCombo, 
                                 otherIssueField, otherLocationField)) {
                 return;
@@ -943,9 +898,9 @@ public class VehicleReport {
                 courierIdField.getText().trim(),
                 phoneField.getText().trim(),
                 emailField.getText().trim(),
+                licenseField.getText().trim(),
                 vehicleTypeField.getText().trim(),
                 plateField.getText().trim().toUpperCase(),
-                mileageField.getText().trim().replace(",", ""),
                 (String) priorityCombo.getSelectedItem(),
                 locationText,
                 issueText,
@@ -953,7 +908,7 @@ public class VehicleReport {
             );
             
             if (saved) {
-                showSuccessMessage("Report submitted successfully!\n\nThe maintenance team has been notified.\n\nReport saved to: " + reportsDirectory + "/" + REPORT_FILENAME, "Success");
+                showSuccessMessage("Report submitted successfully!\n\nThe maintenance team has been notified.", "Success");
                 
                 issueCombo.setSelectedIndex(-1);
                 priorityCombo.setSelectedIndex(-1);
@@ -974,7 +929,7 @@ public class VehicleReport {
     }
     
     private boolean validateInputs(JTextField vehicleTypeField, JTextField plateField,
-                                   JTextField mileageField, JComboBox<String> issueCombo,
+                                   JComboBox<String> issueCombo,
                                    JComboBox<String> priorityCombo, JComboBox<String> locationCombo,
                                    JTextField otherIssueField, JTextField otherLocationField) {
         
@@ -989,24 +944,6 @@ public class VehicleReport {
             plateField.getText().trim().equals("No vehicle assigned - Contact Admin")) {
             showStyledMessage("No vehicle assigned to you. Please contact administrator.", 
                 "Vehicle Assignment Error", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        
-        String mileage = mileageField.getText().trim();
-        if (mileage.isEmpty()) {
-            showStyledMessage("Please enter current mileage.", "Validation Error", JOptionPane.WARNING_MESSAGE);
-            return false;
-        }
-        
-        try {
-            String mileageNumeric = mileage.replace(",", "");
-            double mileageValue = Double.parseDouble(mileageNumeric);
-            if (mileageValue < 0) {
-                showStyledMessage("Mileage cannot be negative.", "Validation Error", JOptionPane.WARNING_MESSAGE);
-                return false;
-            }
-        } catch (NumberFormatException ex) {
-            showStyledMessage("Please enter a valid number for mileage.", "Validation Error", JOptionPane.WARNING_MESSAGE);
             return false;
         }
         
@@ -1044,34 +981,33 @@ public class VehicleReport {
         return true;
     }
     
-    private boolean saveReportToFile(String name, String courierId, String phone, String email,
-                                      String vehicleType, String plateNo, String mileage,
+    private boolean saveReportToFile(String name, String courierId, String phone, String email, String licenseType,
+                                      String vehicleType, String plateNo,
                                       String priority, String location, String issue,
                                       String description) {
         try {
-            String filePath = reportsDirectory + "/" + REPORT_FILENAME;
-            File reportFile = new File(filePath);
+            File reportFile = new File(reportsDirectory + "/" + REPORT_FILENAME);
             
             createReportsDirectory();
             
             try (PrintWriter writer = new PrintWriter(new FileWriter(reportFile, true))) {
                 if (!reportFile.exists() || reportFile.length() == 0) {
-                    writer.println("====================================================================================================================================================================================================================================");
-                    writer.println("DATE AND TIME           | COURIER ID | COURIER NAME    | PHONE        | EMAIL                    | VEHICLE TYPE | PLATE NO  | MILEAGE (km) | ISSUE TYPE                 | PRIORITY | LOCATION                    | DESCRIPTION");
-                    writer.println("====================================================================================================================================================================================================================================");
+                    writer.println("========================================================================================================================================================================================================================================================");
+                    writer.println("DATE AND TIME           | COURIER ID | COURIER NAME    | LICENSE | PHONE        | EMAIL                    | VEHICLE TYPE | PLATE NO  | ISSUE TYPE                 | PRIORITY | LOCATION                    | DESCRIPTION");
+                    writer.println("========================================================================================================================================================================================================================================================");
                 }
                 
                 String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
                 
-                String formattedLine = String.format("%-23s | %-10s | %-15s | %-12s | %-24s | %-12s | %-9s | %-12s | %-26s | %-8s | %-27s | %s",
+                String formattedLine = String.format("%-23s | %-10s | %-15s | %-7s | %-12s | %-24s | %-12s | %-9s | %-26s | %-8s | %-27s | %s",
                     timestamp,
                     courierId,
                     truncate(name, 15),
+                    truncate(licenseType, 7),
                     truncate(phone, 12),
                     truncate(email, 24),
                     truncate(vehicleType, 12),
                     truncate(plateNo, 9),
-                    mileage,
                     truncate(issue, 26),
                     getPriorityShort(priority),
                     truncate(location, 27),
@@ -1173,19 +1109,16 @@ public class VehicleReport {
         public String vehicleType;
         public String licensePlate;
         public String vehicleModel;
-        public String currentMileage;
         public String roadTaxExpiry;
         public String status;
         public String assignedTo;
         public String fuelType;
         
         public VehicleInfo(String vehicleType, String licensePlate, String vehicleModel, 
-                           String currentMileage, String roadTaxExpiry, String status, 
-                           String assignedTo, String fuelType) {
+                           String roadTaxExpiry, String status, String assignedTo, String fuelType) {
             this.vehicleType = vehicleType;
             this.licensePlate = licensePlate;
             this.vehicleModel = vehicleModel;
-            this.currentMileage = currentMileage;
             this.roadTaxExpiry = roadTaxExpiry;
             this.status = status;
             this.assignedTo = assignedTo;

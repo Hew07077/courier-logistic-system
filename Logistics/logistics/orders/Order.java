@@ -12,7 +12,7 @@ public class Order {
     public String recipientName;
     public String recipientPhone;
     public String recipientAddress;
-    public String status; // 真实状态: Pending, In Transit, Picked Up, Out for Delivery, Delivered, Delayed, Failed, Cancelled
+    public String status;
     public String orderDate;
     public String estimatedDelivery;
     public String actualDelivery;
@@ -23,8 +23,12 @@ public class Order {
     public String notes;
     public String reason;
     
-    public String pickupTime;
-    public String deliveryTime;
+    // Status timestamps
+    public String pickupTime;        // Picked Up 时间
+    public String inTransitTime;     // In Transit 时间  
+    public String outForDeliveryTime; // Out for Delivery 时间
+    public String deliveryTime;       // Delivered 时间
+    
     public double distance;
     public double fuelUsed;
     public String deliveryPhoto;
@@ -159,6 +163,8 @@ public class Order {
             safeString(notes != null ? notes.replace("\n", " ").replace("\r", " ") : ""),
             safeString(reason),
             safeString(pickupTime),
+            safeString(inTransitTime),
+            safeString(outForDeliveryTime),
             safeString(deliveryTime),
             String.valueOf(distance),
             String.valueOf(fuelUsed),
@@ -196,7 +202,6 @@ public class Order {
             o.actualDelivery = parts.length > 11 ? parts[11] : "";
             o.driverId = parts.length > 12 ? parts[12] : "";
             o.vehicleId = parts.length > 13 ? parts[13] : "";
-            
             try {
                 o.weight = parts.length > 14 && !parts[14].isEmpty() ? Double.parseDouble(parts[14]) : 0.0;
             } catch (NumberFormatException e) { o.weight = 0.0; }
@@ -205,23 +210,25 @@ public class Order {
             o.notes = parts.length > 16 ? parts[16] : "";
             o.reason = parts.length > 17 ? parts[17] : "";
             o.pickupTime = parts.length > 18 ? parts[18] : "";
-            o.deliveryTime = parts.length > 19 ? parts[19] : "";
+            o.inTransitTime = parts.length > 19 ? parts[19] : "";
+            o.outForDeliveryTime = parts.length > 20 ? parts[20] : "";
+            o.deliveryTime = parts.length > 21 ? parts[21] : "";
             
             try {
-                o.distance = parts.length > 20 && !parts[20].isEmpty() ? Double.parseDouble(parts[20]) : 0.0;
+                o.distance = parts.length > 22 && !parts[22].isEmpty() ? Double.parseDouble(parts[22]) : 0.0;
             } catch (NumberFormatException e) { o.distance = 0.0; }
             
             try {
-                o.fuelUsed = parts.length > 21 && !parts[21].isEmpty() ? Double.parseDouble(parts[21]) : 0.0;
+                o.fuelUsed = parts.length > 23 && !parts[23].isEmpty() ? Double.parseDouble(parts[23]) : 0.0;
             } catch (NumberFormatException e) { o.fuelUsed = 0.0; }
             
-            o.deliveryPhoto = parts.length > 22 ? parts[22] : "";
-            o.recipientSignature = parts.length > 23 ? parts[23] : "";
-            o.onTime = parts.length > 24 && !parts[24].isEmpty() ? Boolean.parseBoolean(parts[24]) : true;
-            o.paymentStatus = parts.length > 25 && !parts[25].isEmpty() ? parts[25] : "Pending";
-            o.paymentMethod = parts.length > 26 ? parts[26] : "";
-            o.transactionId = parts.length > 27 ? parts[27] : "";
-            o.paymentDate = parts.length > 28 ? parts[28] : "";
+            o.deliveryPhoto = parts.length > 24 ? parts[24] : "";
+            o.recipientSignature = parts.length > 25 ? parts[25] : "";
+            o.onTime = parts.length > 26 && !parts[26].isEmpty() ? Boolean.parseBoolean(parts[26]) : true;
+            o.paymentStatus = parts.length > 27 && !parts[27].isEmpty() ? parts[27] : "Pending";
+            o.paymentMethod = parts.length > 28 ? parts[28] : "";
+            o.transactionId = parts.length > 29 ? parts[29] : "";
+            o.paymentDate = parts.length > 30 ? parts[30] : "";
             
             return o;
         } catch (Exception e) {
@@ -232,87 +239,74 @@ public class Order {
     
     // ========== STATUS METHODS ==========
     
-    /**
-     * Admin sees actual system status
-     */
-    public String getAdminStatus() {
-        return this.status;
-    }
-    
-    /**
-     * Courier sees simplified status
-     * 映射规则:
-     * - Pending (实际) -> Pending (Courier看到等待取件)
-     * - In Transit (实际) -> Pending (Courier看到等待取件)
-     * - Picked Up (实际) -> Picked Up
-     * - Out for Delivery (实际) -> Out for Delivery  
-     * - Delivered (实际) -> Delivered
-     * - Delayed (实际) -> Delayed
-     * - Failed (实际) -> Failed
-     */
     public String getCourierStatus() {
         switch(this.status) {
-            case "Pending":
-                return "Pending";
-            case "In Transit":
-                return "Pending";  // 司机看到Pending，表示等待取件
-            case "Picked Up":
-                return "Picked Up";
-            case "Out for Delivery":
-                return "Out for Delivery";
-            case "Delivered":
-                return "Delivered";
-            case "Delayed":
-                return "Delayed";
-            case "Failed":
-                return "Failed";
-            default:
-                return this.status;
+            case "Pending": return "Pending";
+            case "Assigned": return "Pending";
+            case "Picked Up": return "Picked Up";
+            case "In Transit": return "In Transit";
+            case "Out for Delivery": return "Out for Delivery";
+            case "Delivered": return "Delivered";
+            case "Delayed": return "Delayed";
+            case "Failed": return "Failed";
+            default: return this.status;
         }
     }
     
-    /**
-     * Get the actual system status that corresponds to a courier display status
-     */
     public String getActualStatusFromCourierStatus(String courierStatus) {
         switch(courierStatus) {
-            case "Pending":
-                return "In Transit";
-            case "Picked Up":
-                return "Picked Up";
-            case "In Transit":
-                return "In Transit";
-            case "Out for Delivery":
-                return "Out for Delivery";
-            case "Delivered":
-                return "Delivered";
-            case "Delayed":
-                return "Delayed";
-            case "Failed":
-                return "Failed";
-            default:
-                return courierStatus;
+            case "Pending": return "Assigned";
+            case "Picked Up": return "Picked Up";
+            case "In Transit": return "In Transit";
+            case "Out for Delivery": return "Out for Delivery";
+            case "Delivered": return "Delivered";
+            case "Delayed": return "Delayed";
+            case "Failed": return "Failed";
+            default: return courierStatus;
         }
     }
     
-    /**
-     * Update status from courier's selection
-     */
     public void updateFromCourierStatus(String courierStatus) {
         String actualStatus = getActualStatusFromCourierStatus(courierStatus);
+        String oldStatus = this.status;
         this.status = actualStatus;
         
-        if ("Picked Up".equals(courierStatus) && this.pickupTime == null) {
-            this.pickupTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-        } else if ("Delivered".equals(courierStatus)) {
-            this.deliveryTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-            this.actualDelivery = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+        String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        
+        if ("Picked Up".equals(courierStatus) && (this.pickupTime == null || this.pickupTime.isEmpty())) {
+            this.pickupTime = now;
+        }
+        if ("In Transit".equals(courierStatus) && (this.inTransitTime == null || this.inTransitTime.isEmpty())) {
+            this.inTransitTime = now;
+        }
+        if ("Out for Delivery".equals(courierStatus) && (this.outForDeliveryTime == null || this.outForDeliveryTime.isEmpty())) {
+            this.outForDeliveryTime = now;
+        }
+        if ("Delivered".equals(courierStatus)) {
+            if (this.deliveryTime == null || this.deliveryTime.isEmpty()) {
+                this.deliveryTime = now;
+            }
+            if (this.actualDelivery == null || this.actualDelivery.isEmpty()) {
+                this.actualDelivery = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+            }
         }
     }
+    // Order.java - 添加方法
+public void setDriverStatusToOnDelivery() {
+    if (driverId != null && !driverId.isEmpty()) {
+        try {
+            logistics.driver.DriverStorage driverStorage = new logistics.driver.DriverStorage();
+            logistics.driver.Driver driver = driverStorage.findDriver(driverId);
+            if (driver != null) {
+                driver.workStatus = "On Delivery";
+                driverStorage.updateDriver(driver);
+            }
+        } catch (Exception e) {
+            System.err.println("Error updating driver status: " + e.getMessage());
+        }
+    }
+}
     
-    /**
-     * Get customer view status
-     */
     public String getCustomerStatus() {
         return this.status;
     }
@@ -320,22 +314,15 @@ public class Order {
     public String getCustomerStatusDescription() {
         String status = getCustomerStatus();
         switch(status) {
-            case "Pending":
-                return "Your order is pending pickup by courier";
-            case "In Transit":
-                return "Your package is on the way to the recipient";
-            case "Picked Up":
-                return "Your package has been picked up and is with the courier";
-            case "Out for Delivery":
-                return "Your package is out for delivery today";
-            case "Delayed":
-                return "Your delivery has been delayed";
-            case "Delivered":
-                return "Your package has been delivered successfully";
-            case "Failed":
-                return "Delivery was unsuccessful. Please contact support.";
-            default:
-                return "";
+            case "Pending": return "Your order is pending pickup by courier";
+            case "Assigned": return "Your order has been assigned to a courier";
+            case "In Transit": return "Your package is on the way to the recipient";
+            case "Picked Up": return "Your package has been picked up and is with the courier";
+            case "Out for Delivery": return "Your package is out for delivery today";
+            case "Delayed": return "Your delivery has been delayed";
+            case "Delivered": return "Your package has been delivered successfully";
+            case "Failed": return "Delivery was unsuccessful. Please contact support.";
+            default: return "";
         }
     }
     
@@ -343,6 +330,7 @@ public class Order {
         String icon;
         switch(getCustomerStatus()) {
             case "Pending": icon = "⏳"; break;
+            case "Assigned": icon = "👤"; break;
             case "Picked Up": icon = "📦"; break;
             case "In Transit": icon = "🚚"; break;
             case "Out for Delivery": icon = "🚛"; break;
@@ -366,15 +354,31 @@ public class Order {
         this.deliveryTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
     }
     
+    public void markAsDelayed(String reason) {
+        this.status = "Delayed";
+        this.reason = reason;
+        this.onTime = false;
+    }
+    
     public boolean isAssignable() {
-        return "Pending".equals(status) || "In Transit".equals(status) || "Delayed".equals(status);
+        return "Pending".equals(status) || "Assigned".equals(status) || "Delayed".equals(status) || "Failed".equals(status);
     }
     
     public void assignDriver(String driverId) {
-        if (("Pending".equals(status) || "In Transit".equals(status) || "Delayed".equals(status)) && !"Delivered".equals(status)) {
+        assignDriver(driverId, null);
+    }
+    
+    public void assignDriver(String driverId, String vehicleId) {
+        if (("Pending".equals(status) || "Assigned".equals(status) || "Delayed".equals(status) || "Failed".equals(status)) 
+            && !"Delivered".equals(status)) {
             this.driverId = driverId;
-            this.status = "In Transit";
-            this.pickupTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            if (vehicleId != null) {
+                this.vehicleId = vehicleId;
+            }
+            this.status = "Assigned";
+            if ("Failed".equals(this.status)) {
+                this.reason = null;
+            }
         }
         
         Calendar cal = Calendar.getInstance();
@@ -399,18 +403,11 @@ public class Order {
             this.onTime = true;
         }
     }
-    
-    public void markAsDelayed(String reason) {
-        this.status = "Delayed";
-        this.reason = reason;
-        this.onTime = false;
-    }
 
     public String getDriverAssignmentStatus() {
         if (driverId == null) return "Unassigned";
         if ("Delivered".equals(status)) return "Completed";
         if ("Failed".equals(status)) return "Failed - Contact Admin";
-        if ("In Transit".equals(status)) return "Assigned - In Transit";
         return "Assigned";
     }
     
@@ -419,8 +416,7 @@ public class Order {
     }
     
     public String getSenderInfo() {
-        return String.format("%s | %s | %s", 
-            customerName, customerPhone, customerEmail);
+        return String.format("%s | %s | %s", customerName, customerPhone, customerEmail);
     }
     
     public String getRecipientInfo() {
@@ -429,9 +425,7 @@ public class Order {
     
     public boolean isDelayed() {
         if ("Delayed".equals(status)) return true;
-        if ("Failed".equals(status)) return false;
         if (estimatedDelivery == null || "Delivered".equals(status) || "Cancelled".equals(status)) return false;
-        
         try {
             Date today = new Date();
             Date estDate = new SimpleDateFormat("yyyy-MM-dd").parse(estimatedDelivery);
@@ -447,8 +441,9 @@ public class Order {
                 "Delivered on %s | Distance: %.1f km | Fuel: %.1f L | %s",
                 actualDelivery, distance, fuelUsed, onTime ? "ON TIME" : "LATE"
             );
-        } else if ("In Transit".equals(status)) {
-            return "In transit with driver " + driverId;
+        } else if ("In Transit".equals(status) || "Assigned".equals(status)) {
+            String vehicleInfo = vehicleId != null ? " | Vehicle: " + vehicleId : "";
+            return "In transit with driver " + driverId + vehicleInfo;
         } else if ("Failed".equals(status)) {
             return "Delivery failed - " + (reason != null ? reason : "Reason not specified");
         } else {
@@ -456,9 +451,99 @@ public class Order {
         }
     }
     
+    public double getEstimatedCost() {
+        if (notes != null && !notes.isEmpty()) {
+            if (notes.contains("Total Amount: RM")) {
+                try {
+                    int start = notes.indexOf("Total Amount: RM") + 15;
+                    int end = notes.indexOf(";", start);
+                    if (end == -1) end = notes.indexOf("|", start);
+                    if (end == -1) end = notes.length();
+                    String costStr = notes.substring(start, end).trim();
+                    costStr = costStr.replaceAll("[^0-9.]", "");
+                    if (!costStr.isEmpty()) {
+                        return Double.parseDouble(costStr);
+                    }
+                } catch (Exception e) {}
+            }
+            if (notes.contains("Estimated Cost:")) {
+                try {
+                    int start = notes.indexOf("Estimated Cost:") + 15;
+                    int end = notes.indexOf(";", start);
+                    if (end == -1) end = notes.indexOf("|", start);
+                    if (end == -1) end = notes.length();
+                    String costStr = notes.substring(start, end).trim();
+                    costStr = costStr.replace("RM", "").replace("$", "").trim();
+                    if (!costStr.isEmpty()) {
+                        return Double.parseDouble(costStr);
+                    }
+                } catch (Exception e) {}
+            }
+        }
+        return 0.0;
+    }
+    
+    public String getFormattedEstimatedCost() {
+        double cost = getEstimatedCost();
+        if (cost > 0) {
+            return String.format("RM %.2f", cost);
+        }
+        return "RM --.--";
+    }
+    
+    public String getVehicleId() {
+        return vehicleId;
+    }
+    
+    public void setVehicleId(String vehicleId) {
+        this.vehicleId = vehicleId;
+    }
+    
+    public boolean hasVehicleAssigned() {
+        return vehicleId != null && !vehicleId.isEmpty();
+    }
+    
+    // ========== TIMESTAMP FORMATTING METHODS ==========
+    
+    public String getPickupTimeFormatted() {
+        if (pickupTime == null || pickupTime.isEmpty()) return "Not yet";
+        return formatTimestamp(pickupTime);
+    }
+    
+    public String getInTransitTimeFormatted() {
+        if (inTransitTime == null || inTransitTime.isEmpty()) return "Not yet";
+        return formatTimestamp(inTransitTime);
+    }
+    
+    public String getOutForDeliveryTimeFormatted() {
+        if (outForDeliveryTime == null || outForDeliveryTime.isEmpty()) return "Not yet";
+        return formatTimestamp(outForDeliveryTime);
+    }
+    
+    public String getDeliveryTimeFormatted() {
+        if (deliveryTime == null || deliveryTime.isEmpty()) return "Not yet";
+        return formatTimestamp(deliveryTime);
+    }
+    
+    private String formatTimestamp(String timestamp) {
+        if (timestamp == null || timestamp.isEmpty()) return "-";
+        try {
+            if (timestamp.contains(" ")) {
+                String[] parts = timestamp.split(" ");
+                if (parts.length >= 2) {
+                    return parts[0] + " " + parts[1].substring(0, 5);
+                }
+            }
+            return timestamp;
+        } catch (Exception e) {
+            return timestamp;
+        }
+    }
+    
     @Override
     public String toString() {
         return id + " - " + recipientName + " (" + getCourierStatus() + ")" + 
-               (driverId != null ? " - Driver: " + driverId : "");
+               (driverId != null ? " - Driver: " + driverId : "") +
+               (vehicleId != null ? " - Vehicle: " + vehicleId : "");
     }
 }

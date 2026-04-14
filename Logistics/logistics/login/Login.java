@@ -929,7 +929,7 @@ public class Login extends JFrame {
         courierRegIcField = new JTextField(15);
         
         courierRegLicenseCombo = new JComboBox<>(new String[]{
-            "A", "A1", "B", "B1", "B2", "C", "D", "DA", "E", "G"
+            "B", "B1", "B2", "D", "DA", "E", "E1", "E2"
         });
         courierRegLicenseCombo.setFont(FIELD_FONT);
         courierRegLicenseCombo.setPreferredSize(new Dimension(220, 30));

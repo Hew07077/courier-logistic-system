@@ -1,4 +1,4 @@
-// ProfilePanel.java
+// ProfilePanel.java (courier)
 package courier;
 
 import logistics.driver.Driver;
@@ -24,6 +24,7 @@ public class ProfilePanel extends JPanel {
     private JTextField staffIdField;
     private JTextField emailField;
     private JTextField phoneField;
+    private JTextField licenseTypeField;
     private JTextField vehicleModelField;
     private JTextField plateNoField;
     private JTextField vehicleStatusField;
@@ -111,9 +112,7 @@ public class ProfilePanel extends JPanel {
                     long roadTaxExpiry = 0;
                     try {
                         roadTaxExpiry = Long.parseLong(parts[4].trim());
-                    } catch (NumberFormatException e) {
-                        // Ignore
-                    }
+                    } catch (NumberFormatException e) {}
                     
                     VehicleData vehicle = new VehicleData(
                         parts[0].trim(),
@@ -128,14 +127,13 @@ public class ProfilePanel extends JPanel {
                     vehicleDataMap.put(vehicle.vehicleId, vehicle);
                 }
             }
-        } catch (Exception e) {
-            // Silent fail
-        }
+        } catch (Exception e) {}
     }
     
     private VehicleData getAssignedVehicle() {
         if (currentDriver == null) return null;
         
+        // 通过 driverName 查找
         for (VehicleData vehicle : vehicleDataMap.values()) {
             if (vehicle.assignedTo != null && !vehicle.assignedTo.equals("Unassigned")) {
                 if (vehicle.assignedTo.equalsIgnoreCase(currentDriver.name)) {
@@ -144,6 +142,7 @@ public class ProfilePanel extends JPanel {
             }
         }
         
+        // 通过 vehicleId 查找
         if (currentDriver.vehicleId != null && !currentDriver.vehicleId.isEmpty()) {
             return vehicleDataMap.get(currentDriver.vehicleId);
         }
@@ -227,7 +226,6 @@ public class ProfilePanel extends JPanel {
                 uploadProfilePhotoBtn.setBackground(PRIMARY_GREEN);
                 uploadProfilePhotoBtn.setForeground(Color.WHITE);
             }
-            
             @Override
             public void mouseExited(MouseEvent e) {
                 uploadProfilePhotoBtn.setBackground(Color.WHITE);
@@ -264,7 +262,6 @@ public class ProfilePanel extends JPanel {
         nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         nameLabel.setForeground(TEXT_GRAY);
         nameLabel.setPreferredSize(labelSize);
-        nameLabel.setMinimumSize(labelSize);
         contentPanel.add(nameLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -279,7 +276,6 @@ public class ProfilePanel extends JPanel {
         idLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         idLabel.setForeground(TEXT_GRAY);
         idLabel.setPreferredSize(labelSize);
-        idLabel.setMinimumSize(labelSize);
         contentPanel.add(idLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -294,7 +290,6 @@ public class ProfilePanel extends JPanel {
         emailLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         emailLabel.setForeground(TEXT_GRAY);
         emailLabel.setPreferredSize(labelSize);
-        emailLabel.setMinimumSize(labelSize);
         contentPanel.add(emailLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -309,7 +304,6 @@ public class ProfilePanel extends JPanel {
         phoneLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         phoneLabel.setForeground(TEXT_GRAY);
         phoneLabel.setPreferredSize(labelSize);
-        phoneLabel.setMinimumSize(labelSize);
         contentPanel.add(phoneLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -319,28 +313,26 @@ public class ProfilePanel extends JPanel {
         phoneField.setBackground(new Color(240, 240, 240));
         contentPanel.add(phoneField, gbc);
         
+        // License Type - 只显示驾照类型
         gbc.gridx = 0; gbc.gridy = row;
-        JLabel licenseLabel = new JLabel("License:");
+        JLabel licenseLabel = new JLabel("License Type:");
         licenseLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         licenseLabel.setForeground(TEXT_GRAY);
         licenseLabel.setPreferredSize(labelSize);
-        licenseLabel.setMinimumSize(labelSize);
         contentPanel.add(licenseLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
-        JTextField licenseField = new JTextField(currentDriver != null ? 
-            currentDriver.licenseNumber + " (" + currentDriver.licenseType + ")" : "");
-        styleTextField(licenseField, fieldSize);
-        licenseField.setEditable(false);
-        licenseField.setBackground(new Color(240, 240, 240));
-        contentPanel.add(licenseField, gbc);
+        licenseTypeField = new JTextField(currentDriver != null ? currentDriver.licenseType : "Not specified");
+        styleTextField(licenseTypeField, fieldSize);
+        licenseTypeField.setEditable(false);
+        licenseTypeField.setBackground(new Color(240, 240, 240));
+        contentPanel.add(licenseTypeField, gbc);
         
         gbc.gridx = 0; gbc.gridy = row;
         JLabel icLabel = new JLabel("IC Number:");
         icLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         icLabel.setForeground(TEXT_GRAY);
         icLabel.setPreferredSize(labelSize);
-        icLabel.setMinimumSize(labelSize);
         contentPanel.add(icLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -350,7 +342,8 @@ public class ProfilePanel extends JPanel {
         icField.setBackground(new Color(240, 240, 240));
         contentPanel.add(icField, gbc);
         
-        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = row++;
+        gbc.gridwidth = 2;
         contentPanel.add(Box.createVerticalStrut(15), gbc);
         gbc.gridwidth = 1;
         
@@ -386,7 +379,6 @@ public class ProfilePanel extends JPanel {
         vehicleIdLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         vehicleIdLabel.setForeground(TEXT_GRAY);
         vehicleIdLabel.setPreferredSize(labelSize);
-        vehicleIdLabel.setMinimumSize(labelSize);
         contentPanel.add(vehicleIdLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -401,7 +393,6 @@ public class ProfilePanel extends JPanel {
         vehicleModelLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         vehicleModelLabel.setForeground(TEXT_GRAY);
         vehicleModelLabel.setPreferredSize(labelSize);
-        vehicleModelLabel.setMinimumSize(labelSize);
         contentPanel.add(vehicleModelLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -416,7 +407,6 @@ public class ProfilePanel extends JPanel {
         plateLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         plateLabel.setForeground(TEXT_GRAY);
         plateLabel.setPreferredSize(labelSize);
-        plateLabel.setMinimumSize(labelSize);
         contentPanel.add(plateLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -431,7 +421,6 @@ public class ProfilePanel extends JPanel {
         vehicleTypeLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         vehicleTypeLabel.setForeground(TEXT_GRAY);
         vehicleTypeLabel.setPreferredSize(labelSize);
-        vehicleTypeLabel.setMinimumSize(labelSize);
         contentPanel.add(vehicleTypeLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -446,7 +435,6 @@ public class ProfilePanel extends JPanel {
         fuelLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         fuelLabel.setForeground(TEXT_GRAY);
         fuelLabel.setPreferredSize(labelSize);
-        fuelLabel.setMinimumSize(labelSize);
         contentPanel.add(fuelLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -461,7 +449,6 @@ public class ProfilePanel extends JPanel {
         roadTaxLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         roadTaxLabel.setForeground(TEXT_GRAY);
         roadTaxLabel.setPreferredSize(labelSize);
-        roadTaxLabel.setMinimumSize(labelSize);
         contentPanel.add(roadTaxLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -484,7 +471,6 @@ public class ProfilePanel extends JPanel {
         statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         statusLabel.setForeground(TEXT_GRAY);
         statusLabel.setPreferredSize(labelSize);
-        statusLabel.setMinimumSize(labelSize);
         contentPanel.add(statusLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = row++;
@@ -531,7 +517,6 @@ public class ProfilePanel extends JPanel {
             public void mouseEntered(MouseEvent e) {
                 saveBtn.setBackground(GREEN_DARK);
             }
-            
             @Override
             public void mouseExited(MouseEvent e) {
                 saveBtn.setBackground(PRIMARY_GREEN);
@@ -569,9 +554,7 @@ public class ProfilePanel extends JPanel {
                 profilePhotoLabel.setText("");
                 profilePhotoFile = photoFile;
             }
-        } catch (Exception e) {
-            // Silent fail
-        }
+        } catch (Exception e) {}
     }
     
     private void uploadProfilePhoto() {
@@ -605,9 +588,7 @@ public class ProfilePanel extends JPanel {
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 currentDriver.photoPath = newPhotoPath;
                 driverStorage.updateDriver(currentDriver);
-            } catch (Exception e) {
-                // Silent fail
-            }
+            } catch (Exception e) {}
         }
         
         VehicleData assignedVehicle = getAssignedVehicle();
@@ -616,7 +597,8 @@ public class ProfilePanel extends JPanel {
             "Name: " + currentDriver.name + "\n" +
             "Staff ID: " + currentDriver.id + "\n" +
             "Email: " + currentDriver.email + "\n" +
-            "Phone: " + currentDriver.phone;
+            "Phone: " + currentDriver.phone + "\n" +
+            "License Type: " + (currentDriver.licenseType != null ? currentDriver.licenseType : "Not specified");
         
         if (profilePhotoFile != null) {
             message += "\n\nProfile photo updated successfully!";
@@ -632,10 +614,10 @@ public class ProfilePanel extends JPanel {
                 "Road Tax Expiry: " + assignedVehicle.getFormattedExpiryDate() + "\n" +
                 "Status: " + assignedVehicle.status;
             if (assignedVehicle.isExpired()) {
-                message += "\n ROAD TAX EXPIRED! Please renew immediately.";
+                message += "\n⚠️ ROAD TAX EXPIRED! Please renew immediately.";
             }
         } else {
-            message += "\n\n No vehicle assigned yet.";
+            message += "\n\nNo vehicle assigned yet.";
         }
         
         JOptionPane.showMessageDialog(this,
@@ -654,6 +636,7 @@ public class ProfilePanel extends JPanel {
         nameField.setText(currentDriver.name);
         emailField.setText(currentDriver.email);
         phoneField.setText(currentDriver.phone);
+        licenseTypeField.setText(currentDriver.licenseType != null ? currentDriver.licenseType : "Not specified");
         
         if (assignedVehicle != null) {
             vehicleIdField.setText(assignedVehicle.vehicleId);

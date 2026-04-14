@@ -223,6 +223,7 @@ public class HomePanel extends JPanel {
     }
 
     // ==================== OUR STORY SECTION ====================
+    
     private JPanel createOurStorySection() {
         JPanel card = new JPanel(new BorderLayout(20, 0));
         card.setBackground(CARD_BG);
@@ -342,6 +343,7 @@ public class HomePanel extends JPanel {
     }
 
     // ==================== STATISTICS SECTION ====================
+    
     private JPanel createStatisticsSection() {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(CARD_BG);
@@ -435,6 +437,7 @@ public class HomePanel extends JPanel {
     }
 
     // ==================== WHY CHOOSE US SECTION ====================
+    
     private JPanel createWhyChooseUsSection() {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(CARD_BG);
@@ -535,7 +538,8 @@ public class HomePanel extends JPanel {
         return card;
     }
 
-    // ==================== QUICK ACTIONS PANEL ====================  
+    // ==================== QUICK ACTIONS PANEL ====================
+    
     private JPanel createQuickActionsPanel() {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(CARD_BG);

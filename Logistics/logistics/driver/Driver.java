@@ -10,36 +10,34 @@ public class Driver {
     public String email;
     public String licenseNumber;
     public String licenseExpiry;
-    public String workStatus; // Available, On Delivery, Off Duty, On Leave
-    public String approvalStatus; // PENDING, APPROVED, REJECTED
+    public String workStatus;      // Available, On Delivery, Off Duty, On Leave
+    public String approvalStatus;   // PENDING, APPROVED, REJECTED
     public String vehicleId;
     public String joinDate;
     public int totalDeliveries;
-    public double rating;
     public String emergencyContact;
     public String emergencyPhone;
     public String address;
     public String notes;
-    public String photoPath;
+    public String photoPath;        // IC photo path
     public String passwordHash;
     public String icNumber;
-    public String licenseType;
+    public String licenseType;      //B(MOTOR),D(CAR),E(TRUCK)
     public String remarks;
     
-    // New fields for order integration
-    public List<String> currentOrderIds; // IDs of orders currently assigned
-    public List<String> completedOrderIds; // IDs of completed orders
-    public double totalDistance; // Total distance driven
-    public double totalFuelUsed; // Total fuel used
-    public int onTimeDeliveries; // Number of on-time deliveries
-    public int lateDeliveries; // Number of late deliveries
+    // Fields for order integration
+    public List<String> currentOrderIds;
+    public List<String> completedOrderIds;
+    public double totalDistance;
+    public double totalFuelUsed;
+    public int onTimeDeliveries;
+    public int lateDeliveries;
     
     public Driver() {
         this.joinDate = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
         this.workStatus = "Off Duty";
         this.approvalStatus = "PENDING";
         this.totalDeliveries = 0;
-        this.rating = 5.0;
         this.currentOrderIds = new ArrayList<>();
         this.completedOrderIds = new ArrayList<>();
         this.totalDistance = 0;
@@ -60,7 +58,6 @@ public class Driver {
         this.workStatus = "Off Duty";
         this.approvalStatus = "PENDING";
         this.totalDeliveries = 0;
-        this.rating = 5.0;
         this.currentOrderIds = new ArrayList<>();
         this.completedOrderIds = new ArrayList<>();
         this.totalDistance = 0;
@@ -69,7 +66,7 @@ public class Driver {
         this.lateDeliveries = 0;
     }
     
-    // Save format: id|name|phone|email|licenseNumber|licenseExpiry|workStatus|approvalStatus|vehicleId|joinDate|totalDeliveries|rating|emergencyContact|emergencyPhone|address|notes|photoPath|passwordHash|icNumber|licenseType|remarks|currentOrderIds|completedOrderIds|totalDistance|totalFuelUsed|onTimeDeliveries|lateDeliveries
+    // Save format
     public String toFileString() {
         return String.join("|", 
             safeString(id),
@@ -83,7 +80,7 @@ public class Driver {
             safeString(vehicleId),
             safeString(joinDate),
             String.valueOf(totalDeliveries),
-            String.valueOf(rating),
+            "",  // rating field (deprecated, kept for compatibility)
             safeString(emergencyContact),
             safeString(emergencyPhone),
             safeString(address),
@@ -121,7 +118,6 @@ public class Driver {
         
         String[] parts = line.split("\\|", -1);
         if (parts.length < 27) {
-            System.out.println("Invalid driver line format (expected 27 parts, got " + parts.length + ")");
             return null;
         }
         
@@ -138,7 +134,7 @@ public class Driver {
             d.vehicleId = parts[8].isEmpty() ? null : parts[8];
             d.joinDate = parts[9];
             d.totalDeliveries = parts[10].isEmpty() ? 0 : Integer.parseInt(parts[10]);
-            d.rating = parts[11].isEmpty() ? 5.0 : Double.parseDouble(parts[11]);
+            // skip rating (parts[11])
             d.emergencyContact = parts[12].isEmpty() ? null : parts[12];
             d.emergencyPhone = parts[13].isEmpty() ? null : parts[13];
             d.address = parts[14].isEmpty() ? null : parts[14];
@@ -156,14 +152,8 @@ public class Driver {
             d.lateDeliveries = parts[26].isEmpty() ? 0 : Integer.parseInt(parts[26]);
             return d;
         } catch (Exception e) {
-            System.out.println("Error parsing driver: " + e.getMessage());
-            e.printStackTrace();
             return null;
         }
-    }
-    
-    public String getFormattedRating() {
-        return String.format("%.1f ⭐", rating);
     }
     
     public boolean isAvailable() {
@@ -179,11 +169,11 @@ public class Driver {
     }
     
     public boolean canTakeNewOrder() {
-        return isAvailable() && currentOrderIds.size() < 3; // Max 3 concurrent orders
+        return isAvailable() && currentOrderIds.size() < 3;
     }
     
     public void assignOrder(String orderId) {
-        if (!currentOrderIds.contains(orderId)) {
+        if (orderId != null && !orderId.isEmpty() && !currentOrderIds.contains(orderId)) {
             currentOrderIds.add(orderId);
             workStatus = "On Delivery";
         }
@@ -202,10 +192,6 @@ public class Driver {
                 lateDeliveries++;
             }
             
-            // Update rating (simple formula)
-            double onTimeRate = (double) onTimeDeliveries / totalDeliveries;
-            rating = 3.0 + (onTimeRate * 2.0); // Range 3.0-5.0
-            
             if (currentOrderIds.isEmpty()) {
                 workStatus = "Available";
             }
@@ -216,6 +202,10 @@ public class Driver {
         return currentOrderIds.size();
     }
     
+    public List<String> getCurrentOrderIds() {
+        return new ArrayList<>(currentOrderIds);
+    }
+    
     public double getOnTimeRate() {
         if (totalDeliveries == 0) return 1.0;
         return (double) onTimeDeliveries / totalDeliveries;
@@ -223,10 +213,9 @@ public class Driver {
     
     public String getPerformanceSummary() {
         return String.format(
-            "Deliveries: %d | On-Time: %.1f%% | Rating: %.1f | Distance: %.1f km | Fuel: %.1f L",
+            "Deliveries: %d | On-Time: %.1f%% | Distance: %.1f km | Fuel: %.1f L",
             totalDeliveries,
             getOnTimeRate() * 100,
-            rating,
             totalDistance,
             totalFuelUsed
         );
@@ -234,6 +223,6 @@ public class Driver {
     
     @Override
     public String toString() {
-        return id + " - " + name + " [" + approvalStatus + "] (" + workStatus + ") - Orders: " + getCurrentOrderCount();
+        return id + " - " + name + " [" + approvalStatus + "] (" + workStatus + ")";
     }
 }

@@ -37,7 +37,6 @@ public class CourierData {
             d.vehicleId = parts[7].isEmpty() ? null : parts[7];
             d.joinDate = parts[8];
             d.totalDeliveries = parts[9].isEmpty() ? 0 : Integer.parseInt(parts[9]);
-            d.rating = parts[10].isEmpty() ? 5.0 : Double.parseDouble(parts[10]);
             d.emergencyContact = parts[11].isEmpty() ? null : parts[11];
             d.emergencyPhone = parts[12].isEmpty() ? null : parts[12];
             d.address = parts[13].isEmpty() ? null : parts[13];

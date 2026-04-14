@@ -30,7 +30,6 @@ public class CourierDashboard extends JFrame {
     private static final Color WARNING = new Color(225, 173, 1);
     private static final Color DANGER = new Color(220, 53, 69);
     private static final Color PURPLE = new Color(111, 66, 193);
-    //private static final Color ORANGE = new Color(255, 87, 34);
     
     // Button colors
     private final Color BUTTON_SELECTED = new Color(27, 94, 32);
@@ -82,7 +81,27 @@ public class CourierDashboard extends JFrame {
     }
     
     private void loadMyOrders() {
-        myOrders = orderStorage.getOrdersByDriver(currentDriver.id);
+        orderStorage.forceReload();
+        myOrders = new ArrayList<>();
+        List<Order> allOrders = orderStorage.getAllOrders();
+        
+        for (Order order : allOrders) {
+            if (order.driverId != null && order.driverId.equals(currentDriver.id)) {
+                myOrders.add(order);
+            } else if (order.driverId != null && order.driverId.equals(currentDriver.name)) {
+                myOrders.add(order);
+            }
+        }
+        
+        if (currentDriver.currentOrderIds != null && !currentDriver.currentOrderIds.isEmpty()) {
+            for (String orderId : currentDriver.currentOrderIds) {
+                Order order = orderStorage.findOrder(orderId);
+                if (order != null && !myOrders.contains(order)) {
+                    myOrders.add(order);
+                }
+            }
+        }
+        
         myOrders.sort((a, b) -> {
             int scoreA = getStatusScore(a.status);
             int scoreB = getStatusScore(b.status);
@@ -93,26 +112,25 @@ public class CourierDashboard extends JFrame {
     
     private int getStatusScore(String status) {
         switch(status) {
-            case "In Transit": return 5;
-            case "Delayed": return 4;
-            case "Pending": return 3;
-            case "Picked Up": return 3;
-            case "Delivered": return 2;
-            case "Failed": return 1;
+            case "Assigned": return 6;
+            case "Pickup": return 5;
+            case "In Transit": return 4;
+            case "Out for Delivery": return 3;
+            case "Delayed": return 2;
+            case "Pending": return 1;
+            case "Delivered": return 0;
+            case "Failed": return 0;
             default: return 0;
         }
     }
     
     public void refreshData() {
-        // Force reload from file
         orderStorage.forceReload();
-        
         currentDriver = driverStorage.findDriver(currentDriver.id);
         if (currentDriver == null) return;
         
         loadMyOrders();
         
-        // Update separated panels
         if (deliveriesPanel != null) {
             deliveriesPanel.refreshData(myOrders);
         }
@@ -127,7 +145,6 @@ public class CourierDashboard extends JFrame {
             profilePanel.refreshProfile(currentDriver);
         }
         
-        // Refresh status bar
         revalidate();
         repaint();
     }
@@ -151,14 +168,21 @@ public class CourierDashboard extends JFrame {
                 JPanel panel = (JPanel) comp;
                 if (panel.getComponentCount() > 0 && panel.getComponent(0) instanceof JPanel) {
                     JPanel userInfo = (JPanel) panel.getComponent(0);
-                    if (userInfo.getComponentCount() >= 2) {
-                        Component comp1 = userInfo.getComponent(0);
-                        Component comp2 = userInfo.getComponent(1);
-                        if (comp1 instanceof JLabel && comp2 instanceof JLabel) {
-                            JLabel nameLabel = (JLabel) comp1;
-                            nameLabel.setText(currentDriver.name);
-                            break;
+                    if (userInfo.getComponentCount() >= 3) {
+                        Component nameComp = userInfo.getComponent(0);
+                        if (nameComp instanceof JLabel) {
+                            ((JLabel) nameComp).setText(currentDriver.name);
                         }
+                        Component idComp = userInfo.getComponent(1);
+                        if (idComp instanceof JLabel) {
+                            ((JLabel) idComp).setText("ID: " + currentDriver.id);
+                        }
+                        Component statusComp = userInfo.getComponent(2);
+                        if (statusComp instanceof JLabel) {
+                            ((JLabel) statusComp).setText("Status: " + currentDriver.workStatus);
+                            ((JLabel) statusComp).setForeground(getStatusColor(currentDriver.workStatus));
+                        }
+                        break;
                     }
                 }
             }
@@ -447,8 +471,7 @@ public class CourierDashboard extends JFrame {
                     return new ImageIcon(file.getAbsolutePath());
                 }
             }
-        } catch (Exception e) {
-        }
+        } catch (Exception e) {}
         return null;
     }
 
@@ -457,7 +480,6 @@ public class CourierDashboard extends JFrame {
         contentPanel = new JPanel(cardLayout);
         contentPanel.setBackground(BG_LIGHT);
 
-        // Create separated panels
         deliveriesPanel = new DeliveriesPanel(myOrders, orderStorage, this);
         completeDeliveryPanel = new CompleteDeliveryPanel(myOrders, orderStorage, this);
         
@@ -471,7 +493,6 @@ public class CourierDashboard extends JFrame {
         return contentPanel;
     }
     
-    // Public methods called by panels
     public void showEnhancedOrderDetails(Order order) {
         JDialog dialog = new JDialog(this, "Complete Order Details - " + order.id, true);
         dialog.setSize(850, 750);
