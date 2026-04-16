@@ -272,7 +272,6 @@ public class VehicleReport {
         gbc.weightx = 1.0;
         
         Dimension fieldSize = new Dimension(400, 35);
-        Dimension shortFieldSize = new Dimension(200, 35);
         Dimension comboBoxSize = new Dimension(400, 35);
         Dimension labelSize = new Dimension(150, 30);
         

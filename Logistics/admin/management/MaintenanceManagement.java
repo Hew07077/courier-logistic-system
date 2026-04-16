@@ -13,11 +13,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.io.*;
 
-/**
- * Manages maintenance records with a comprehensive UI for tracking vehicle maintenance tasks.
- * Provides filtering, sorting, and CRUD operations for maintenance records.
- * Integrated with VehicleManagement to track vehicles in maintenance.
- */
 public class MaintenanceManagement {
     private static final Logger LOGGER = Logger.getLogger(MaintenanceManagement.class.getName());
     
@@ -65,10 +60,8 @@ public class MaintenanceManagement {
     private static final Color TEXT_PRIMARY = new Color(33, 37, 41);
     private static final Color TEXT_SECONDARY = new Color(108, 117, 125);
     private static final Color TEXT_MUTED = new Color(134, 142, 150);
-    private static final Color HOVER_COLOR = new Color(245, 247, 250);
     private static final Color SELECTION_COLOR = new Color(230, 242, 255);
     private static final Color ACTIVE_FILTER_BORDER = new Color(41, 98, 255);
-    private static final Color CALENDAR_DAY_HOVER = new Color(230, 242, 255);
     
     // Fonts
     private static final Font TITLE_FONT = new Font("Segoe UI", Font.BOLD, 28);
@@ -80,8 +73,6 @@ public class MaintenanceManagement {
     private static final Font BUTTON_FONT = new Font("Segoe UI", Font.BOLD, 11);
     private static final Font BUTTON_HOVER_FONT = new Font("Segoe UI", Font.BOLD, 12);
     private static final Font STATUS_FONT = new Font("Segoe UI", Font.BOLD, 12);
-    private static final Font CALENDAR_FONT = new Font("Segoe UI", Font.PLAIN, 12);
-    private static final Font CALENDAR_HEADER_FONT = new Font("Segoe UI", Font.BOLD, 14);
     
     private static final String[] TABLE_COLUMNS = {"ID", "Vehicle", "Description", "Status", "Date", "Notes"};
     

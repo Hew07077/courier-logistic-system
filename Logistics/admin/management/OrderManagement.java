@@ -13,8 +13,7 @@ import java.awt.event.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.io.*;
+
 
 public class OrderManagement {
     private JPanel mainPanel;
@@ -35,13 +34,9 @@ public class OrderManagement {
     private static final Color PRIMARY = new Color(255, 140, 0);
     private static final Color PRIMARY_DARK = new Color(235, 120, 0);
     private static final Color SUCCESS = new Color(40, 167, 69);
-    private static final Color SUCCESS_DARK = new Color(30, 126, 52);
     private static final Color WARNING = new Color(255, 193, 7);
-    private static final Color WARNING_DARK = new Color(204, 154, 6);
     private static final Color DANGER = new Color(220, 53, 69);
-    private static final Color DANGER_DARK = new Color(176, 42, 55);
     private static final Color INFO = new Color(23, 162, 184);
-    private static final Color INFO_DARK = new Color(17, 122, 139);
     private static final Color ASSIGNED_COLOR = new Color(111, 66, 193);
     private static final Color PICKUP_COLOR = new Color(0, 150, 136);
     private static final Color OUT_FOR_DELIVERY_COLOR = new Color(255, 87, 34);
@@ -68,8 +63,7 @@ public class OrderManagement {
     
     private String currentStatusFilter = null;
     private int currentFilterIndex = -1;
-    
-    private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     
     public OrderManagement() {

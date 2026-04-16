@@ -1,4 +1,3 @@
-// CreateOrderPanel.java - 完整修复版
 package admin.management;
 
 import javax.swing.*;
@@ -2098,43 +2097,6 @@ public class CreateOrderPanel extends JPanel {
                (height.isEmpty() ? "0" : height);
     }
 
-    private JDialog createPaymentProcessingDialog(double amount, String paymentMethod) {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Processing Payment", true);
-        dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        dialog.setSize(350, 180);
-        dialog.setLocationRelativeTo(this);
-        
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(Color.WHITE);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 5, 10);
-        gbc.gridx = 0;
-        
-        gbc.gridy = 0;
-        JLabel amountLabel = new JLabel("Amount: RM " + String.format("%.2f", amount));
-        amountLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        panel.add(amountLabel, gbc);
-        
-        gbc.gridy = 1;
-        panel.add(new JLabel("Payment Method: " + paymentMethod), gbc);
-        
-        gbc.gridy = 2;
-        JLabel processingLabel = new JLabel("Processing payment...");
-        processingLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        panel.add(processingLabel, gbc);
-        
-        gbc.gridy = 3;
-        JProgressBar progressBar = new JProgressBar();
-        progressBar.setIndeterminate(true);
-        progressBar.setPreferredSize(new Dimension(250, 15));
-        panel.add(progressBar, gbc);
-        
-        gbc.gridy = 4;
-        panel.add(new JLabel("Please wait..."), gbc);
-        
-        dialog.add(panel);
-        return dialog;
-    }
 
     private boolean validateForm() {
         // Validate sender information first

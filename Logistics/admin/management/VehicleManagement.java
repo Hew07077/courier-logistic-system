@@ -123,38 +123,6 @@ public class VehicleManagement {
         this.orderManagement = orderMgmt;
     }
     
-    // ========== LICENSE TO VEHICLE TYPE MAPPING ==========
-    
-    private String[] getAllowedVehicleTypesForLicense(String licenseType) {
-        if (licenseType == null) return new String[]{};
-        String upperLicense = licenseType.toUpperCase();
-        
-        switch(upperLicense) {
-            case "B":
-            case "B1":
-            case "B2":
-                return new String[]{"Motorcycle", "MTC"};
-            case "D":
-            case "DA":
-                return new String[]{"Car", "Van"};
-            case "E":
-            case "E1":
-            case "E2":
-                return new String[]{"Truck", "Van"};
-            default:
-                return new String[]{};
-        }
-    }
-    
-    private boolean canDriverDriveVehicle(String driverId, String vehicleId) {
-        DriverData driver = driverCache.get(driverId);
-        if (driver == null) return false;
-        
-        Vehicle vehicle = getVehicleById(vehicleId);
-        if (vehicle == null) return false;
-        
-        return canDriverDriveVehicleType(driver.licenseType, vehicle.type);
-    }
     
     private boolean canDriverDriveVehicleType(String licenseType, String vehicleType) {
         if (licenseType == null) return false;

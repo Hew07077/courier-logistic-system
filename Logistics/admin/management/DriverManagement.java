@@ -11,7 +11,6 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 import javax.imageio.ImageIO;
@@ -34,13 +33,11 @@ public class DriverManagement {
     private String currentWorkFilter = null;
     private int currentFilterIndex = -1;
     
-    private static final String PHOTO_DIR = "driver_photos/";
     private String currentPhotoPath = null;      // IC photo path
     private String licensePhotoPath = null;      // License photo path
     
     // Modern color scheme
     private static final Color PRIMARY = new Color(46, 125, 50);
-    private static final Color PRIMARY_DARK = new Color(27, 94, 32);
     private static final Color SUCCESS = new Color(40, 167, 69);
     private static final Color WARNING = new Color(255, 193, 7);
     private static final Color INFO = new Color(23, 162, 184);
@@ -1605,31 +1602,6 @@ public class DriverManagement {
         });
     }
     
-    // ========== PHOTO METHODS ==========
-    
-    private String savePhoto(File sourceFile, String driverId) {
-        if (sourceFile == null) return null;
-        
-        File directory = new File(PHOTO_DIR);
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
-        
-        String fileName = sourceFile.getName();
-        String extension = fileName.substring(fileName.lastIndexOf('.'));
-        
-        String newFileName = driverId + extension;
-        File destFile = new File(PHOTO_DIR + newFileName);
-        
-        try {
-            java.nio.file.Files.copy(sourceFile.toPath(), destFile.toPath(), 
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            return PHOTO_DIR + newFileName;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
     
     private ImageIcon loadDriverPhoto(String photoPath, int width, int height) {
         if (photoPath == null || photoPath.isEmpty()) {
