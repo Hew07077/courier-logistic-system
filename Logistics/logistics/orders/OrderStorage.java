@@ -1,4 +1,3 @@
-// OrderStorage.java (Fixed - removed loadOrders() from updateOrder)
 package logistics.orders;
 
 import logistics.driver.Driver;
@@ -25,7 +24,7 @@ public class OrderStorage {
         
         System.out.println("Loaded " + orders.size() + " orders");
         for (Order o : orders) {
-            System.out.println("Order: " + o.id + " - " + o.status + " - outForDelivery: " + o.outForDeliveryTime);
+            System.out.println("Order: " + o.id + " - " + o.status + " - driverId: '" + o.driverId + "'");
         }
     }
     
@@ -44,11 +43,9 @@ public class OrderStorage {
         
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
-            int lineCount = 0;
             int orderCount = 0;
             
             while ((line = br.readLine()) != null) {
-                lineCount++;
                 line = line.trim();
                 if (line.isEmpty() || line.startsWith("#")) {
                     continue;
@@ -71,18 +68,9 @@ public class OrderStorage {
                 updateDailyCounter(o.id);
             }
             
-            if (orders.isEmpty()) {
-                System.out.println("No orders loaded from file. Creating sample data...");
-                createSampleData();
-                saveOrders();
-            }
-            
         } catch (IOException e) {
             System.out.println("Error loading orders: " + e.getMessage());
             e.printStackTrace();
-            if (orders.isEmpty()) {
-                createSampleData();
-            }
         }
     }
     
@@ -91,7 +79,7 @@ public class OrderStorage {
         loadOrders();
         System.out.println("Reloaded " + orders.size() + " orders");
         for (Order o : orders) {
-            System.out.println("  - " + o.id + ": " + o.status + " | outForDelivery: " + o.outForDeliveryTime);
+            System.out.println("  - " + o.id + ": " + o.status + " | driverId: '" + o.driverId + "'");
         }
     }
     
@@ -128,8 +116,7 @@ public class OrderStorage {
             bw.newLine();
             
             for (Order o : orders) {
-                System.out.println("Saving order " + o.id + " - outForDeliveryTime: '" + o.outForDeliveryTime + "'");
-                System.out.println("Saving order " + o.id + " - deliveryTime: '" + o.deliveryTime + "'");
+                System.out.println("Saving order " + o.id + " - driverId: '" + o.driverId + "', status: '" + o.status + "'");
                 bw.write(o.toFileString());
                 bw.newLine();
             }
@@ -148,6 +135,7 @@ public class OrderStorage {
         try {
             Class<?> clazz = senderOrder.getClass();
             String orderId = (String) clazz.getMethod("getId").invoke(senderOrder);
+            String status = (String) clazz.getMethod("getStatus").invoke(senderOrder);
             
             Order existing = findOrder(orderId);
             if (existing != null) {
@@ -159,7 +147,7 @@ public class OrderStorage {
                 existing.recipientName = (String) clazz.getMethod("getRecipientName").invoke(senderOrder);
                 existing.recipientPhone = (String) clazz.getMethod("getRecipientPhone").invoke(senderOrder);
                 existing.recipientAddress = (String) clazz.getMethod("getRecipientAddress").invoke(senderOrder);
-                existing.status = (String) clazz.getMethod("getStatus").invoke(senderOrder);
+                existing.status = status;
                 existing.orderDate = (String) clazz.getMethod("getOrderDate").invoke(senderOrder);
                 existing.estimatedDelivery = (String) clazz.getMethod("getEstimatedDelivery").invoke(senderOrder);
                 
@@ -175,6 +163,24 @@ public class OrderStorage {
                 existing.transactionId = (String) clazz.getMethod("getTransactionId").invoke(senderOrder);
                 existing.paymentDate = (String) clazz.getMethod("getPaymentDate").invoke(senderOrder);
                 
+                if ("Pending".equals(status)) {
+                    existing.pickupTime = null;
+                    existing.inTransitTime = null;
+                    existing.outForDeliveryTime = null;
+                    existing.deliveryTime = null;
+                    existing.actualDelivery = null;
+                    existing.reason = null;
+                    existing.driverId = null;
+                    existing.vehicleId = null;
+                    existing.distance = 0.0;
+                    existing.fuelUsed = 0.0;
+                    existing.deliveryPhoto = null;
+                    existing.recipientSignature = null;
+                    existing.onTime = true;
+                    
+                    System.out.println("  Cleared all status timestamps for existing order: " + orderId);
+                }
+                
                 updateOrder(existing);
             } else {
                 Order order = Order.fromSenderOrder(senderOrder);
@@ -182,7 +188,7 @@ public class OrderStorage {
                     orders.add(order);
                     updateDailyCounter(order.id);
                     saveOrders();
-                    System.out.println("Added order from sender: " + order.id);
+                    System.out.println("Added new order from sender: " + order.id);
                 }
             }
         } catch (Exception e) {
@@ -408,18 +414,19 @@ public class OrderStorage {
     }
     
     /**
-     * CRITICAL FIX: Removed loadOrders() call that was overwriting in-memory orders
+     * 关键修复：确保 updateOrder 正确更新内存中的订单并保存到文件
      */
     public synchronized void updateOrder(Order updatedOrder) {
-        // DO NOT call loadOrders() here - it would overwrite the timestamps we just set!
+        System.out.println("===== updateOrder called =====");
+        System.out.println("Order ID: " + updatedOrder.id);
+        System.out.println("  - driverId: '" + updatedOrder.driverId + "'");
+        System.out.println("  - vehicleId: '" + updatedOrder.vehicleId + "'");
+        System.out.println("  - status: '" + updatedOrder.status + "'");
         
         boolean found = false;
         for (int i = 0; i < orders.size(); i++) {
             if (orders.get(i).id.equals(updatedOrder.id)) {
-                System.out.println("Updating order in memory: " + updatedOrder.id);
-                System.out.println("  - outForDeliveryTime: '" + updatedOrder.outForDeliveryTime + "'");
-                System.out.println("  - deliveryTime: '" + updatedOrder.deliveryTime + "'");
-                System.out.println("  - status: '" + updatedOrder.status + "'");
+                System.out.println("Updating existing order in memory at index " + i);
                 orders.set(i, updatedOrder);
                 found = true;
                 break;
@@ -427,13 +434,19 @@ public class OrderStorage {
         }
         
         if (!found) {
-            System.out.println("Adding new order: " + updatedOrder.id);
+            System.out.println("Order not found in memory, adding as new order");
             orders.add(updatedOrder);
             updateDailyCounter(updatedOrder.id);
         }
         
-        // Save directly to file
+        // 立即保存到文件
         saveOrders();
+        
+        // 验证保存
+        Order verifyOrder = findOrder(updatedOrder.id);
+        if (verifyOrder != null) {
+            System.out.println("Verification - driverId: '" + verifyOrder.driverId + "', status: '" + verifyOrder.status + "'");
+        }
         
         System.out.println("Order " + updatedOrder.id + " updated and saved successfully");
     }
@@ -447,15 +460,135 @@ public class OrderStorage {
     
     // ==================== Driver Integration ====================
     
+    /**
+     * 关键修复：assignOrderToDriver 方法 - 直接设置 driverId 并确保保存
+     */
     public boolean assignOrderToDriver(String orderId, String driverId) {
-        Order order = findOrder(orderId);
-        Driver driver = driverStorage.findDriver(driverId);
+        System.out.println("===== assignOrderToDriver called =====");
+        System.out.println("Order ID: " + orderId);
+        System.out.println("Driver ID: " + driverId);
         
-        if (order != null && driver != null && driver.isAvailable() && order.isAssignable()) {
-            order.assignDriver(driverId);
-            driver.assignOrder(orderId);
-            driverStorage.updateDriver(driver);
-            updateOrder(order);
+        // 1. 查找订单
+        Order order = findOrder(orderId);
+        if (order == null) {
+            System.err.println("ERROR: Order not found: " + orderId);
+            return false;
+        }
+        
+        System.out.println("Order found - Status: " + order.status);
+        System.out.println("Order current driverId: " + order.driverId);
+        System.out.println("Order isAssignable: " + order.isAssignable());
+        
+        // 2. 查找司机
+        Driver driver = driverStorage.findDriver(driverId);
+        if (driver == null) {
+            System.err.println("ERROR: Driver not found: " + driverId);
+            return false;
+        }
+        
+        System.out.println("Driver found - Name: " + driver.name);
+        System.out.println("Driver isAvailable: " + driver.isAvailable());
+        
+        // 3. 检查司机是否可用
+        if (!driver.isAvailable()) {
+            System.err.println("ERROR: Driver is not available. Status: " + driver.workStatus);
+            return false;
+        }
+        
+        // 4. 检查订单是否可分配
+        if (!order.isAssignable()) {
+            System.err.println("ERROR: Order is not assignable. Status: " + order.status);
+            return false;
+        }
+        
+        // 5. 执行分配 - 直接设置字段
+        System.out.println("Assigning driver " + driverId + " to order " + orderId);
+        
+        // 直接设置 driverId（绕过 assignDriver 方法确保设置）
+        order.driverId = driverId;
+        
+        // 更新状态（如果不是已分配或更高级状态）
+        if (!"Assigned".equals(order.status) && !"Picked Up".equals(order.status) 
+            && !"In Transit".equals(order.status) && !"Out for Delivery".equals(order.status)) {
+            order.status = "Assigned";
+        }
+        
+        System.out.println("After assignment - Order status: " + order.status);
+        System.out.println("After assignment - Order driverId: " + order.driverId);
+        
+        // 6. 更新司机状态
+        driver.assignOrder(orderId);
+        driverStorage.updateDriver(driver);
+        
+        // 7. 保存订单（关键！）
+        updateOrder(order);
+        
+        // 8. 验证保存
+        System.out.println("Verifying save...");
+        Order verifyOrder = findOrder(orderId);
+        if (verifyOrder != null && driverId.equals(verifyOrder.driverId)) {
+            System.out.println("SUCCESS: Order " + orderId + " assigned to driver " + driverId);
+            System.out.println("  - Verified driverId: " + verifyOrder.driverId);
+            System.out.println("  - Verified status: " + verifyOrder.status);
+            return true;
+        } else {
+            System.err.println("FAILED: Verification failed - Order driverId is " + 
+                              (verifyOrder != null ? verifyOrder.driverId : "null"));
+            return false;
+        }
+    }
+    
+    /**
+     * 为订单分配司机和车辆（重载方法）
+     */
+    public boolean assignOrderToDriver(String orderId, String driverId, String vehicleId) {
+        System.out.println("===== assignOrderToDriver (with vehicle) called =====");
+        System.out.println("Order ID: " + orderId);
+        System.out.println("Driver ID: " + driverId);
+        System.out.println("Vehicle ID: " + vehicleId);
+        
+        Order order = findOrder(orderId);
+        if (order == null) {
+            System.err.println("ERROR: Order not found: " + orderId);
+            return false;
+        }
+        
+        Driver driver = driverStorage.findDriver(driverId);
+        if (driver == null) {
+            System.err.println("ERROR: Driver not found: " + driverId);
+            return false;
+        }
+        
+        if (!driver.isAvailable()) {
+            System.err.println("ERROR: Driver is not available");
+            return false;
+        }
+        
+        if (!order.isAssignable()) {
+            System.err.println("ERROR: Order is not assignable. Status: " + order.status);
+            return false;
+        }
+        
+        // 直接设置字段
+        order.driverId = driverId;
+        order.vehicleId = vehicleId;
+        
+        if (!"Assigned".equals(order.status) && !"Picked Up".equals(order.status) 
+            && !"In Transit".equals(order.status) && !"Out for Delivery".equals(order.status)) {
+            order.status = "Assigned";
+        }
+        
+        System.out.println("After assignment - Order status: " + order.status);
+        System.out.println("After assignment - Order driverId: " + order.driverId);
+        System.out.println("After assignment - Order vehicleId: " + order.vehicleId);
+        
+        driver.assignOrder(orderId);
+        driverStorage.updateDriver(driver);
+        updateOrder(order);
+        
+        Order verifyOrder = findOrder(orderId);
+        if (verifyOrder != null && driverId.equals(verifyOrder.driverId)) {
+            System.out.println("SUCCESS: Order " + orderId + " assigned with vehicle " + vehicleId);
             return true;
         }
         return false;
@@ -511,94 +644,49 @@ public class OrderStorage {
     
     // ==================== Statistics Methods ====================
     
-    public int getTotalCount() {
-        return orders.size();
-    }
-    
-    public int getPendingCount() {
-        return (int) orders.stream().filter(o -> "Pending".equals(o.status)).count();
-    }
-    
-    public int getAssignedCount() {
-        return (int) orders.stream().filter(o -> "Assigned".equals(o.status)).count();
-    }
-    
-    public int getPickupCount() {
-        return (int) orders.stream().filter(o -> "Picked Up".equals(o.status)).count();
-    }
-    
-    public int getInTransitCount() {
-        return (int) orders.stream().filter(o -> "In Transit".equals(o.status)).count();
-    }
-    
-    public int getOutForDeliveryCount() {
-        return (int) orders.stream().filter(o -> "Out for Delivery".equals(o.status)).count();
-    }
-    
-    public int getDelayedCount() {
-        return (int) orders.stream().filter(o -> "Delayed".equals(o.status)).count();
-    }
-    
-    public int getDeliveredCount() {
-        return (int) orders.stream().filter(o -> "Delivered".equals(o.status)).count();
-    }
-    
-    public int getCancelledCount() {
-        return (int) orders.stream().filter(o -> "Cancelled".equals(o.status)).count();
-    }
-    
-    public int getFailedCount() {
-        return (int) orders.stream().filter(o -> "Failed".equals(o.status)).count();
-    }
+    public int getTotalCount() { return orders.size(); }
+    public int getPendingCount() { return (int) orders.stream().filter(o -> "Pending".equals(o.status)).count(); }
+    public int getAssignedCount() { return (int) orders.stream().filter(o -> "Assigned".equals(o.status)).count(); }
+    public int getPickupCount() { return (int) orders.stream().filter(o -> "Picked Up".equals(o.status)).count(); }
+    public int getInTransitCount() { return (int) orders.stream().filter(o -> "In Transit".equals(o.status)).count(); }
+    public int getOutForDeliveryCount() { return (int) orders.stream().filter(o -> "Out for Delivery".equals(o.status)).count(); }
+    public int getDelayedCount() { return (int) orders.stream().filter(o -> "Delayed".equals(o.status)).count(); }
+    public int getDeliveredCount() { return (int) orders.stream().filter(o -> "Delivered".equals(o.status)).count(); }
+    public int getCancelledCount() { return (int) orders.stream().filter(o -> "Cancelled".equals(o.status)).count(); }
+    public int getFailedCount() { return (int) orders.stream().filter(o -> "Failed".equals(o.status)).count(); }
     
     // ==================== Filter Methods ====================
     
-    public List<Order> getAssignedOrders() {
-        return orders.stream()
-            .filter(o -> "Assigned".equals(o.status))
-            .collect(Collectors.toList());
+    public List<Order> getAssignedOrders() { 
+        return orders.stream().filter(o -> "Assigned".equals(o.status)).collect(Collectors.toList()); 
     }
     
-    public List<Order> getPickupOrders() {
-        return orders.stream()
-            .filter(o -> "Picked Up".equals(o.status))
-            .collect(Collectors.toList());
+    public List<Order> getPickupOrders() { 
+        return orders.stream().filter(o -> "Picked Up".equals(o.status)).collect(Collectors.toList()); 
     }
     
-    public List<Order> getOutForDeliveryOrders() {
-        return orders.stream()
-            .filter(o -> "Out for Delivery".equals(o.status))
-            .collect(Collectors.toList());
+    public List<Order> getOutForDeliveryOrders() { 
+        return orders.stream().filter(o -> "Out for Delivery".equals(o.status)).collect(Collectors.toList()); 
     }
     
-    public List<Order> getInTransitOrders() {
-        return orders.stream()
-            .filter(o -> "In Transit".equals(o.status))
-            .collect(Collectors.toList());
+    public List<Order> getInTransitOrders() { 
+        return orders.stream().filter(o -> "In Transit".equals(o.status)).collect(Collectors.toList()); 
     }
     
-    public List<Order> getDelayedOrders() {
-        return orders.stream()
-            .filter(o -> "Delayed".equals(o.status) || o.isDelayed())
-            .collect(Collectors.toList());
+    public List<Order> getDelayedOrders() { 
+        return orders.stream().filter(o -> "Delayed".equals(o.status) || o.isDelayed()).collect(Collectors.toList()); 
     }
     
-    public List<Order> getOrdersByDate(String date) {
-        return orders.stream()
-            .filter(o -> o.orderDate.startsWith(date))
-            .collect(Collectors.toList());
+    public List<Order> getOrdersByDate(String date) { 
+        return orders.stream().filter(o -> o.orderDate.startsWith(date)).collect(Collectors.toList()); 
     }
     
-    public List<Order> getOrdersByStatus(String status) {
-        return orders.stream()
-            .filter(o -> o.status.equals(status))
-            .collect(Collectors.toList());
+    public List<Order> getOrdersByStatus(String status) { 
+        return orders.stream().filter(o -> o.status.equals(status)).collect(Collectors.toList()); 
     }
     
-    public List<Order> getPendingOrders() {
-        return orders.stream()
-            .filter(o -> "Pending".equals(o.status))
-            .collect(Collectors.toList());
+    public List<Order> getPendingOrders() { 
+        return orders.stream().filter(o -> "Pending".equals(o.status)).collect(Collectors.toList()); 
     }
     
     public Map<String, Integer> getStatusStatistics() {
@@ -615,27 +703,24 @@ public class OrderStorage {
         return stats;
     }
     
-    public double getTotalWeight() {
-        return orders.stream().mapToDouble(o -> o.weight).sum();
+    public double getTotalWeight() { 
+        return orders.stream().mapToDouble(o -> o.weight).sum(); 
     }
     
-    public double getAverageWeight() {
-        if (orders.isEmpty()) return 0;
-        return getTotalWeight() / orders.size();
+    public double getAverageWeight() { 
+        return orders.isEmpty() ? 0 : getTotalWeight() / orders.size(); 
     }
     
-    public double getTotalDistance() {
-        return orders.stream().filter(o -> "Delivered".equals(o.status))
-            .mapToDouble(o -> o.distance).sum();
+    public double getTotalDistance() { 
+        return orders.stream().filter(o -> "Delivered".equals(o.status)).mapToDouble(o -> o.distance).sum(); 
     }
     
-    public double getTotalFuelUsed() {
-        return orders.stream().filter(o -> "Delivered".equals(o.status))
-            .mapToDouble(o -> o.fuelUsed).sum();
+    public double getTotalFuelUsed() { 
+        return orders.stream().filter(o -> "Delivered".equals(o.status)).mapToDouble(o -> o.fuelUsed).sum(); 
     }
     
-    public String generateNewId() {
-        return generateOrderId();
+    public String generateNewId() { 
+        return generateOrderId(); 
     }
     
     public void checkFileStatus() {
@@ -652,15 +737,15 @@ public class OrderStorage {
                 String line;
                 int count = 0;
                 System.out.println("\nFirst few lines:");
-                while ((line = br.readLine()) != null && count < 5) {
+                while ((line = br.readLine()) != null && count < 10) {
                     count++;
                     if (line.startsWith("#")) {
-                        System.out.println(count + ": " + line);
+                        System.out.println(count + ": " + line.substring(0, Math.min(100, line.length())) + "...");
                     } else if (line.length() > 0) {
                         String[] parts = line.split("\\|");
                         if (parts.length > 0) {
-                            System.out.println(count + ": " + parts[0] + " - " + 
-                                               (parts.length > 1 ? parts[1] : "unknown"));
+                            System.out.println(count + ": " + parts[0] + " - driverId: " + 
+                                       (parts.length > 12 ? "'" + parts[12] + "'" : "N/A"));
                         }
                     }
                 }

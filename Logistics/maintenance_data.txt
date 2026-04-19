@@ -1,5 +1,5 @@
 // Format: ID|VehicleID|Description|Status|Date|Notes
-MNT001|TRK001|Oil Change|Completed|2026-02-12|Regular maintenance completed
+MNT001|TRK001|Oil Change|Completed|2026-02-12|Regular maintenance completed | Status changed to Completed on 2026-04-19
 MNT002|VAN001|Brake Repair|In Progress|2026-04-07|Front brake pads replacement in progress
 MNT003|TRK002|Tire Replacement|In Progress|2026-04-09|All 4 tires being replaced
 MNT004|CAR001|Engine Check|In Progress|2026-03-12|Check engine light diagnosis - Fixed
@@ -7,4 +7,4 @@ MNT005|VAN002|Battery Replacement|Completed|2026-04-11|12V battery replacement s
 MNT006|TRK003|Transmission Service|Completed|2026-04-05|Transmission fluid change
 MNT007|CAR002|AC Repair|In Progress|2026-04-02|AC compressor replacement
 MNT008|TRK001|Oil Change|Completed|2026-03-28|Regular maintenance
-MNT009|TRK001|engine check|Completed|2026-04-17| | Status changed to In Progress on 2026-04-17 | Status changed to Completed on 2026-04-17
+MNT009|TRK001|engine check|Completed|2026-04-17|

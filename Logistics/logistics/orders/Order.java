@@ -26,7 +26,7 @@ public class Order {
     // Status timestamps
     public String pickupTime;        // Picked Up 时间
     public String inTransitTime;     // In Transit 时间  
-    public String outForDeliveryTime; // Out for Delivery 时间
+    public String outForDeliveryTime; // Out for Delivery 时间 - 默认为 null，不是 "0"
     public String deliveryTime;       // Delivered 时间
     
     public double distance;
@@ -40,6 +40,8 @@ public class Order {
     public String transactionId;
     public String paymentDate;
     
+    // ========== 构造函数 - 确保所有 timestamp 字段为 null ==========
+    
     public Order() {
         this.orderDate = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
         this.status = "Pending";
@@ -49,6 +51,10 @@ public class Order {
         cal.add(Calendar.DAY_OF_MONTH, 3);
         this.estimatedDelivery = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
         this.onTime = true;
+        
+        // 重要：所有 timestamp 字段保持 null，不设置任何默认值
+        // 不要设置 pickupTime, inTransitTime, outForDeliveryTime, deliveryTime
+        // 它们默认为 null，不是 "0" 也不是空字符串
     }
     
     public Order(String id, String customerName, String customerPhone, 
@@ -73,6 +79,8 @@ public class Order {
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.DAY_OF_MONTH, 3);
         this.estimatedDelivery = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+        
+        // 重要：所有 timestamp 字段保持 null
     }
     
     public Order(String id, String customerName, String customerPhone, 
@@ -95,8 +103,12 @@ public class Order {
         this.estimatedDelivery = estimatedDelivery;
         this.paymentStatus = "Pending";
         this.onTime = true;
+        
+        // 重要：所有 timestamp 字段保持 null
     }
 
+    // ========== fromSenderOrder - 确保新订单没有 timestamp ==========
+    
     public static Order fromSenderOrder(Object senderOrder) {
         try {
             Class<?> clazz = senderOrder.getClass();
@@ -133,6 +145,24 @@ public class Order {
             order.transactionId = transactionId;
             order.paymentDate = paymentDate;
             
+            // ========== 关键：确保所有 timestamp 字段为 null ==========
+            order.pickupTime = null;
+            order.inTransitTime = null;
+            order.outForDeliveryTime = null;  // 确保 outForDeliveryTime 为 null
+            order.deliveryTime = null;
+            order.actualDelivery = null;
+            order.reason = null;
+            order.driverId = null;
+            order.vehicleId = null;
+            order.distance = 0.0;
+            order.fuelUsed = 0.0;
+            order.deliveryPhoto = null;
+            order.recipientSignature = null;
+            order.onTime = true;
+            
+            System.out.println("fromSenderOrder: Created order " + order.id + 
+                               " - outForDeliveryTime = '" + order.outForDeliveryTime + "'");
+            
             return order;
             
         } catch (Exception e) {
@@ -142,25 +172,9 @@ public class Order {
         }
     }
 
-    /**
-     * FIXED: toFileString now correctly saves all fields in the correct order
-     * The order MUST match the header in OrderStorage
-     */
+    // ========== toFileString - 保存到文件 ==========
+    
     public String toFileString() {
-        // Debug output
-        System.out.println("=== toFileString for " + id + " ===");
-        System.out.println("outForDeliveryTime: '" + outForDeliveryTime + "'");
-        System.out.println("deliveryTime: '" + deliveryTime + "'");
-        
-        // Format: 
-        // 0:id, 1:customerName, 2:customerPhone, 3:customerEmail, 4:customerAddress, 
-        // 5:recipientName, 6:recipientPhone, 7:recipientAddress, 8:status, 9:orderDate, 
-        // 10:estimatedDelivery, 11:actualDelivery, 12:driverId, 13:vehicleId, 14:weight, 
-        // 15:dimensions, 16:notes, 17:reason, 18:pickupTime, 19:inTransitTime, 
-        // 20:outForDeliveryTime, 21:deliveryTime, 22:distance, 23:fuelUsed, 
-        // 24:deliveryPhoto, 25:recipientSignature, 26:onTime, 27:paymentStatus, 
-        // 28:paymentMethod, 29:transactionId, 30:paymentDate
-        
         String[] fields = new String[31];
         fields[0] = safeString(id);
         fields[1] = safeString(customerName);
@@ -182,8 +196,8 @@ public class Order {
         fields[17] = safeString(reason);
         fields[18] = safeString(pickupTime);
         fields[19] = safeString(inTransitTime);
-        fields[20] = safeString(outForDeliveryTime);  // CRITICAL: This must be at index 20
-        fields[21] = safeString(deliveryTime);        // CRITICAL: This must be at index 21
+        fields[20] = safeString(outForDeliveryTime);  // null 转为空字符串，不是 "0"
+        fields[21] = safeString(deliveryTime);
         fields[22] = String.valueOf(distance);
         fields[23] = String.valueOf(fuelUsed);
         fields[24] = safeString(deliveryPhoto);
@@ -194,15 +208,16 @@ public class Order {
         fields[29] = safeString(transactionId);
         fields[30] = safeString(paymentDate);
         
-        String result = String.join("|", fields);
-        System.out.println("Output line preview: " + result.substring(0, Math.min(200, result.length())) + "...");
-        return result;
+        return String.join("|", fields);
     }
     
     private String safeString(String s) {
-        return s != null && !s.isEmpty() ? s : "";
+        // null 或空字符串都转为空字符串
+        return (s != null && !s.isEmpty()) ? s : "";
     }
 
+    // ========== fromFileString - 从文件读取 ==========
+    
     public static Order fromFileString(String line) {
         try {
             String[] parts = line.split("\\|", -1);
@@ -223,6 +238,7 @@ public class Order {
             o.actualDelivery = parts.length > 11 ? parts[11] : "";
             o.driverId = parts.length > 12 ? parts[12] : "";
             o.vehicleId = parts.length > 13 ? parts[13] : "";
+            
             try {
                 o.weight = parts.length > 14 && !parts[14].isEmpty() ? Double.parseDouble(parts[14]) : 0.0;
             } catch (NumberFormatException e) { o.weight = 0.0; }

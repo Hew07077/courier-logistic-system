@@ -381,7 +381,7 @@ public class DriverManagement extends AdminManagementModule {
                 currentStatusFilter = null;
                 currentFilterIndex = -1;
                 rowSorter.setRowFilter(null);
-                showInfo("Filter cleared - showing all drivers");
+                // Notification removed
             } else {
                 currentApprovalFilter = status;
                 currentWorkFilter = null;
@@ -397,11 +397,11 @@ public class DriverManagement extends AdminManagementModule {
                 }
                 
                 applyFilters();
-                showSuccess("Filter applied: " + status);
+                // Notification removed
             }
         } catch (Exception e) {
             System.err.println("Error in applyStatusFilter: " + e.getMessage());
-            showError("Error applying filter: " + e.getMessage());
+            // Notification removed
         }
     }
     
@@ -420,7 +420,7 @@ public class DriverManagement extends AdminManagementModule {
                 currentStatusFilter = null;
                 currentFilterIndex = -1;
                 rowSorter.setRowFilter(null);
-                showInfo("Filter cleared - showing all drivers");
+                // Notification removed
             } else {
                 currentApprovalFilter = status;
                 currentWorkFilter = null;
@@ -436,11 +436,11 @@ public class DriverManagement extends AdminManagementModule {
                 }
                 
                 applyFilters();
-                showSuccess("Filter applied: " + status);
+                // Notification removed
             }
         } catch (Exception e) {
             System.err.println("Error in applyApprovalFilter: " + e.getMessage());
-            showError("Error applying filter: " + e.getMessage());
+            // Notification removed
         }
     }
     
@@ -459,7 +459,7 @@ public class DriverManagement extends AdminManagementModule {
                 currentStatusFilter = null;
                 currentFilterIndex = -1;
                 rowSorter.setRowFilter(null);
-                showInfo("Filter cleared - showing all drivers");
+                // Notification removed
             } else {
                 currentApprovalFilter = null;
                 currentWorkFilter = status;
@@ -475,11 +475,11 @@ public class DriverManagement extends AdminManagementModule {
                 }
                 
                 applyFilters();
-                showSuccess("Filter applied: " + status);
+                // Notification removed
             }
         } catch (Exception e) {
             System.err.println("Error in applyWorkFilter: " + e.getMessage());
-            showError("Error applying filter: " + e.getMessage());
+            // Notification removed
         }
     }
     
@@ -528,10 +528,10 @@ public class DriverManagement extends AdminManagementModule {
             currentStatusFilter = null;
             currentFilterIndex = -1;
             rowSorter.setRowFilter(null);
-            showInfo("All filters cleared");
+            // Notification removed
         } catch (Exception e) {
             System.err.println("Error clearing filters: " + e.getMessage());
-            showError("Error clearing filters: " + e.getMessage());
+            // Notification removed
         }
     }
     

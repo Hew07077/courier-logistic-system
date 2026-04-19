@@ -271,7 +271,7 @@ public class NewOrderPanel extends JPanel {
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);  // Increased insets
         gbc.weightx = 1.0;
 
         int gridy = 0;
@@ -296,24 +296,24 @@ public class NewOrderPanel extends JPanel {
         formPanel.add(separator, gbc);
 
         JLabel packageLabel = new JLabel("Package Details:");
-        packageLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        packageLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));  // Increased font size
         packageLabel.setForeground(new Color(0, 123, 255));
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(15, 5, 10, 5);
+        gbc.insets = new Insets(20, 8, 12, 8);  // Increased top margin
         formPanel.add(packageLabel, gbc);
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
 
         JLabel typeLabel = new JLabel("Package Type:*");
-        typeLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        typeLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));  // Increased font size
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         gbc.gridwidth = 1;
         formPanel.add(typeLabel, gbc);
 
         packageTypeCombo = new JComboBox<>(PACKAGE_TYPES);
-        packageTypeCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        packageTypeCombo.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         packageTypeCombo.setSelectedIndex(-1);
         packageTypeCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Package Type"));
         packageTypeCombo.addActionListener(e -> {
@@ -327,15 +327,15 @@ public class NewOrderPanel extends JPanel {
         formPanel.add(packageTypeCombo, gbc);
 
         JLabel weightLabel = new JLabel("Weight (kg):*");
-        weightLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        weightLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));  // Increased font size
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         formPanel.add(weightLabel, gbc);
 
-        JPanel weightPanel = new JPanel(new BorderLayout(5, 0));
+        JPanel weightPanel = new JPanel(new BorderLayout(8, 0));  // Increased gap
         weightPanel.setOpaque(false);
         weightField = new JTextField(10);
-        weightField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        weightField.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         weightField.setForeground(new Color(108, 117, 125));
         weightField.setText("Enter weight in kg");
         weightField.addFocusListener(new PlaceholderFocusListener(weightField, "Enter weight in kg"));
@@ -346,7 +346,7 @@ public class NewOrderPanel extends JPanel {
         weightPanel.add(weightField, BorderLayout.CENTER);
         
         JLabel perKgRateLabel = new JLabel("  (RM " + RATE_PER_KG + " per kg)");
-        perKgRateLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        perKgRateLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));  // Increased font size
         perKgRateLabel.setForeground(new Color(108, 117, 125));
         weightPanel.add(perKgRateLabel, BorderLayout.EAST);
         
@@ -354,20 +354,23 @@ public class NewOrderPanel extends JPanel {
         formPanel.add(weightPanel, gbc);
 
         JLabel dimLabel = new JLabel("Dimensions (cm):*");
-        dimLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        dimLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));  // Increased font size
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         formPanel.add(dimLabel, gbc);
 
-        JPanel dimPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        JPanel dimPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));  // Increased gap
         dimPanel.setOpaque(false);
 
-        dimPanel.add(new JLabel("L:"));
+        JLabel lengthPrefix = new JLabel("L:");
+        lengthPrefix.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        dimPanel.add(lengthPrefix);
+        
         lengthField = new JTextField(5);
-        lengthField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lengthField.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         lengthField.setForeground(new Color(108, 117, 125));
         lengthField.setText("cm");
-        lengthField.setPreferredSize(new Dimension(60, 25));
+        lengthField.setPreferredSize(new Dimension(70, 30));
         lengthField.addFocusListener(new PlaceholderFocusListener(lengthField, "cm"));
         lengthField.addKeyListener(new KeyAdapter() {
             @Override
@@ -375,12 +378,15 @@ public class NewOrderPanel extends JPanel {
         });
         dimPanel.add(lengthField);
 
-        dimPanel.add(new JLabel("W:"));
+        JLabel widthPrefix = new JLabel("W:");
+        widthPrefix.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        dimPanel.add(widthPrefix);
+        
         widthField = new JTextField(5);
-        widthField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        widthField.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         widthField.setForeground(new Color(108, 117, 125));
         widthField.setText("cm");
-        widthField.setPreferredSize(new Dimension(60, 25));
+        widthField.setPreferredSize(new Dimension(70, 30));
         widthField.addFocusListener(new PlaceholderFocusListener(widthField, "cm"));
         widthField.addKeyListener(new KeyAdapter() {
             @Override
@@ -388,12 +394,15 @@ public class NewOrderPanel extends JPanel {
         });
         dimPanel.add(widthField);
 
-        dimPanel.add(new JLabel("H:"));
+        JLabel heightPrefix = new JLabel("H:");
+        heightPrefix.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        dimPanel.add(heightPrefix);
+        
         heightField = new JTextField(5);
-        heightField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        heightField.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         heightField.setForeground(new Color(108, 117, 125));
         heightField.setText("cm");
-        heightField.setPreferredSize(new Dimension(60, 25));
+        heightField.setPreferredSize(new Dimension(70, 30));
         heightField.addFocusListener(new PlaceholderFocusListener(heightField, "cm"));
         heightField.addKeyListener(new KeyAdapter() {
             @Override
@@ -401,19 +410,21 @@ public class NewOrderPanel extends JPanel {
         });
         dimPanel.add(heightField);
         
-        dimPanel.add(new JLabel("cm"));
+        JLabel cmLabel = new JLabel("cm");
+        cmLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        dimPanel.add(cmLabel);
 
         gbc.gridx = 1;
         formPanel.add(dimPanel, gbc);
 
         JLabel descLabel = new JLabel("Description:*");
-        descLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        descLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));  // Increased font size
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         formPanel.add(descLabel, gbc);
 
         descriptionArea = new JTextArea(3, 20);
-        descriptionArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        descriptionArea.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         descriptionArea.setForeground(new Color(108, 117, 125));
         descriptionArea.setText("Describe the package contents...");
         descriptionArea.setLineWrap(true);
@@ -441,27 +452,27 @@ public class NewOrderPanel extends JPanel {
 
         // ========== SHIPPING SPEED SECTION - RADIO BUTTONS ==========
         JLabel shippingLabel = new JLabel("Shipping Speed:*");
-        shippingLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        shippingLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));  // Increased font size
         shippingLabel.setForeground(new Color(255, 193, 7));
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(15, 5, 10, 5);
+        gbc.insets = new Insets(20, 8, 12, 8);  // Increased top margin
         formPanel.add(shippingLabel, gbc);
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
 
-        JPanel speedPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 5));
+        JPanel speedPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 25, 8));
         speedPanel.setOpaque(false);
 
         standardSpeedRadio = new JRadioButton("Standard (3-5 business days)", true);
-        standardSpeedRadio.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        standardSpeedRadio.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         standardSpeedRadio.addActionListener(e -> {
             calculateEstimate();
             updateSpeedDescription();
         });
 
         expressSpeedRadio = new JRadioButton("Express (1-2 business days)", false);
-        expressSpeedRadio.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        expressSpeedRadio.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         expressSpeedRadio.addActionListener(e -> {
             calculateEstimate();
             updateSpeedDescription();
@@ -480,27 +491,27 @@ public class NewOrderPanel extends JPanel {
         formPanel.add(speedPanel, gbc);
 
         speedDescriptionLabel = new JLabel("Standard: 3-5 business days delivery (Economy shipping)");
-        speedDescriptionLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        speedDescriptionLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));  // Increased font size
         speedDescriptionLabel.setForeground(new Color(108, 117, 125));
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(0, 5, 5, 5);
+        gbc.insets = new Insets(0, 8, 12, 8);
         formPanel.add(speedDescriptionLabel, gbc);
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
 
         JLabel insuranceHeaderLabel = new JLabel("Package Insurance (Optional):");
-        insuranceHeaderLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        insuranceHeaderLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));  // Increased font size
         insuranceHeaderLabel.setForeground(new Color(40, 167, 69));
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(15, 5, 10, 5);
+        gbc.insets = new Insets(20, 8, 12, 8);  // Increased top margin
         formPanel.add(insuranceHeaderLabel, gbc);
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
 
         insuranceCheckBox = new JCheckBox("Add Insurance for High-Value Items (Covers loss/damage)");
-        insuranceCheckBox.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        insuranceCheckBox.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         insuranceCheckBox.addActionListener(e -> {
             toggleInsurancePanel();
             calculateEstimate();
@@ -514,21 +525,23 @@ public class NewOrderPanel extends JPanel {
         insurancePanel.setBackground(new Color(255, 248, 225));
         insurancePanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(255, 193, 7)),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+            BorderFactory.createEmptyBorder(12, 12, 12, 12)
         ));
         insurancePanel.setVisible(false);
         
         GridBagConstraints insGbc = new GridBagConstraints();
         insGbc.fill = GridBagConstraints.HORIZONTAL;
-        insGbc.insets = new Insets(5, 5, 5, 5);
+        insGbc.insets = new Insets(8, 8, 8, 8);
         insGbc.weightx = 1.0;
         
+        JLabel declaredLabel = new JLabel("Declared Value (RM):*");
+        declaredLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         insGbc.gridx = 0;
         insGbc.gridy = 0;
-        insurancePanel.add(new JLabel("Declared Value (RM):*"), insGbc);
+        insurancePanel.add(declaredLabel, insGbc);
         
         declaredValueField = new JTextField(15);
-        declaredValueField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        declaredValueField.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         declaredValueField.setForeground(new Color(108, 117, 125));
         declaredValueField.setText("Enter declared value");
         declaredValueField.addFocusListener(new PlaceholderFocusListener(declaredValueField, "Enter declared value"));
@@ -540,7 +553,7 @@ public class NewOrderPanel extends JPanel {
         insurancePanel.add(declaredValueField, insGbc);
         
         JLabel insuranceInfoLabel = new JLabel("Insurance covers loss/damage at 1.5% of declared value (min RM 5)");
-        insuranceInfoLabel.setFont(new Font("Segoe UI", Font.ITALIC, 10));
+        insuranceInfoLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         insuranceInfoLabel.setForeground(new Color(108, 117, 125));
         insGbc.gridx = 0;
         insGbc.gridy = 1;
@@ -553,24 +566,24 @@ public class NewOrderPanel extends JPanel {
         formPanel.add(insurancePanel, gbc);
 
         JLabel paymentLabel = new JLabel("Payment Details:");
-        paymentLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        paymentLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));  // Increased font size
         paymentLabel.setForeground(new Color(40, 167, 69));
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(15, 5, 10, 5);
+        gbc.insets = new Insets(20, 8, 12, 8);  // Increased top margin
         formPanel.add(paymentLabel, gbc);
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
 
         JLabel paymentMethodLabel = new JLabel("Payment Method:*");
-        paymentMethodLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        paymentMethodLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));  // Increased font size
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         gbc.gridwidth = 1;
         formPanel.add(paymentMethodLabel, gbc);
 
         paymentMethodCombo = new JComboBox<>(PAYMENT_METHODS);
-        paymentMethodCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        paymentMethodCombo.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         paymentMethodCombo.setSelectedIndex(-1);
         paymentMethodCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Payment Method"));
         paymentMethodCombo.addActionListener(e -> updatePaymentDetails());
@@ -582,7 +595,7 @@ public class NewOrderPanel extends JPanel {
         paymentDetailsPanel.setBackground(new Color(248, 249, 250));
         paymentDetailsPanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(230, 230, 230)),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+            BorderFactory.createEmptyBorder(12, 12, 12, 12)
         ));
         
         paymentDetailsPanel.add(createEmptyPaymentPanel(), "EMPTY");
@@ -604,47 +617,47 @@ public class NewOrderPanel extends JPanel {
         estimatePanel.setBackground(new Color(248, 249, 250));
         estimatePanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(230, 230, 230)),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+            BorderFactory.createEmptyBorder(12, 12, 12, 12)
         ));
         
         GridBagConstraints estGbc = new GridBagConstraints();
         estGbc.fill = GridBagConstraints.HORIZONTAL;
-        estGbc.insets = new Insets(5, 10, 5, 10);
+        estGbc.insets = new Insets(8, 12, 8, 12);
         estGbc.weightx = 1.0;
         
         estGbc.gridx = 0;
         estGbc.gridy = 0;
         estGbc.gridwidth = 1;
         JLabel distanceTitle = new JLabel("Distance:");
-        distanceTitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        distanceTitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         estimatePanel.add(distanceTitle, estGbc);
         
         estGbc.gridx = 1;
         distanceLabel = new JLabel("-- km");
-        distanceLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        distanceLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         distanceLabel.setForeground(new Color(0, 123, 255));
         estimatePanel.add(distanceLabel, estGbc);
         
         estGbc.gridx = 0;
         estGbc.gridy = 1;
         JLabel shippingCostTitle = new JLabel("Shipping Cost:");
-        shippingCostTitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        shippingCostTitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         estimatePanel.add(shippingCostTitle, estGbc);
         
         estGbc.gridx = 1;
         shippingCostDisplayLabel = new JLabel("RM 0.00");
-        shippingCostDisplayLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        shippingCostDisplayLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         estimatePanel.add(shippingCostDisplayLabel, estGbc);
         
         estGbc.gridx = 0;
         estGbc.gridy = 2;
         JLabel insuranceTitle = new JLabel("Insurance Cost:");
-        insuranceTitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        insuranceTitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         estimatePanel.add(insuranceTitle, estGbc);
         
         estGbc.gridx = 1;
         insuranceCostLabel = new JLabel("RM 0.00");
-        insuranceCostLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        insuranceCostLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         estimatePanel.add(insuranceCostLabel, estGbc);
         
         estGbc.gridx = 0;
@@ -657,52 +670,55 @@ public class NewOrderPanel extends JPanel {
         estGbc.gridy = 4;
         estGbc.gridwidth = 1;
         JLabel totalTitle = new JLabel("Total Amount:");
-        totalTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        totalTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));  // Increased font size
         estimatePanel.add(totalTitle, estGbc);
         
         estGbc.gridx = 1;
         estimatedCostLabel = new JLabel("RM 0.00");
-        estimatedCostLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        estimatedCostLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));  // Increased font size
         estimatedCostLabel.setForeground(new Color(40, 167, 69));
         estimatePanel.add(estimatedCostLabel, estGbc);
         
         estGbc.gridx = 0;
         estGbc.gridy = 5;
         JLabel deliveryTitle = new JLabel("Estimated Delivery:");
-        deliveryTitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        deliveryTitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         estimatePanel.add(deliveryTitle, estGbc);
         
         estGbc.gridx = 1;
         deliveryTimeLabel = new JLabel("3-5 business days (Standard)");
-        deliveryTimeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        deliveryTimeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));  // Increased font size
         deliveryTimeLabel.setForeground(new Color(0, 123, 255));
         estimatePanel.add(deliveryTimeLabel, estGbc);
 
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(20, 5, 5, 5);
+        gbc.insets = new Insets(25, 8, 8, 8);  // Increased top margin
         formPanel.add(estimatePanel, gbc);
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 8));
         buttonPanel.setOpaque(false);
 
+        // ========== CANCEL BUTTON - CHANGED TO RED ==========
         JButton cancelBtn = new JButton("Cancel");
-        cancelBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        cancelBtn.setForeground(new Color(108, 117, 125));
-        cancelBtn.setBackground(Color.WHITE);
-        cancelBtn.setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230)));
+        cancelBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));  // Increased font size
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setBackground(new Color(220, 53, 69));  // Red color
+        cancelBtn.setBorderPainted(false);
         cancelBtn.setFocusPainted(false);
         cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cancelBtn.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
         cancelBtn.addActionListener(e -> clearForm());
 
         JButton submitBtn = new JButton("Place Order & Pay");
-        submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));  // Increased font size
         submitBtn.setForeground(Color.WHITE);
         submitBtn.setBackground(new Color(40, 167, 69));
         submitBtn.setBorderPainted(false);
         submitBtn.setFocusPainted(false);
         submitBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        submitBtn.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
         submitBtn.addActionListener(e -> createOrder());
 
         buttonPanel.add(cancelBtn);
@@ -711,7 +727,7 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridy = gridy++;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(10, 5, 5, 5);
+        gbc.insets = new Insets(15, 8, 8, 8);
         formPanel.add(buttonPanel, gbc);
 
         initializeCombosWithPlaceholders();
@@ -764,7 +780,7 @@ public class NewOrderPanel extends JPanel {
      */
     private JButton createUseDefaultAddressButton() {
         JButton defaultAddrBtn = new JButton("Use Default Address");
-        defaultAddrBtn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        defaultAddrBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));  // Increased font size
         defaultAddrBtn.setForeground(new Color(0, 123, 255));
         defaultAddrBtn.setBackground(Color.WHITE);
         defaultAddrBtn.setBorder(BorderFactory.createLineBorder(new Color(0, 123, 255)));
@@ -901,7 +917,7 @@ public class NewOrderPanel extends JPanel {
         panel.add(instructionLabel, BorderLayout.NORTH);
         
         JTextField typeField = new JTextField();
-        typeField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        typeField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         typeField.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(200, 200, 200)),
             BorderFactory.createEmptyBorder(8, 8, 8, 8)
@@ -1023,7 +1039,7 @@ public class NewOrderPanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(248, 249, 250));
         JLabel label = new JLabel("Please select a payment method", SwingConstants.CENTER);
-        label.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         label.setForeground(new Color(108, 117, 125));
         panel.add(label, BorderLayout.CENTER);
         return panel;
@@ -1034,7 +1050,7 @@ public class NewOrderPanel extends JPanel {
         panel.setBackground(new Color(248, 249, 250));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.weightx = 1.0;
         
         int y = 0;
@@ -1043,12 +1059,12 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridwidth = 1;
         JLabel bankLabel = new JLabel("Issuing Bank:*");
-        bankLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        bankLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         panel.add(bankLabel, gbc);
         
         gbc.gridx = 1;
         JComboBox<String> bankCombo = new JComboBox<>(MALAYSIAN_BANKS);
-        bankCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        bankCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         bankCombo.setSelectedIndex(-1);
         bankCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Bank"));
         panel.add(bankCombo, gbc);
@@ -1060,7 +1076,7 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridwidth = 1;
         JLabel expiryLabel = new JLabel("Expiry Date:*");
-        expiryLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        expiryLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         panel.add(expiryLabel, gbc);
         
         gbc.gridx = 1;
@@ -1068,8 +1084,8 @@ public class NewOrderPanel extends JPanel {
         expiryPanel.setOpaque(false);
         
         JComboBox<String> monthCombo = new JComboBox<>(MONTHS);
-        monthCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        monthCombo.setPreferredSize(new Dimension(65, 25));
+        monthCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
+        monthCombo.setPreferredSize(new Dimension(70, 28));
         expiryPanel.add(monthCombo);
         
         expiryPanel.add(new JLabel("/"));
@@ -1080,8 +1096,8 @@ public class NewOrderPanel extends JPanel {
             years[i] = String.valueOf(currentYear + i);
         }
         JComboBox<String> yearCombo = new JComboBox<>(years);
-        yearCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        yearCombo.setPreferredSize(new Dimension(75, 25));
+        yearCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
+        yearCombo.setPreferredSize(new Dimension(80, 28));
         expiryPanel.add(yearCombo);
         
         panel.add(expiryPanel, gbc);
@@ -1096,7 +1112,7 @@ public class NewOrderPanel extends JPanel {
         panel.setBackground(new Color(248, 249, 250));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.weightx = 1.0;
         
         int y = 0;
@@ -1105,12 +1121,12 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridwidth = 1;
         JLabel bankLabel = new JLabel("Issuing Bank:*");
-        bankLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        bankLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         panel.add(bankLabel, gbc);
         
         gbc.gridx = 1;
         JComboBox<String> bankCombo = new JComboBox<>(MALAYSIAN_BANKS);
-        bankCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        bankCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         bankCombo.setSelectedIndex(-1);
         bankCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Bank"));
         panel.add(bankCombo, gbc);
@@ -1122,7 +1138,7 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridwidth = 1;
         JLabel expiryLabel = new JLabel("Expiry Date:*");
-        expiryLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        expiryLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         panel.add(expiryLabel, gbc);
         
         gbc.gridx = 1;
@@ -1130,8 +1146,8 @@ public class NewOrderPanel extends JPanel {
         expiryPanel.setOpaque(false);
         
         JComboBox<String> monthCombo = new JComboBox<>(MONTHS);
-        monthCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        monthCombo.setPreferredSize(new Dimension(65, 25));
+        monthCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
+        monthCombo.setPreferredSize(new Dimension(70, 28));
         expiryPanel.add(monthCombo);
         
         expiryPanel.add(new JLabel("/"));
@@ -1142,8 +1158,8 @@ public class NewOrderPanel extends JPanel {
             years[i] = String.valueOf(currentYear + i);
         }
         JComboBox<String> yearCombo = new JComboBox<>(years);
-        yearCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        yearCombo.setPreferredSize(new Dimension(75, 25));
+        yearCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
+        yearCombo.setPreferredSize(new Dimension(80, 28));
         expiryPanel.add(yearCombo);
         
         panel.add(expiryPanel, gbc);
@@ -1158,13 +1174,13 @@ public class NewOrderPanel extends JPanel {
         panel.setBackground(new Color(248, 249, 250));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.weightx = 1.0;
         
         addPaymentField(panel, "PayPal Email:*", "user@example.com", gbc, 0);
         
         JLabel noteLabel = new JLabel("You will be redirected to PayPal to complete payment");
-        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));  // Increased font size
         noteLabel.setForeground(new Color(108, 117, 125));
         gbc.gridy = 1;
         gbc.gridx = 0;
@@ -1179,7 +1195,7 @@ public class NewOrderPanel extends JPanel {
         panel.setBackground(new Color(248, 249, 250));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.weightx = 1.0;
         
         int y = 0;
@@ -1188,7 +1204,7 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridwidth = 2;
         JLabel merchantLabel = new JLabel("Transfer to LogiXpress (Maybank: 1234-5678-9012-3456)");
-        merchantLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        merchantLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         merchantLabel.setForeground(new Color(0, 102, 204));
         panel.add(merchantLabel, gbc);
         
@@ -1196,12 +1212,12 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridwidth = 1;
         JLabel userBankLabel = new JLabel("Your Bank:*");
-        userBankLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        userBankLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         panel.add(userBankLabel, gbc);
         
         gbc.gridx = 1;
         JComboBox<String> userBankCombo = new JComboBox<>(MALAYSIAN_BANKS);
-        userBankCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        userBankCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         userBankCombo.setSelectedIndex(-1);
         userBankCombo.setRenderer(new ComboBoxPlaceholderRenderer("Select Your Bank"));
         panel.add(userBankCombo, gbc);
@@ -1209,7 +1225,7 @@ public class NewOrderPanel extends JPanel {
         addPaymentField(panel, "Reference No:*", "e.g., ORD-XXXX", gbc, y++);
         
         JLabel noteLabel = new JLabel("Please use your Order ID as reference for faster verification");
-        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 10));
+        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         noteLabel.setForeground(new Color(108, 117, 125));
         gbc.gridy = y++;
         gbc.gridx = 0;
@@ -1224,7 +1240,7 @@ public class NewOrderPanel extends JPanel {
         panel.setBackground(new Color(248, 249, 250));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.weightx = 1.0;
         
         int y = 0;
@@ -1232,13 +1248,13 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridwidth = 2;
         JLabel walletLabel = new JLabel(walletName + " Payment");
-        walletLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        walletLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         panel.add(walletLabel, gbc);
         
         addPaymentField(panel, walletName + " Number:*", "012-3456789", gbc, y++);
         
         JLabel noteLabel = new JLabel("You will be redirected to " + walletName + " to complete payment");
-        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));  // Increased font size
         noteLabel.setForeground(new Color(108, 117, 125));
         gbc.gridy = y++;
         panel.add(noteLabel, gbc);
@@ -1251,12 +1267,12 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridwidth = 1;
         JLabel labelComp = new JLabel(label);
-        labelComp.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        labelComp.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         panel.add(labelComp, gbc);
         
         gbc.gridx = 1;
         JTextField field = new JTextField(placeholder, 20);
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         field.setForeground(new Color(108, 117, 125));
         field.addFocusListener(new FocusAdapter() {
             @Override
@@ -1303,21 +1319,27 @@ public class NewOrderPanel extends JPanel {
         TitledBorder titledBorder = BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(new Color(0, 123, 255), 1),
             "Sender Information", TitledBorder.LEFT, TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 14), new Color(0, 123, 255));
+            new Font("Segoe UI", Font.BOLD, 15), new Color(0, 123, 255));
         box.setBorder(titledBorder);
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.weightx = 1.0;
 
+        JLabel nameTitle = new JLabel("Name:");
+        nameTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1;
-        box.add(new JLabel("Name:"), gbc);
+        box.add(nameTitle, gbc);
         gbc.gridx = 1;
-        box.add(new JLabel(senderName != null ? senderName : "Not set"), gbc);
+        JLabel nameValue = new JLabel(senderName != null ? senderName : "Not set");
+        nameValue.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
+        box.add(nameValue, gbc);
 
+        JLabel phoneTitle = new JLabel("Phone:");
+        phoneTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 1;
-        box.add(new JLabel("Phone:"), gbc);
+        box.add(phoneTitle, gbc);
         String displayPhone = senderPhone;
         if (displayPhone != null && !displayPhone.isEmpty()) {
             displayPhone = formatPhoneNumber(displayPhone);
@@ -1325,29 +1347,40 @@ public class NewOrderPanel extends JPanel {
             displayPhone = "Not set";
         }
         gbc.gridx = 1;
-        box.add(new JLabel(displayPhone), gbc);
+        JLabel phoneValue = new JLabel(displayPhone);
+        phoneValue.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
+        box.add(phoneValue, gbc);
 
+        JLabel emailTitle = new JLabel("Email:");
+        emailTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 2;
-        box.add(new JLabel("Email:"), gbc);
+        box.add(emailTitle, gbc);
         gbc.gridx = 1;
-        box.add(new JLabel(senderEmail != null ? senderEmail : "Not set"), gbc);
+        JLabel emailValue = new JLabel(senderEmail != null ? senderEmail : "Not set");
+        emailValue.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
+        box.add(emailValue, gbc);
 
         gbc.gridx = 0; gbc.gridy = 3;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(10, 5, 5, 5);
+        gbc.insets = new Insets(12, 8, 8, 8);
         
         // Add header panel with title and "Use Default Address" button
         JPanel addressHeaderPanel = new JPanel(new BorderLayout());
         addressHeaderPanel.setOpaque(false);
-        addressHeaderPanel.add(new JLabel("Pickup Address:"), BorderLayout.WEST);
+        JLabel addressTitle = new JLabel("Pickup Address:");
+        addressTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
+        addressHeaderPanel.add(addressTitle, BorderLayout.WEST);
         addressHeaderPanel.add(createUseDefaultAddressButton(), BorderLayout.EAST);
         box.add(addressHeaderPanel, gbc);
         
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
 
+        JLabel addressLineTitle = new JLabel("Address Line:*");
+        addressLineTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 1;
-        box.add(new JLabel("Address Line:*"), gbc);
+        box.add(addressLineTitle, gbc);
         fromAddressField = new JTextField(30);
+        fromAddressField.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         fromAddressField.setForeground(new Color(108, 117, 125));
         fromAddressField.setText("Enter street address");
         fromAddressField.addFocusListener(new PlaceholderFocusListener(fromAddressField, "Enter street address"));
@@ -1357,23 +1390,32 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 1;
         box.add(fromAddressField, gbc);
 
+        JLabel stateTitle = new JLabel("State:*");
+        stateTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 5;
-        box.add(new JLabel("State:*"), gbc);
+        box.add(stateTitle, gbc);
         fromStateCombo = new JComboBox<>();
+        fromStateCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         fromStateCombo.addActionListener(e -> { updateFromCities(); calculateEstimate(); });
         gbc.gridx = 1;
         box.add(fromStateCombo, gbc);
 
+        JLabel cityTitle = new JLabel("City:*");
+        cityTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 6;
-        box.add(new JLabel("City:*"), gbc);
+        box.add(cityTitle, gbc);
         fromCityCombo = new JComboBox<>();
+        fromCityCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         fromCityCombo.addActionListener(e -> { updateFromPostcode(); calculateEstimate(); });
         gbc.gridx = 1;
         box.add(fromCityCombo, gbc);
 
+        JLabel postcodeTitle = new JLabel("Postcode:");
+        postcodeTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 7;
-        box.add(new JLabel("Postcode:"), gbc);
+        box.add(postcodeTitle, gbc);
         fromPostcodeField = new JTextField(10);
+        fromPostcodeField.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         fromPostcodeField.setEditable(false);
         gbc.gridx = 1;
         box.add(fromPostcodeField, gbc);
@@ -1388,26 +1430,32 @@ public class NewOrderPanel extends JPanel {
         TitledBorder titledBorder = BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(new Color(40, 167, 69), 1),
             "Recipient Information", TitledBorder.LEFT, TitledBorder.TOP,
-            new Font("Segoe UI", Font.BOLD, 14), new Color(40, 167, 69));
+            new Font("Segoe UI", Font.BOLD, 15), new Color(40, 167, 69));
         box.setBorder(titledBorder);
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(8, 8, 8, 8);
         gbc.weightx = 1.0;
 
+        JLabel nameTitle = new JLabel("Recipient Name:*");
+        nameTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1;
-        box.add(new JLabel("Recipient Name:*"), gbc);
+        box.add(nameTitle, gbc);
         recipientNameField = new JTextField(30);
+        recipientNameField.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         recipientNameField.setForeground(new Color(108, 117, 125));
         recipientNameField.setText("Full name");
         recipientNameField.addFocusListener(new PlaceholderFocusListener(recipientNameField, "Full name"));
         gbc.gridx = 1;
         box.add(recipientNameField, gbc);
 
+        JLabel phoneTitle = new JLabel("Recipient Phone:*");
+        phoneTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 1;
-        box.add(new JLabel("Recipient Phone:*"), gbc);
+        box.add(phoneTitle, gbc);
         recipientPhoneField = new JTextField(30);
+        recipientPhoneField.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         recipientPhoneField.setForeground(new Color(108, 117, 125));
         recipientPhoneField.setText("012-3456789");
         recipientPhoneField.addFocusListener(new FocusAdapter() {
@@ -1436,13 +1484,18 @@ public class NewOrderPanel extends JPanel {
 
         gbc.gridx = 0; gbc.gridy = 2;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(10, 5, 5, 5);
-        box.add(new JLabel("Delivery Address:"), gbc);
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(12, 8, 8, 8);
+        JLabel deliveryAddressTitle = new JLabel("Delivery Address:");
+        deliveryAddressTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
+        box.add(deliveryAddressTitle, gbc);
+        gbc.insets = new Insets(8, 8, 8, 8);
 
+        JLabel addressLineTitle = new JLabel("Address Line:*");
+        addressLineTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 1;
-        box.add(new JLabel("Address Line:*"), gbc);
+        box.add(addressLineTitle, gbc);
         toAddressField = new JTextField(30);
+        toAddressField.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         toAddressField.setForeground(new Color(108, 117, 125));
         toAddressField.setText("Enter street address");
         toAddressField.addFocusListener(new PlaceholderFocusListener(toAddressField, "Enter street address"));
@@ -1452,23 +1505,32 @@ public class NewOrderPanel extends JPanel {
         gbc.gridx = 1;
         box.add(toAddressField, gbc);
 
+        JLabel stateTitle = new JLabel("State:*");
+        stateTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 4;
-        box.add(new JLabel("State:*"), gbc);
+        box.add(stateTitle, gbc);
         toStateCombo = new JComboBox<>();
+        toStateCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         toStateCombo.addActionListener(e -> { updateToCities(); calculateEstimate(); });
         gbc.gridx = 1;
         box.add(toStateCombo, gbc);
 
+        JLabel cityTitle = new JLabel("City:*");
+        cityTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 5;
-        box.add(new JLabel("City:*"), gbc);
+        box.add(cityTitle, gbc);
         toCityCombo = new JComboBox<>();
+        toCityCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         toCityCombo.addActionListener(e -> { updateToPostcode(); calculateEstimate(); });
         gbc.gridx = 1;
         box.add(toCityCombo, gbc);
 
+        JLabel postcodeTitle = new JLabel("Postcode:");
+        postcodeTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));  // Increased font size
         gbc.gridx = 0; gbc.gridy = 6;
-        box.add(new JLabel("Postcode:"), gbc);
+        box.add(postcodeTitle, gbc);
         toPostcodeField = new JTextField(10);
+        toPostcodeField.setFont(new Font("Segoe UI", Font.PLAIN, 13));  // Increased font size
         toPostcodeField.setEditable(false);
         gbc.gridx = 1;
         box.add(toPostcodeField, gbc);
@@ -2047,7 +2109,9 @@ public class NewOrderPanel extends JPanel {
         panel.add(amountLabel, gbc);
         
         gbc.gridy = 1;
-        panel.add(new JLabel("Payment Method: " + paymentMethod), gbc);
+        JLabel methodLabel = new JLabel("Payment Method: " + paymentMethod);
+        methodLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        panel.add(methodLabel, gbc);
         
         gbc.gridy = 2;
         JLabel processingLabel = new JLabel("Processing payment...");
@@ -2061,7 +2125,9 @@ public class NewOrderPanel extends JPanel {
         panel.add(progressBar, gbc);
         
         gbc.gridy = 4;
-        panel.add(new JLabel("Please wait..."), gbc);
+        JLabel waitLabel = new JLabel("Please wait...");
+        waitLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        panel.add(waitLabel, gbc);
         
         dialog.add(panel);
         return dialog;

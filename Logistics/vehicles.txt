@@ -10,4 +10,4 @@ CAR001|Car|WAB8901|Volkswagen Jetta TDI|1738281600000|Maintenance|Unassigned|Die
 CAR002|Car|BBG3456|BMW 328d|1743465600000|Maintenance|Unassigned|Diesel
 CAR003|Car|ASB5678|Chevrolet Cruze Diesel|1756684800000|Active|Chong Wei Ming|Diesel
 MTC001|Motorcycle|WAL1234|Royal Enfield Taurus|1735689600000|Inactive|Unassigned|Diesel
-MTC002|Motorcycle|WAM5678|Moto Guzzi V7 Diesel|1761955200000|Active|Unassigned|Diesel
+MTC002|Motorcycle|WAM5678|Moto Guzzi V7 Diesel|1761955200000|Active|Razif|Diesel

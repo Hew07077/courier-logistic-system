@@ -1791,43 +1791,49 @@ public class CreateOrderPanel extends JPanel {
         }
     }
     
-    private String buildOrderLine(SenderOrder order) {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-        String currentDateTime = sdf.format(new Date());
-        String estimatedDeliveryDate = calculateEstimatedDeliveryDate();
-        String cleanNotes = order.getNotes() != null ? order.getNotes().replace("|", ";").replace("\n", " ").replace("\r", " ") : "";
-        
-        return String.join("|",
-            safeString(order.getId()), 
-            safeString(order.getCustomerName()), 
-            safeString(order.getCustomerPhone()),
-            safeString(order.getCustomerEmail()), 
-            safeString(order.getCustomerAddress()),
-            safeString(order.getRecipientName()), 
-            safeString(order.getRecipientPhone()), 
-            safeString(order.getRecipientAddress()),
-            "Pending", 
-            currentDateTime, 
-            estimatedDeliveryDate, 
-            "", 
-            "", 
-            "", 
-            String.valueOf(order.getWeight()),
-            safeString(order.getDimensions()), 
-            cleanNotes, 
-            "", 
-            "", 
-            "", 
-            "0", 
-            "0", 
-            "", 
-            "", 
-            "false",
-            "Paid", 
-            safeString(order.getPaymentMethod()), 
-            safeString(order.getTransactionId()),
-            safeString(order.getPaymentDate() != null ? order.getPaymentDate() : currentDateTime));
-    }
+    // CreateOrderPanel.java - buildOrderLine 方法
+private String buildOrderLine(SenderOrder order) {
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+    String currentDateTime = sdf.format(new Date());
+    String estimatedDeliveryDate = calculateEstimatedDeliveryDate();
+    String cleanNotes = order.getNotes() != null ? order.getNotes().replace("|", ";").replace("\n", " ").replace("\r", " ") : "";
+    
+    // 字段索引 20 对应 outForDeliveryTime，设置为空字符串
+    // 字段索引 21 对应 deliveryTime，设置为空字符串
+    return String.join("|",
+        safeString(order.getId()),           // 0
+        safeString(order.getCustomerName()), // 1
+        safeString(order.getCustomerPhone()),// 2
+        safeString(order.getCustomerEmail()),// 3
+        safeString(order.getCustomerAddress()),// 4
+        safeString(order.getRecipientName()), // 5
+        safeString(order.getRecipientPhone()),// 6
+        safeString(order.getRecipientAddress()),// 7
+        "Pending",                           // 8 - status
+        currentDateTime,                     // 9 - orderDate
+        estimatedDeliveryDate,               // 10 - estimatedDelivery
+        "",                                  // 11 - actualDelivery (空)
+        "",                                  // 12 - driverId (空)
+        "",                                  // 13 - vehicleId (空)
+        String.valueOf(order.getWeight()),   // 14 - weight
+        safeString(order.getDimensions()),   // 15 - dimensions
+        cleanNotes,                          // 16 - notes
+        "",                                  // 17 - reason (空)
+        "",                                  // 18 - pickupTime (空)
+        "",                                  // 19 - inTransitTime (空)
+        "",                                  // 20 - outForDeliveryTime (空) ← 关键
+        "",                                  // 21 - deliveryTime (空)
+        "0",                                 // 22 - distance (0)
+        "0",                                 // 23 - fuelUsed (0)
+        "",                                  // 24 - deliveryPhoto (空)
+        "",                                  // 25 - recipientSignature (空)
+        "false",                             // 26 - onTime (false)
+        "Paid",                              // 27 - paymentStatus
+        safeString(order.getPaymentMethod()),// 28 - paymentMethod
+        safeString(order.getTransactionId()),// 29 - transactionId
+        safeString(order.getPaymentDate() != null ? order.getPaymentDate() : currentDateTime) // 30 - paymentDate
+    );
+}
     
     private String calculateEstimatedDeliveryDate() {
         int days = standardSpeedRadio.isSelected() ? 3 : 1;

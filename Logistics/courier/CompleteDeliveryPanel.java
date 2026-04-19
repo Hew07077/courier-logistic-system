@@ -50,7 +50,25 @@ public class CompleteDeliveryPanel extends JPanel {
     
     public void refreshData(List<Order> updatedOrders) {
         this.myOrders = updatedOrders;
+        String currentSelectedOrderId = null;
+        if (orderSelectCombo != null && orderSelectCombo.getSelectedIndex() != -1) {
+            String selected = (String) orderSelectCombo.getSelectedItem();
+            if (selected != null && !selected.equals("No active orders")) {
+                currentSelectedOrderId = selected.split(" - ")[0];
+            }
+        }
+        
         refreshOrderSelectCombo();
+        
+        if (currentSelectedOrderId != null) {
+            for (int i = 0; i < orderSelectCombo.getItemCount(); i++) {
+                String item = orderSelectCombo.getItemAt(i);
+                if (item != null && item.startsWith(currentSelectedOrderId)) {
+                    orderSelectCombo.setSelectedIndex(i);
+                    break;
+                }
+            }
+        }
     }
     
     public void clearForm() {
@@ -116,7 +134,6 @@ public class CompleteDeliveryPanel extends JPanel {
         
         int row = 0;
         
-        // Order Selection
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
         gbc.weightx = 0.3;
         JLabel orderLabel = new JLabel("Select Order:*");
@@ -134,13 +151,11 @@ public class CompleteDeliveryPanel extends JPanel {
         formPanel.add(orderSelectCombo, gbc);
         row++;
         
-        // Spacer
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
         gbc.insets = new Insets(5, 15, 5, 15);
         formPanel.add(Box.createVerticalStrut(10), gbc);
         row++;
         
-        // Order Details Panel
         orderDetailsPanel = new JPanel();
         orderDetailsPanel.setLayout(new BoxLayout(orderDetailsPanel, BoxLayout.Y_AXIS));
         orderDetailsPanel.setBackground(new Color(248, 249, 250));
@@ -157,7 +172,6 @@ public class CompleteDeliveryPanel extends JPanel {
         formPanel.add(detailsScroll, gbc);
         row++;
         
-        // Spacer
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
         gbc.insets = new Insets(5, 15, 5, 15);
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -165,7 +179,6 @@ public class CompleteDeliveryPanel extends JPanel {
         formPanel.add(Box.createVerticalStrut(10), gbc);
         row++;
         
-        // Separator
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
         gbc.insets = new Insets(10, 15, 10, 15);
         JSeparator separator = new JSeparator();
@@ -173,7 +186,6 @@ public class CompleteDeliveryPanel extends JPanel {
         formPanel.add(separator, gbc);
         row++;
         
-        // Status Selection
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
         gbc.insets = new Insets(12, 15, 12, 15);
         JLabel statusLabel = new JLabel("New Status:*");
@@ -190,7 +202,6 @@ public class CompleteDeliveryPanel extends JPanel {
         formPanel.add(statusCombo, gbc);
         row++;
         
-        // Signature
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1;
         JLabel signatureLabel = new JLabel("Signature:*");
         signatureLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -208,7 +219,6 @@ public class CompleteDeliveryPanel extends JPanel {
         formPanel.add(signatureArea, gbc);
         row++;
         
-        // Note
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
         JLabel noteLabel = new JLabel("* Signature is required for all status updates.", SwingConstants.CENTER);
         noteLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
@@ -216,7 +226,6 @@ public class CompleteDeliveryPanel extends JPanel {
         formPanel.add(noteLabel, gbc);
         row++;
         
-        // Buttons
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3;
         gbc.insets = new Insets(20, 15, 10, 15);
         
@@ -249,6 +258,15 @@ public class CompleteDeliveryPanel extends JPanel {
     
     private void refreshOrderSelectCombo() {
         if (orderSelectCombo == null) return;
+        
+        String previouslySelected = null;
+        if (orderSelectCombo.getSelectedIndex() != -1) {
+            String selected = (String) orderSelectCombo.getSelectedItem();
+            if (selected != null && !selected.equals("No active orders")) {
+                previouslySelected = selected.split(" - ")[0];
+            }
+        }
+        
         orderSelectCombo.removeAllItems();
         
         List<Order> activeOrders = myOrders.stream()
@@ -265,7 +283,18 @@ public class CompleteDeliveryPanel extends JPanel {
             }
             if (statusCombo != null) statusCombo.setEnabled(true);
         }
-        orderSelectCombo.setSelectedIndex(-1);
+        
+        if (previouslySelected != null) {
+            for (int i = 0; i < orderSelectCombo.getItemCount(); i++) {
+                String item = orderSelectCombo.getItemAt(i);
+                if (item != null && item.startsWith(previouslySelected)) {
+                    orderSelectCombo.setSelectedIndex(i);
+                    break;
+                }
+            }
+        } else {
+            orderSelectCombo.setSelectedIndex(-1);
+        }
     }
     
     private void updateOrderDetailsAndStatusOptions() {
@@ -303,7 +332,6 @@ public class CompleteDeliveryPanel extends JPanel {
     private void updateOrderDetailsPanel(Order order) {
         orderDetailsPanel.removeAll();
         
-        // Order ID and Status
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(false);
         headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
@@ -325,7 +353,6 @@ public class CompleteDeliveryPanel extends JPanel {
         
         orderDetailsPanel.add(headerPanel);
         
-        // Recipient Info
         JPanel recipientPanel = new JPanel(new GridLayout(2, 1, 0, 5));
         recipientPanel.setOpaque(false);
         recipientPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
@@ -342,7 +369,6 @@ public class CompleteDeliveryPanel extends JPanel {
         orderDetailsPanel.add(recipientPanel);
         orderDetailsPanel.add(Box.createVerticalStrut(5));
         
-        // Price
         double estimatedCost = order.getEstimatedCost();
         JPanel pricePanel = new JPanel(new BorderLayout());
         pricePanel.setOpaque(false);
@@ -363,7 +389,6 @@ public class CompleteDeliveryPanel extends JPanel {
         orderDetailsPanel.add(pricePanel);
         orderDetailsPanel.add(Box.createVerticalStrut(10));
         
-        // Timeline Section
         JLabel timelineLabel = new JLabel("📅 Delivery Timeline");
         timelineLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         timelineLabel.setForeground(PRIMARY_GREEN);
@@ -374,33 +399,33 @@ public class CompleteDeliveryPanel extends JPanel {
         timelinePanel.setLayout(new BoxLayout(timelinePanel, BoxLayout.Y_AXIS));
         timelinePanel.setOpaque(false);
         
-        // Order Created
-        timelinePanel.add(createTimelineRow("Order Created", order.orderDate, true));
-        timelinePanel.add(createTimelineConnectorLine(order.pickupTime != null && !order.pickupTime.isEmpty()));
+        // Helper to check if time is valid (not null, not empty, not "0")
+        java.util.function.Function<String, Boolean> isValidTime = (timeValue) -> {
+            return timeValue != null && !timeValue.isEmpty() && !"0".equals(timeValue) && !"null".equals(timeValue);
+        };
         
-        // Picked Up
-        boolean pickedUpCompleted = order.pickupTime != null && !order.pickupTime.isEmpty();
+        timelinePanel.add(createTimelineRow("Order Created", order.orderDate, true));
+        timelinePanel.add(createTimelineConnectorLine(isValidTime.apply(order.pickupTime)));
+        
+        boolean pickedUpCompleted = isValidTime.apply(order.pickupTime);
         timelinePanel.add(createTimelineRow("Picked Up", 
             pickedUpCompleted ? formatTime(order.pickupTime) : "Not yet", 
             pickedUpCompleted));
-        timelinePanel.add(createTimelineConnectorLine(order.inTransitTime != null && !order.inTransitTime.isEmpty()));
+        timelinePanel.add(createTimelineConnectorLine(isValidTime.apply(order.inTransitTime)));
         
-        // In Transit
-        boolean inTransitCompleted = order.inTransitTime != null && !order.inTransitTime.isEmpty();
+        boolean inTransitCompleted = isValidTime.apply(order.inTransitTime);
         timelinePanel.add(createTimelineRow("In Transit", 
             inTransitCompleted ? formatTime(order.inTransitTime) : "Not yet", 
             inTransitCompleted));
-        timelinePanel.add(createTimelineConnectorLine(order.outForDeliveryTime != null && !order.outForDeliveryTime.isEmpty()));
+        timelinePanel.add(createTimelineConnectorLine(isValidTime.apply(order.outForDeliveryTime)));
         
-        // Out for Delivery
-        boolean outForDeliveryCompleted = order.outForDeliveryTime != null && !order.outForDeliveryTime.isEmpty();
+        boolean outForDeliveryCompleted = isValidTime.apply(order.outForDeliveryTime);
         timelinePanel.add(createTimelineRow("Out for Delivery", 
             outForDeliveryCompleted ? formatTime(order.outForDeliveryTime) : "Not yet", 
             outForDeliveryCompleted));
-        timelinePanel.add(createTimelineConnectorLine(order.deliveryTime != null && !order.deliveryTime.isEmpty()));
+        timelinePanel.add(createTimelineConnectorLine(isValidTime.apply(order.deliveryTime)));
         
-        // Delivered
-        boolean deliveredCompleted = order.deliveryTime != null && !order.deliveryTime.isEmpty();
+        boolean deliveredCompleted = isValidTime.apply(order.deliveryTime);
         timelinePanel.add(createTimelineRow("Delivered", 
             deliveredCompleted ? formatTime(order.deliveryTime) : "Not yet", 
             deliveredCompleted));
@@ -412,14 +437,16 @@ public class CompleteDeliveryPanel extends JPanel {
     }
     
     private String formatTime(String dateTime) {
-        if (dateTime == null || dateTime.isEmpty()) return "Not yet";
+        if (dateTime == null || dateTime.isEmpty() || "0".equals(dateTime) || "null".equals(dateTime)) {
+            return "Not yet";
+        }
         try {
             if (dateTime.length() >= 16) {
                 return dateTime.substring(11, 16);
             }
             return dateTime;
         } catch (Exception e) {
-            return dateTime;
+            return "Not yet";
         }
     }
     
@@ -428,16 +455,19 @@ public class CompleteDeliveryPanel extends JPanel {
         row.setOpaque(false);
         row.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         
-        String icon = completed ? "✅ " : "⏳ ";
-        JLabel titleLabel = new JLabel(icon + title);
-        titleLabel.setFont(new Font("Segoe UI", completed ? Font.BOLD : Font.PLAIN, 12));
-        titleLabel.setForeground(completed ? SUCCESS : TEXT_GRAY);
+        // Check if time is valid (not null, not empty, not "0", not "Not yet")
+        boolean hasValidTime = time != null && !time.isEmpty() && !"0".equals(time) && !"Not yet".equals(time);
+        boolean isActuallyCompleted = completed && hasValidTime;
+        
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", isActuallyCompleted ? Font.BOLD : Font.PLAIN, 12));
+        titleLabel.setForeground(isActuallyCompleted ? SUCCESS : TEXT_GRAY);
         row.add(titleLabel, BorderLayout.WEST);
         
-        String displayTime = (time != null && !time.isEmpty() && !"Not yet".equals(time)) ? time : "-";
+        String displayTime = hasValidTime ? time : "-";
         JLabel timeLabel = new JLabel(displayTime);
         timeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        timeLabel.setForeground(completed ? SUCCESS : TEXT_GRAY);
+        timeLabel.setForeground(isActuallyCompleted ? SUCCESS : TEXT_GRAY);
         row.add(timeLabel, BorderLayout.EAST);
         
         return row;
@@ -540,7 +570,7 @@ public class CompleteDeliveryPanel extends JPanel {
         }
     }
     
-    // ========== PROCESS STATUS UPDATE - FIXED FOR BOTH TIMESTAMPS ==========
+    // ========== PROCESS STATUS UPDATE ==========
     
     private void processStatusUpdate() {
         int selectedIndex = orderSelectCombo.getSelectedIndex();
@@ -613,103 +643,72 @@ public class CompleteDeliveryPanel extends JPanel {
             System.out.println("New Status: " + newCourierStatus);
             System.out.println("Timestamp: " + now);
             
-            // Create a NEW order object to avoid reference issues
-            Order updatedOrder = new Order();
-            updatedOrder.id = order.id;
-            updatedOrder.customerName = order.customerName;
-            updatedOrder.customerPhone = order.customerPhone;
-            updatedOrder.customerEmail = order.customerEmail;
-            updatedOrder.customerAddress = order.customerAddress;
-            updatedOrder.recipientName = order.recipientName;
-            updatedOrder.recipientPhone = order.recipientPhone;
-            updatedOrder.recipientAddress = order.recipientAddress;
-            updatedOrder.weight = order.weight;
-            updatedOrder.dimensions = order.dimensions;
-            updatedOrder.orderDate = order.orderDate;
-            updatedOrder.estimatedDelivery = order.estimatedDelivery;
-            updatedOrder.driverId = order.driverId;
-            updatedOrder.vehicleId = order.vehicleId;
-            updatedOrder.paymentStatus = order.paymentStatus;
-            updatedOrder.paymentMethod = order.paymentMethod;
-            updatedOrder.transactionId = order.transactionId;
-            updatedOrder.paymentDate = order.paymentDate;
-            updatedOrder.notes = order.notes;
-            
-            // Copy existing timestamps
-            updatedOrder.pickupTime = order.pickupTime;
-            updatedOrder.inTransitTime = order.inTransitTime;
-            updatedOrder.outForDeliveryTime = order.outForDeliveryTime;
-            updatedOrder.deliveryTime = order.deliveryTime;
-            
-            // Update based on new status
+            // Update the order fields directly
             switch(newCourierStatus) {
                 case "Picked Up":
-                    if (updatedOrder.pickupTime == null || updatedOrder.pickupTime.isEmpty()) {
-                        updatedOrder.pickupTime = now;
-                        System.out.println("Set pickupTime: " + updatedOrder.pickupTime);
-                        updateDriverStatusToOnDelivery(updatedOrder.driverId);
-                    }
-                    updatedOrder.status = "Picked Up";
+                    order.pickupTime = now;
+                    System.out.println("Set pickupTime: '" + order.pickupTime + "'");
+                    updateDriverStatusToOnDelivery(order.driverId);
+                    order.status = "Picked Up";
                     break;
                 case "In Transit":
-                    if (updatedOrder.inTransitTime == null || updatedOrder.inTransitTime.isEmpty()) {
-                        updatedOrder.inTransitTime = now;
-                        System.out.println("Set inTransitTime: " + updatedOrder.inTransitTime);
-                    }
-                    updatedOrder.status = "In Transit";
+                    order.inTransitTime = now;
+                    System.out.println("Set inTransitTime: '" + order.inTransitTime + "'");
+                    order.status = "In Transit";
                     break;
                 case "Out for Delivery":
-                    if (updatedOrder.outForDeliveryTime == null || updatedOrder.outForDeliveryTime.isEmpty()) {
-                        updatedOrder.outForDeliveryTime = now;
-                        System.out.println("Set outForDeliveryTime: " + updatedOrder.outForDeliveryTime);
-                    }
-                    updatedOrder.status = "Out for Delivery";
+                    order.outForDeliveryTime = now;
+                    System.out.println("Set outForDeliveryTime: '" + order.outForDeliveryTime + "'");
+                    order.status = "Out for Delivery";
                     break;
                 case "Delivered":
-                    // FORCE set deliveryTime - always set it
-                    updatedOrder.deliveryTime = now;
-                    System.out.println("Set deliveryTime: " + updatedOrder.deliveryTime);
+                    order.deliveryTime = now;
+                    System.out.println("Set deliveryTime: '" + order.deliveryTime + "'");
                     
-                    if (updatedOrder.actualDelivery == null || updatedOrder.actualDelivery.isEmpty()) {
-                        updatedOrder.actualDelivery = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
-                        System.out.println("Set actualDelivery: " + updatedOrder.actualDelivery);
+                    if (order.actualDelivery == null || order.actualDelivery.isEmpty()) {
+                        order.actualDelivery = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+                        System.out.println("Set actualDelivery: '" + order.actualDelivery + "'");
                     }
-                    updatedOrder.status = "Delivered";
+                    order.status = "Delivered";
                     break;
                 case "Delayed":
-                    updatedOrder.reason = "Delayed by courier: " + signature;
-                    updatedOrder.status = "Delayed";
+                    order.reason = "Delayed by courier: " + signature;
+                    order.status = "Delayed";
                     break;
             }
             
             // Add notes
             String newNote = "Status updated to " + newCourierStatus + " - Signature: " + signature + " on " + now;
-            if (updatedOrder.notes != null && !updatedOrder.notes.isEmpty()) {
-                updatedOrder.notes = updatedOrder.notes + "\n" + newNote;
+            if (order.notes != null && !order.notes.isEmpty()) {
+                order.notes = order.notes + "\n" + newNote;
             } else {
-                updatedOrder.notes = newNote;
+                order.notes = newNote;
             }
             
-            // Debug output before saving
-            System.out.println("=== BEFORE SAVE ===");
-            System.out.println("outForDeliveryTime: '" + updatedOrder.outForDeliveryTime + "'");
-            System.out.println("deliveryTime: '" + updatedOrder.deliveryTime + "'");
-            System.out.println("status: '" + updatedOrder.status + "'");
+            System.out.println("=== BEFORE SAVE - FINAL CHECK ===");
+            System.out.println("outForDeliveryTime: '" + order.outForDeliveryTime + "'");
+            System.out.println("deliveryTime: '" + order.deliveryTime + "'");
+            System.out.println("status: '" + order.status + "'");
             
-            // DIRECT FILE WRITE
-            boolean saved = saveOrderDirectlyToFile(updatedOrder);
+            // Save directly to file
+            boolean saved = saveOrderDirectlyToFile(order);
             
             if (saved) {
                 System.out.println("Order saved successfully!");
-                orderStorage.updateOrder(updatedOrder);
+                orderStorage.updateOrder(order);
                 
                 showNotification("Order status updated to: " + newCourierStatus, SUCCESS);
                 if (parentDashboard != null) parentDashboard.refreshData();
-                clearForm();
+                
+                // Only clear the signature area
+                signatureArea.setText("");
+                
+                // Refresh the details panel to show updated status
+                updateOrderDetailsAndStatusOptions();
                 
                 JOptionPane.showMessageDialog(this,
                     String.format("Status Updated Successfully!\n\nOrder ID: %s\nNew Status: %s\nRecipient: %s\nTime: %s\nAmount: %s",
-                        orderId, newCourierStatus, updatedOrder.recipientName, now, updatedOrder.getFormattedEstimatedCost()),
+                        orderId, newCourierStatus, order.recipientName, now, order.getFormattedEstimatedCost()),
                     "Success", JOptionPane.INFORMATION_MESSAGE);
             } else {
                 showNotification("Error saving order. Please try again.", DANGER);
@@ -761,7 +760,7 @@ public class CompleteDeliveryPanel extends JPanel {
             
             if (orderFound) {
                 lines.add(orderLineIndex, orderLine);
-                System.out.println("Updated existing order");
+                System.out.println("Updated existing order at line " + orderLineIndex);
             } else {
                 // Check if header exists
                 boolean hasHeader = false;
@@ -829,7 +828,7 @@ public class CompleteDeliveryPanel extends JPanel {
         fields[18] = safeString(order.pickupTime);
         fields[19] = safeString(order.inTransitTime);
         fields[20] = safeString(order.outForDeliveryTime);
-        fields[21] = safeString(order.deliveryTime);  // CRITICAL - index 21
+        fields[21] = safeString(order.deliveryTime);
         fields[22] = String.valueOf(order.distance);
         fields[23] = String.valueOf(order.fuelUsed);
         fields[24] = safeString(order.deliveryPhoto);
@@ -841,6 +840,7 @@ public class CompleteDeliveryPanel extends JPanel {
         fields[30] = safeString(order.paymentDate);
         
         System.out.println("=== BUILD ORDER STRING ===");
+        System.out.println("outForDeliveryTime at index 20: '" + fields[20] + "'");
         System.out.println("deliveryTime at index 21: '" + fields[21] + "'");
         
         return String.join("|", fields);
@@ -857,9 +857,9 @@ public class CompleteDeliveryPanel extends JPanel {
                         String[] parts = line.split("\\|", -1);
                         System.out.println("=== VERIFICATION ===");
                         System.out.println("Order ID from file: " + (parts.length > 0 ? parts[0] : "N/A"));
-                        System.out.println("outForDeliveryTime from file: " + (parts.length > 20 ? parts[20] : "N/A"));
-                        System.out.println("deliveryTime from file: " + (parts.length > 21 ? parts[21] : "N/A"));
-                        System.out.println("status from file: " + (parts.length > 8 ? parts[8] : "N/A"));
+                        System.out.println("outForDeliveryTime from file (index 20): " + (parts.length > 20 ? parts[20] : "N/A"));
+                        System.out.println("deliveryTime from file (index 21): " + (parts.length > 21 ? parts[21] : "N/A"));
+                        System.out.println("status from file (index 8): " + (parts.length > 8 ? parts[8] : "N/A"));
                         break;
                     }
                 }
@@ -871,7 +871,10 @@ public class CompleteDeliveryPanel extends JPanel {
     }
     
     private String safeString(String s) {
-        return s != null && !s.isEmpty() ? s : "";
+        if (s == null || s.isEmpty() || "0".equals(s) || "null".equals(s)) {
+            return "";
+        }
+        return s;
     }
     
     private void updateDriverStatusToOnDelivery(String driverId) {
@@ -1032,6 +1035,7 @@ public class CompleteDeliveryPanel extends JPanel {
                 orderStorage.updateOrder(order);
                 
                 if (parentDashboard != null) parentDashboard.refreshData();
+                
                 clearForm();
                 dialog.dispose();
                 

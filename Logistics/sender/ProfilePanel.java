@@ -16,7 +16,6 @@ public class ProfilePanel extends JPanel {
     private JTabbedPane tabbedPane;
     private ProfileAvatar avatarComponent;
     private AddressPanel addressPanel;
-    private NotificationPanel notificationPanel;
     private StatisticsPanel statisticsPanel;
     
     // Profile image storage
@@ -173,13 +172,11 @@ public class ProfilePanel extends JPanel {
         // Initialize panels
         avatarComponent = new ProfileAvatar(AVATAR_SIZE);
         addressPanel = new AddressPanel(dashboard);
-        notificationPanel = new NotificationPanel(dashboard);
         statisticsPanel = new StatisticsPanel(dashboard);
         
-        // Add tabs
+        // Add tabs (Notification tab removed)
         tabbedPane.addTab("Personal Info", createPersonalInfoPanel());
         tabbedPane.addTab("Address Book", addressPanel);
-        tabbedPane.addTab("Notifications", notificationPanel);
         tabbedPane.addTab("Statistics", statisticsPanel);
         
         add(tabbedPane, BorderLayout.CENTER);
@@ -678,7 +675,7 @@ public class ProfilePanel extends JPanel {
                 emptyPanel.setBackground(new Color(248, 249, 250));
                 emptyPanel.setPreferredSize(new Dimension(800, 300));
                 
-                JLabel emptyIcon = new JLabel("📍");
+                JLabel emptyIcon = new JLabel("");
                 emptyIcon.setFont(new Font("Segoe UI", Font.PLAIN, 48));
                 
                 JLabel emptyLabel = new JLabel("No addresses saved yet");
@@ -778,7 +775,7 @@ public class ProfilePanel extends JPanel {
             JPanel leftHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
             leftHeader.setOpaque(false);
             
-            JLabel iconLabel = new JLabel(address.isDefault() ? "🏠" : "📍");
+            JLabel iconLabel = new JLabel(address.isDefault() ? "" : "");
             iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 22));
             leftHeader.add(iconLabel);
             
@@ -802,7 +799,7 @@ public class ProfilePanel extends JPanel {
             // Delivery info badge (estimated delivery time)
             JPanel rightHeader = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
             rightHeader.setOpaque(false);
-            JLabel deliveryBadge = new JLabel("🚚 2-3 days");
+            JLabel deliveryBadge = new JLabel("2-3 days");
             deliveryBadge.setFont(new Font("Segoe UI", Font.PLAIN, 10));
             deliveryBadge.setForeground(new Color(108, 117, 125));
             deliveryBadge.setBackground(new Color(248, 249, 250));
@@ -823,7 +820,7 @@ public class ProfilePanel extends JPanel {
             JPanel streetRow = new JPanel(new BorderLayout(8, 0));
             streetRow.setOpaque(false);
             streetRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-            JLabel streetIcon = new JLabel("📍");
+            JLabel streetIcon = new JLabel("");
             streetIcon.setFont(new Font("Segoe UI", Font.PLAIN, 12));
             streetIcon.setForeground(new Color(108, 117, 125));
             JLabel streetLabel = new JLabel(address.getStreet());
@@ -838,7 +835,7 @@ public class ProfilePanel extends JPanel {
             JPanel cityRow = new JPanel(new BorderLayout(8, 0));
             cityRow.setOpaque(false);
             cityRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-            JLabel cityIcon = new JLabel("🏢");
+            JLabel cityIcon = new JLabel("");
             cityIcon.setFont(new Font("Segoe UI", Font.PLAIN, 12));
             cityIcon.setForeground(new Color(108, 117, 125));
             JLabel cityLabel = new JLabel(address.getCity());
@@ -861,12 +858,12 @@ public class ProfilePanel extends JPanel {
             actionPanel.setBorder(BorderFactory.createEmptyBorder(10, 18, 12, 18));
             
             // Edit button
-            JButton editBtn = createCompactIconButton("✎", "Edit", new Color(0, 123, 255));
+            JButton editBtn = createCompactIconButton("", "Edit", new Color(0, 123, 255));
             editBtn.addActionListener(e -> editAddress(address));
             actionPanel.add(editBtn);
             
             // Delete button
-            JButton deleteBtn = createCompactIconButton("🗑", "Delete", new Color(220, 53, 69));
+            JButton deleteBtn = createCompactIconButton("", "Delete", new Color(220, 53, 69));
             deleteBtn.addActionListener(e -> {
                 int confirm = JOptionPane.showConfirmDialog(card, 
                     "Are you sure you want to delete \"" + address.getName() + "\"?", 
@@ -1235,96 +1232,6 @@ public class ProfilePanel extends JPanel {
         }
     }
     
-    // Inner class for Notification Preferences
-    class NotificationPanel extends JPanel {
-        @SuppressWarnings("unused")
-        private SenderDashboard dashboard;
-        private Map<String, JCheckBox> preferences;
-        
-        public NotificationPanel(SenderDashboard dashboard) {
-            this.dashboard = dashboard;
-            this.preferences = new HashMap<>();
-            initialize();
-        }
-        
-        private void initialize() {
-            setLayout(new BorderLayout(10, 10));
-            setBackground(Color.WHITE);
-            setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-            
-            JPanel mainPanel = new JPanel(new GridBagLayout());
-            mainPanel.setBackground(Color.WHITE);
-            GridBagConstraints gbc = new GridBagConstraints();
-            gbc.fill = GridBagConstraints.HORIZONTAL;
-            gbc.insets = new Insets(10, 10, 10, 10);
-            
-            // Email Notifications Section
-            gbc.gridx = 0; gbc.gridy = 0;
-            gbc.gridwidth = 2;
-            JLabel emailSection = new JLabel("Email Notifications");
-            emailSection.setFont(new Font("Segoe UI", Font.BOLD, 14));
-            emailSection.setForeground(new Color(0, 123, 255));
-            mainPanel.add(emailSection, gbc);
-            
-            String[] emailPrefs = {
-                "Order Confirmation Emails",
-                "Shipping Updates",
-                "Promotional Offers",
-                "Newsletter"
-            };
-            
-            gbc.gridwidth = 1;
-            for (int i = 0; i < emailPrefs.length; i++) {
-                gbc.gridx = 0; gbc.gridy = i + 1;
-                gbc.weightx = 0.4;
-                mainPanel.add(new JLabel(emailPrefs[i] + ":"), gbc);
-                gbc.gridx = 1; gbc.weightx = 0.6;
-                JCheckBox checkBox = new JCheckBox();
-                checkBox.setSelected(true);
-                preferences.put(emailPrefs[i], checkBox);
-                mainPanel.add(checkBox, gbc);
-            }
-            
-            // SMS Notifications Section
-            gbc.gridx = 0; gbc.gridy = 6;
-            gbc.gridwidth = 2;
-            gbc.insets = new Insets(20, 10, 10, 10);
-            JLabel smsSection = new JLabel("SMS Notifications");
-            smsSection.setFont(new Font("Segoe UI", Font.BOLD, 14));
-            smsSection.setForeground(new Color(0, 123, 255));
-            mainPanel.add(smsSection, gbc);
-            
-            String[] smsPrefs = {
-                "Order Status Updates",
-                "Delivery Alerts"
-            };
-            
-            gbc.gridwidth = 1;
-            for (int i = 0; i < smsPrefs.length; i++) {
-                gbc.gridx = 0; gbc.gridy = i + 7;
-                gbc.weightx = 0.4;
-                mainPanel.add(new JLabel(smsPrefs[i] + ":"), gbc);
-                gbc.gridx = 1; gbc.weightx = 0.6;
-                JCheckBox checkBox = new JCheckBox();
-                checkBox.setSelected(true);
-                preferences.put(smsPrefs[i], checkBox);
-                mainPanel.add(checkBox, gbc);
-            }
-            
-            // Save Button
-            gbc.gridx = 0; gbc.gridy = 10;
-            gbc.gridwidth = 2;
-            gbc.insets = new Insets(30, 10, 10, 10);
-            JButton saveBtn = createStyledButton("Save Preferences", new Color(40, 167, 69), Color.WHITE);
-            saveBtn.addActionListener(e -> {
-                JOptionPane.showMessageDialog(this, "Notification preferences saved!");
-            });
-            mainPanel.add(saveBtn, gbc);
-            
-            add(new JScrollPane(mainPanel), BorderLayout.CENTER);
-        }
-    }
-    
     // Inner class for REAL Statistics - Calculates from actual order data
     class StatisticsPanel extends JPanel {
         private SenderDashboard dashboard;
@@ -1362,9 +1269,7 @@ public class ProfilePanel extends JPanel {
             // Calculate real statistics
             int totalOrders = userOrders.size();
             int deliveredOrders = 0;
-            @SuppressWarnings("unused")
             int pendingOrders = 0;
-            @SuppressWarnings("unused")
             int inTransitOrders = 0;
             double totalSpent = 0.0;
             
@@ -1394,22 +1299,22 @@ public class ProfilePanel extends JPanel {
             statsGridPanel.removeAll();
             
             statsGridPanel.add(createStatCard("Total Orders", String.valueOf(totalOrders), 
-                "Lifetime orders", new Color(0, 123, 255), "📦"));
+                "Lifetime orders", new Color(0, 123, 255), ""));
             
             statsGridPanel.add(createStatCard("Delivered", String.valueOf(deliveredOrders),
-                "Completed deliveries", new Color(40, 167, 69), "✅"));
+                "Completed deliveries", new Color(40, 167, 69), ""));
             
             statsGridPanel.add(createStatCard("Active Orders", String.valueOf(activeOrders),
-                "Pending & In Transit", new Color(255, 193, 7), "🚚"));
+                "Pending & In Transit", new Color(255, 193, 7), ""));
             
             statsGridPanel.add(createStatCard("Total Spent", "RM " + String.format("%.2f", totalSpent),
-                "Lifetime spending", new Color(111, 66, 193), "💰"));
+                "Lifetime spending", new Color(111, 66, 193), ""));
             
             statsGridPanel.add(createStatCard("Average Order", "RM " + String.format("%.2f", avgOrderValue),
-                "Per order average", new Color(23, 162, 184), "📊"));
+                "Per order average", new Color(23, 162, 184), ""));
             
             statsGridPanel.add(createStatCard("Member Since", memberSince,
-                "Customer since", new Color(253, 126, 20), "⭐"));
+                "Customer since", new Color(253, 126, 20), ""));
             
             statsGridPanel.revalidate();
             statsGridPanel.repaint();
