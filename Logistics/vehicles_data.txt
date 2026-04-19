@@ -1,9 +1,0 @@
-TRK001 | Freightliner Cascadia | Active | | Truck | 1FUPCSZBXPH123456 | 1804051830175 | Diesel
-VAN001 | Ford Transit 350 HD Diesel | Active | | Van | 1FTBW2XG8PKA98765 | 1769923830175 | Diesel
-TRK002 | Peterbilt 579 | Out of Service | | Truck | 1XP5DB9X7PD765432 | 1767331830175 | Diesel
-VAN002 | RAM ProMaster 3500 | Maintenance | | Van | 3C7WRVBG9PG789456 | 1788067830175 | Diesel
-TRK003 | International LT | Active | | Truck | 3HSDJSJRXPN123789 | 1780291830175 | Diesel
-CAR001 | Volkswagen Jetta TDI | Active | | Car | 3VW2B7AJXPM456789 | 1780291830175 | Diesel
-MTC001 | Royal Enfield Taurus | Inactive | | Motorcycle | MD2A1DZ26PK654321 | 1769923830175 | Diesel
-CAR002 | Volkswagen Golf TDI | Maintenance | | Car | 3VW5M7AJ9PM321987 | 1780291830175 | Diesel
-VAN003 | Ford Transit 350 HD Diesel | Active | | Van | 1FTBW2XG8PKB98765 | 1804051830175 | Diesel
