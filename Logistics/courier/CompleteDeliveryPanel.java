@@ -232,13 +232,6 @@ public class CompleteDeliveryPanel extends JPanel {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
         buttonPanel.setBackground(Color.WHITE);
         
-        JButton clearBtn = new JButton("Clear Form");
-        clearBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        clearBtn.setForeground(TEXT_GRAY);
-        clearBtn.setBackground(Color.WHITE);
-        clearBtn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        clearBtn.setPreferredSize(new Dimension(120, 40));
-        clearBtn.addActionListener(e -> clearForm());
         
         JButton updateBtn = new JButton("Update Status");
         updateBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -248,7 +241,6 @@ public class CompleteDeliveryPanel extends JPanel {
         updateBtn.setPreferredSize(new Dimension(150, 40));
         updateBtn.addActionListener(e -> processStatusUpdate());
         
-        buttonPanel.add(clearBtn);
         buttonPanel.add(updateBtn);
         formPanel.add(buttonPanel, gbc);
         
