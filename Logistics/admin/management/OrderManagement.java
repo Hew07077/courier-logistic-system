@@ -1097,7 +1097,7 @@ public class OrderManagement extends AdminManagementModule {
         timelinePanel.add(createTimelineConnector(hasValidTime(order.outForDeliveryTime)));
         
         // Out for Delivery
-        boolean outForDeliveryCompleted = hasValidTime(order.outForDeliveryTime);
+        boolean outForDeliveryCompleted = order.outForDeliveryTime != null && order.outForDeliveryTime != "0" && hasValidTime(order.outForDeliveryTime);
         String outForDeliveryDisplay = outForDeliveryCompleted ? formatDateTime(order.outForDeliveryTime) : "Not yet";
         
         timelinePanel.add(createTimelineEvent("Out for Delivery", "Package out for delivery", 
@@ -1105,7 +1105,7 @@ public class OrderManagement extends AdminManagementModule {
         timelinePanel.add(createTimelineConnector("Delivered".equals(order.status)));
         
         // Delivered
-        boolean deliveredCompleted = "Delivered".equals(order.status);
+        boolean deliveredCompleted = order.deliveryTime != null && order.deliveryTime != "0" && "Delivered".equals(order.status);
         String deliveryDisplay = deliveredCompleted && hasValidTime(order.deliveryTime) ? 
             formatDateTime(order.deliveryTime) : "Not yet";
         timelinePanel.add(createTimelineEvent("Delivered", "Package delivered successfully", 
@@ -1120,7 +1120,7 @@ public class OrderManagement extends AdminManagementModule {
     }
     
     private boolean hasValidTime(String timeValue) {
-        return timeValue != null && !timeValue.trim().isEmpty();
+        return timeValue != null && !timeValue.trim().isEmpty() && !"0".equals(timeValue.trim());
     }
     
     private String formatDateTime(String dateTime) {

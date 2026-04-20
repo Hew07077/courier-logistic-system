@@ -357,11 +357,11 @@ public class CompleteDeliveryPanel extends JPanel {
         recipientPanel.setOpaque(false);
         recipientPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         
-        JLabel recipientLabel = new JLabel("📦 " + order.recipientName);
+        JLabel recipientLabel = new JLabel("" + order.recipientName);
         recipientLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         recipientPanel.add(recipientLabel);
         
-        JLabel phoneLabel = new JLabel("📞 " + order.recipientPhone);
+        JLabel phoneLabel = new JLabel("" + order.recipientPhone);
         phoneLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         phoneLabel.setForeground(TEXT_GRAY);
         recipientPanel.add(phoneLabel);
@@ -377,7 +377,7 @@ public class CompleteDeliveryPanel extends JPanel {
             BorderFactory.createLineBorder(SUCCESS, 1),
             BorderFactory.createEmptyBorder(8, 12, 8, 12)));
         
-        JLabel priceTitleLabel = new JLabel("💰 Amount:");
+        JLabel priceTitleLabel = new JLabel("Amount:");
         priceTitleLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         pricePanel.add(priceTitleLabel, BorderLayout.WEST);
         
@@ -389,7 +389,7 @@ public class CompleteDeliveryPanel extends JPanel {
         orderDetailsPanel.add(pricePanel);
         orderDetailsPanel.add(Box.createVerticalStrut(10));
         
-        JLabel timelineLabel = new JLabel("📅 Delivery Timeline");
+        JLabel timelineLabel = new JLabel("Delivery Timeline");
         timelineLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         timelineLabel.setForeground(PRIMARY_GREEN);
         orderDetailsPanel.add(timelineLabel);
@@ -401,7 +401,7 @@ public class CompleteDeliveryPanel extends JPanel {
         
         // Helper to check if time is valid (not null, not empty, not "0")
         java.util.function.Function<String, Boolean> isValidTime = (timeValue) -> {
-            return timeValue != null && !timeValue.isEmpty() && !"0".equals(timeValue) && !"null".equals(timeValue);
+            return timeValue != null && !timeValue.trim().isEmpty() && !"0".equals(timeValue.trim());
         };
         
         timelinePanel.add(createTimelineRow("Order Created", order.orderDate, true));
@@ -456,7 +456,7 @@ public class CompleteDeliveryPanel extends JPanel {
         row.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         
         // Check if time is valid (not null, not empty, not "0", not "Not yet")
-        boolean hasValidTime = time != null && !time.isEmpty() && !"0".equals(time) && !"Not yet".equals(time);
+        boolean hasValidTime = time != null && !time.trim().isEmpty() && !"0".equals(time.trim());
         boolean isActuallyCompleted = completed && hasValidTime;
         
         JLabel titleLabel = new JLabel(title);

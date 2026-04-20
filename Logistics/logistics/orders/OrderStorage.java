@@ -413,10 +413,10 @@ public class OrderStorage {
         saveOrders();
     }
     
-    /**
-     * 关键修复：确保 updateOrder 正确更新内存中的订单并保存到文件
-     */
+
     public synchronized void updateOrder(Order updatedOrder) {
+        loadOrders();
+        
         System.out.println("===== updateOrder called =====");
         System.out.println("Order ID: " + updatedOrder.id);
         System.out.println("  - driverId: '" + updatedOrder.driverId + "'");
@@ -439,10 +439,10 @@ public class OrderStorage {
             updateDailyCounter(updatedOrder.id);
         }
         
-        // 立即保存到文件
+
         saveOrders();
         
-        // 验证保存
+
         Order verifyOrder = findOrder(updatedOrder.id);
         if (verifyOrder != null) {
             System.out.println("Verification - driverId: '" + verifyOrder.driverId + "', status: '" + verifyOrder.status + "'");
@@ -458,17 +458,12 @@ public class OrderStorage {
         }
     }
     
-    // ==================== Driver Integration ====================
-    
-    /**
-     * 关键修复：assignOrderToDriver 方法 - 直接设置 driverId 并确保保存
-     */
+
     public boolean assignOrderToDriver(String orderId, String driverId) {
         System.out.println("===== assignOrderToDriver called =====");
         System.out.println("Order ID: " + orderId);
         System.out.println("Driver ID: " + driverId);
         
-        // 1. 查找订单
         Order order = findOrder(orderId);
         if (order == null) {
             System.err.println("ERROR: Order not found: " + orderId);
@@ -479,7 +474,6 @@ public class OrderStorage {
         System.out.println("Order current driverId: " + order.driverId);
         System.out.println("Order isAssignable: " + order.isAssignable());
         
-        // 2. 查找司机
         Driver driver = driverStorage.findDriver(driverId);
         if (driver == null) {
             System.err.println("ERROR: Driver not found: " + driverId);
@@ -489,25 +483,22 @@ public class OrderStorage {
         System.out.println("Driver found - Name: " + driver.name);
         System.out.println("Driver isAvailable: " + driver.isAvailable());
         
-        // 3. 检查司机是否可用
         if (!driver.isAvailable()) {
             System.err.println("ERROR: Driver is not available. Status: " + driver.workStatus);
             return false;
         }
         
-        // 4. 检查订单是否可分配
+
         if (!order.isAssignable()) {
             System.err.println("ERROR: Order is not assignable. Status: " + order.status);
             return false;
         }
-        
-        // 5. 执行分配 - 直接设置字段
+ 
         System.out.println("Assigning driver " + driverId + " to order " + orderId);
         
-        // 直接设置 driverId（绕过 assignDriver 方法确保设置）
         order.driverId = driverId;
         
-        // 更新状态（如果不是已分配或更高级状态）
+
         if (!"Assigned".equals(order.status) && !"Picked Up".equals(order.status) 
             && !"In Transit".equals(order.status) && !"Out for Delivery".equals(order.status)) {
             order.status = "Assigned";
@@ -516,14 +507,12 @@ public class OrderStorage {
         System.out.println("After assignment - Order status: " + order.status);
         System.out.println("After assignment - Order driverId: " + order.driverId);
         
-        // 6. 更新司机状态
+
         driver.assignOrder(orderId);
         driverStorage.updateDriver(driver);
         
-        // 7. 保存订单（关键！）
         updateOrder(order);
         
-        // 8. 验证保存
         System.out.println("Verifying save...");
         Order verifyOrder = findOrder(orderId);
         if (verifyOrder != null && driverId.equals(verifyOrder.driverId)) {
@@ -537,10 +526,7 @@ public class OrderStorage {
             return false;
         }
     }
-    
-    /**
-     * 为订单分配司机和车辆（重载方法）
-     */
+
     public boolean assignOrderToDriver(String orderId, String driverId, String vehicleId) {
         System.out.println("===== assignOrderToDriver (with vehicle) called =====");
         System.out.println("Order ID: " + orderId);

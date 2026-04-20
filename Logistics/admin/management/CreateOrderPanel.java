@@ -694,9 +694,9 @@ public class CreateOrderPanel extends JPanel {
 
         JButton cancelBtn = new JButton("Cancel");
         cancelBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        cancelBtn.setForeground(new Color(108, 117, 125));
-        cancelBtn.setBackground(Color.WHITE);
-        cancelBtn.setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230)));
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setBackground(new Color( 220, 53, 69));
+        cancelBtn.setBorderPainted(false);
         cancelBtn.setFocusPainted(false);
         cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         cancelBtn.addActionListener(e -> clearForm());

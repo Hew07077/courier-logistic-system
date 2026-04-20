@@ -309,6 +309,11 @@ public class Order {
         this.status = actualStatus;
         
         String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+
+        String savedPaymentStatus = this.paymentStatus;
+        String savedPaymentMethod = this.paymentMethod;
+        String savedTransactionId = this.transactionId;
+        String savedPaymentDate = this.paymentDate;
         
         System.out.println("updateFromCourierStatus - Setting timestamps for: " + courierStatus);
         
@@ -334,6 +339,11 @@ public class Order {
                 System.out.println("  Set actualDelivery: " + this.actualDelivery);
             }
         }
+
+        this.paymentStatus = savedPaymentStatus;
+        this.paymentMethod = savedPaymentMethod;
+        this.transactionId = savedTransactionId;
+        this.paymentDate = savedPaymentDate;
     }
     
     public void setDriverStatusToOnDelivery() {

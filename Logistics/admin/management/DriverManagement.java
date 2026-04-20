@@ -619,19 +619,19 @@ public class DriverManagement extends AdminManagementModule {
                 switch (status) {
                     case "Available":
                         label.setForeground(SUCCESS);
-                        label.setText("● " + status);
+                        label.setText("" + status);
                         break;
                     case "On Delivery":
                         label.setForeground(ON_DELIVERY_COLOR);
-                        label.setText("🚚 " + status);
+                        label.setText("" + status);
                         break;
                     case "Off Duty":
                         label.setForeground(OFF_DUTY_COLOR);
-                        label.setText("○ " + status);
+                        label.setText("" + status);
                         break;
                     case "On Leave":
                         label.setForeground(WARNING);
-                        label.setText("✗ " + status);
+                        label.setText("" + status);
                         break;
                 }
             }
@@ -683,15 +683,15 @@ public class DriverManagement extends AdminManagementModule {
                 switch (status) {
                     case "APPROVED":
                         label.setForeground(APPROVED_COLOR);
-                        label.setText("✓ APPROVED");
+                        label.setText("APPROVED");
                         break;
                     case "PENDING":
                         label.setForeground(PENDING_COLOR);
-                        label.setText("⏳ PENDING");
+                        label.setText("PENDING");
                         break;
                     case "REJECTED":
                         label.setForeground(REJECTED_COLOR);
-                        label.setText("✗ REJECTED");
+                        label.setText("REJECTED");
                         break;
                 }
             }

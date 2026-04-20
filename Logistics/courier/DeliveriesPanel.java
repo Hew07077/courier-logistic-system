@@ -245,6 +245,7 @@ public class DeliveriesPanel extends JPanel {
         panel.add(createDeliveriesButtonPanel(), BorderLayout.SOUTH);
         return panel;
     }
+
     
     private JPanel createDeliveriesTablePanel() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -719,8 +720,9 @@ public class DeliveriesPanel extends JPanel {
     }
     
     private boolean hasValidTime(String timeValue) {
-        return timeValue != null && !timeValue.trim().isEmpty();
+        return timeValue != null && !timeValue.trim().isEmpty() && !"0".equals(timeValue.trim());
     }
+    
     
     private String formatDateTime(String dateTime) {
         if (dateTime == null || dateTime.isEmpty()) return "-";
