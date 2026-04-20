@@ -123,6 +123,13 @@ public class VehicleManagement {
         this.orderManagement = orderMgmt;
     }
     
+    // ========== ROAD TAX EXPIRY CHECK ==========
+    
+    private boolean isRoadTaxExpired(Vehicle vehicle) {
+        if (vehicle == null || vehicle.roadTaxExpiry == null) return true;
+        Date now = new Date();
+        return vehicle.roadTaxExpiry.before(now);
+    }
     
     private boolean canDriverDriveVehicleType(String licenseType, String vehicleType) {
         if (licenseType == null) return false;
@@ -298,9 +305,19 @@ public class VehicleManagement {
         return null;
     }
     
-    // ========== ASSIGN DRIVER WITH LICENSE CHECK ==========
+    // ========== ASSIGN DRIVER WITH LICENSE AND ROAD TAX CHECK ==========
     
     private void assignDriver(Vehicle vehicle) {
+        // Check for road tax expiry first
+        if (isRoadTaxExpired(vehicle)) {
+            String message = "Cannot assign driver - Road tax has expired!\n\n";
+            message += "Vehicle: " + vehicle.id + " (" + vehicle.model + ")\n";
+            message += "Road Tax Expired: " + displayDateFormat.format(vehicle.roadTaxExpiry) + "\n\n";
+            message += "Please renew the road tax before assigning a driver.";
+            showNotification(message, DANGER);
+            return;
+        }
+        
         if (vehicle.status.equals("Maintenance")) {
             showNotification("Cannot assign to vehicle in maintenance", WARNING);
             return;
@@ -479,6 +496,13 @@ public class VehicleManagement {
         if (!vehicleOpt.isPresent()) return false;
         
         Vehicle vehicle = vehicleOpt.get();
+        
+        // Check road tax expiry
+        if (isRoadTaxExpired(vehicle)) {
+            System.err.println("Cannot assign driver - Road tax expired for vehicle " + vehicleId);
+            return false;
+        }
+        
         if (vehicle.status.equals("Maintenance")) return false;
         
         if (!canDriverDriveVehicleType(driver.licenseType, vehicle.type)) {
@@ -521,9 +545,12 @@ public class VehicleManagement {
         String currentDriverId = getDriverIdForVehicle(v.id);
         DriverData currentDriver = currentDriverId != null ? driverCache.get(currentDriverId) : null;
         
+        // Check if road tax is expired
+        boolean taxExpired = isRoadTaxExpired(v);
+        
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(mainPanel), 
             "Driver Management - " + v.id, true);
-        dialog.setSize(550, 380);
+        dialog.setSize(550, 420);
         dialog.setLocationRelativeTo(mainPanel);
         
         JPanel panel = new JPanel(new BorderLayout(10, 10));
@@ -564,6 +591,9 @@ public class VehicleManagement {
         infoPanel.add(currentLabel, BorderLayout.NORTH);
         infoPanel.add(driverNameLabel, BorderLayout.CENTER);
         
+        JPanel southPanel = new JPanel(new GridLayout(0, 1, 5, 5));
+        southPanel.setBackground(CARD_BG);
+        
         JPanel licenseInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
         licenseInfoPanel.setBackground(CARD_BG);
         JLabel licenseReqLabel = new JLabel("Required License: ");
@@ -578,7 +608,25 @@ public class VehicleManagement {
         licenseInfoPanel.add(licenseReqLabel);
         licenseInfoPanel.add(requiredLabel);
         
-        infoPanel.add(licenseInfoPanel, BorderLayout.SOUTH);
+        JPanel taxInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        taxInfoPanel.setBackground(CARD_BG);
+        JLabel taxLabel = new JLabel("Road Tax Expiry: ");
+        taxLabel.setFont(SMALL_FONT);
+        taxLabel.setForeground(TEXT_SECONDARY);
+        
+        String taxStatus = displayDateFormat.format(v.roadTaxExpiry);
+        if (taxExpired) {
+            taxStatus += " (EXPIRED)";
+        }
+        JLabel taxValueLabel = new JLabel(taxStatus);
+        taxValueLabel.setFont(SMALL_FONT);
+        taxValueLabel.setForeground(taxExpired ? DANGER : SUCCESS);
+        taxInfoPanel.add(taxLabel);
+        taxInfoPanel.add(taxValueLabel);
+        
+        southPanel.add(licenseInfoPanel);
+        southPanel.add(taxInfoPanel);
+        infoPanel.add(southPanel, BorderLayout.SOUTH);
         
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         buttonPanel.setBackground(CARD_BG);
@@ -590,6 +638,14 @@ public class VehicleManagement {
         assignBtn.setFocusPainted(false);
         assignBtn.setBorderPainted(false);
         assignBtn.setPreferredSize(new Dimension(150, 35));
+        
+        // Disable assign button if tax expired
+        if (taxExpired) {
+            assignBtn.setEnabled(false);
+            assignBtn.setBackground(TEXT_MUTED);
+            assignBtn.setToolTipText("Cannot assign - Road tax expired");
+        }
+        
         assignBtn.addActionListener(e -> {
             dialog.dispose();
             assignDriver(v);
@@ -936,7 +992,6 @@ public class VehicleManagement {
                     card.setBackground(CARD_BG);
                 }
                 public void mouseClicked(MouseEvent e) {
-                    // Removed - Reports dialog removed
                     showNotification("Reports feature removed", INFO);
                 }
             });
@@ -1136,6 +1191,12 @@ public class VehicleManagement {
                     int modelRow = convertRowIndexToModel(row);
                     if (modelRow >= 0 && modelRow < vehicles.size()) {
                         Vehicle v = vehicles.get(modelRow);
+                        
+                        // Highlight expired road tax
+                        if (isRoadTaxExpired(v)) {
+                            comp.setBackground(new Color(255, 240, 240));
+                        }
+                        
                         boolean hasPendingReports = driverReports.stream()
                             .anyMatch(r -> r.vehicleId.equals(v.id) && "Pending".equals(r.status));
                         
@@ -1364,7 +1425,6 @@ public class VehicleManagement {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 10));
         panel.setBackground(BG_COLOR);
         
-        // Only Add, Edit, Delete, and Driver buttons - Removed Service and Reports
         JButton addBtn = createStyledButton("Add", SUCCESS, SUCCESS_DARK);
         JButton editBtn = createStyledButton("Edit", WARNING, WARNING_DARK);
         JButton deleteBtn = createStyledButton("Delete", DANGER, DANGER_DARK);
@@ -1620,7 +1680,7 @@ public class VehicleManagement {
     }
 
     private void showVehicleDetails(Vehicle v) {
-        boolean taxExpired = v.roadTaxExpiry.before(new Date());
+        boolean taxExpired = isRoadTaxExpired(v);
         long reportCount = driverReports.stream()
             .filter(r -> r.vehicleId.equals(v.id) && "Pending".equals(r.status))
             .count();
@@ -1732,7 +1792,7 @@ public class VehicleManagement {
     }
     
     public int getExpiredRoadTaxCount() {
-        return (int) vehicles.stream().filter(v -> v.roadTaxExpiry.before(new Date())).count();
+        return (int) vehicles.stream().filter(v -> isRoadTaxExpired(v)).count();
     }
     
     public int getAvailableDriversCount() {
@@ -1764,6 +1824,11 @@ public class VehicleManagement {
     public List<Vehicle> getAvailableVehicles() {
         List<Vehicle> available = new ArrayList<>();
         for (Vehicle v : vehicles) {
+            // Don't include vehicles with expired road tax
+            if (isRoadTaxExpired(v)) {
+                continue;
+            }
+            
             if ("Active".equals(v.status)) {
                 String driverId = getDriverIdForVehicle(v.id);
                 if (driverId == null || driverId.isEmpty()) {
@@ -1785,6 +1850,11 @@ public class VehicleManagement {
         }
         
         Vehicle v = vehicleOpt.get();
+        
+        // Check road tax expiry
+        if (isRoadTaxExpired(v)) {
+            return false;
+        }
         
         if (!"Active".equals(v.status)) {
             return false;
@@ -1828,13 +1898,19 @@ public class VehicleManagement {
     
     public String getVehicleDisplayString(Vehicle v) {
         String driverName = v.driverName != null && !v.driverName.equals("Unassigned") ? v.driverName : "No Driver";
-        return String.format("%s - %s (%s) | %s | %s", 
-            v.id, v.model, v.type, v.numberPlate, driverName);
+        boolean taxExpired = isRoadTaxExpired(v);
+        String taxWarning = taxExpired ? " [TAX EXPIRED]" : "";
+        return String.format("%s - %s (%s) | %s | %s%s", 
+            v.id, v.model, v.type, v.numberPlate, driverName, taxWarning);
     }
     
     public boolean isVehicleAvailable(String vehicleId) {
         Vehicle v = getVehicleById(vehicleId);
         if (v == null) return false;
+        
+        // Check road tax expiry
+        if (isRoadTaxExpired(v)) return false;
+        
         if (!"Active".equals(v.status)) return false;
         String driverId = getDriverIdForVehicle(vehicleId);
         return (driverId == null || driverId.isEmpty());
