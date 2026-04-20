@@ -13,14 +13,11 @@ import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class DeliveriesPanel extends JPanel {
     
-    // Color Palette (matching original)
+    // Color
     private final Color PRIMARY_GREEN = new Color(46, 125, 50);
     private final Color BG_LIGHT = new Color(245, 247, 250);
     private final Color BORDER_COLOR = new Color(224, 224, 224);
@@ -568,7 +565,7 @@ public class DeliveriesPanel extends JPanel {
             BorderFactory.createLineBorder(INFO), "Delivery Timeline",
             TitledBorder.LEFT, TitledBorder.TOP, new Font("Segoe UI", Font.BOLD, 13), INFO));
         
-        // Order Created - Always completed
+        // Order Created
         timelinePanel.add(createTimelineEvent("Order Created", "Order has been placed", 
             order.orderDate != null ? order.orderDate : "-", true));
         timelinePanel.add(createTimelineConnector(hasValidTime(order.pickupTime)));

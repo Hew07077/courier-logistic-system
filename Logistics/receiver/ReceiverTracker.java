@@ -947,11 +947,9 @@ public class ReceiverTracker extends JFrame {
     }
     
     private String getTimestampForStep(ReceiverOrderData order, int step) {
-        // This would ideally come from actual timestamps in the order data
-        // For now, use order date as base and add days
         if (step == 0) return order.orderDate;
         
-        // For demo purposes, generate approximate dates
+        // For demo purposes
         if ("Delivered".equals(order.status) && step <= 5) {
             // Use order date + days
             return getApproximateDate(order.orderDate, step);
@@ -994,7 +992,6 @@ public class ReceiverTracker extends JFrame {
     
     private void startAutoRefresh() {
         refreshTimer = new javax.swing.Timer(30000, e -> {
-            // Auto-refresh currently displayed order if any
             if (lastTrackedOrderId != null && !lastTrackedOrderId.isEmpty()) {
                 SwingUtilities.invokeLater(() -> trackOrder());
             }

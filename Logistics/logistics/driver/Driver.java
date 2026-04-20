@@ -22,7 +22,7 @@ public class Driver {
     public String photoPath;        // IC photo path
     public String passwordHash;
     public String icNumber;
-    public String licenseType;      //B(MOTOR),D(CAR),E(TRUCK)
+    public String licenseType;      //B,B1,B2,D,DA,E,E1,E2
     public String remarks;
     
     // Fields for order integration
@@ -80,7 +80,7 @@ public class Driver {
             safeString(vehicleId),
             safeString(joinDate),
             String.valueOf(totalDeliveries),
-            "",  // rating field (deprecated, kept for compatibility)
+            "", 
             safeString(emergencyContact),
             safeString(emergencyPhone),
             safeString(address),
@@ -134,7 +134,6 @@ public class Driver {
             d.vehicleId = parts[8].isEmpty() ? null : parts[8];
             d.joinDate = parts[9];
             d.totalDeliveries = parts[10].isEmpty() ? 0 : Integer.parseInt(parts[10]);
-            // skip rating (parts[11])
             d.emergencyContact = parts[12].isEmpty() ? null : parts[12];
             d.emergencyPhone = parts[13].isEmpty() ? null : parts[13];
             d.address = parts[14].isEmpty() ? null : parts[14];

@@ -1257,9 +1257,7 @@ public class ProfilePanel extends JPanel {
             add(statsGridPanel, BorderLayout.CENTER);
         }
         
-        /**
-         * Refresh all statistics with real data from orders
-         */
+
         public void refreshStats() {
             // Get fresh data from repository
             SenderOrderRepository.getInstance().refreshData();

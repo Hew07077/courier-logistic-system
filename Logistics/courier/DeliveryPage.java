@@ -12,14 +12,12 @@ import java.io.File;
 
 public class DeliveryPage extends JPanel {
     
-    // --- Color Palette ---
+    // Color
     private final Color PRIMARY_GREEN = new Color(46, 125, 50);
     private final Color GREEN_LIGHT = new Color(220, 245, 220);
     private final Color BG_LIGHT = new Color(245, 247, 250);
     private final Color BORDER_COLOR = new Color(224, 224, 224);
     private final Color TEXT_GRAY = new Color(108, 117, 125);
-    
-    // Modern UI Colors
     private static final Color SUCCESS = new Color(40, 167, 69);
     private static final Color INFO = new Color(23, 162, 184);
     private static final Color WARNING = new Color(255, 193, 7);
@@ -403,8 +401,6 @@ public class DeliveryPage extends JPanel {
         table.getColumnModel().getColumn(4).setPreferredWidth(120);
         table.getColumnModel().getColumn(5).setPreferredWidth(80);
         table.getColumnModel().getColumn(6).setPreferredWidth(100);
-        
-        // Status column renderer (只保留文字颜色)
         table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
@@ -427,7 +423,6 @@ public class DeliveryPage extends JPanel {
             }
         });
         
-        // Priority column renderer (只保留文字颜色)
         table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {

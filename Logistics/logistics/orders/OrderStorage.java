@@ -554,8 +554,6 @@ public class OrderStorage {
             System.err.println("ERROR: Order is not assignable. Status: " + order.status);
             return false;
         }
-        
-        // 直接设置字段
         order.driverId = driverId;
         order.vehicleId = vehicleId;
         

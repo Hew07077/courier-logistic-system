@@ -1,4 +1,3 @@
-// VehicleReport.java
 package courier;
 
 import logistics.driver.Driver;
@@ -139,7 +138,6 @@ public class VehicleReport {
             }
         }
         
-        // 通过 currentDriver.vehicleId 查找
         if (currentDriver.vehicleId != null && !currentDriver.vehicleId.isEmpty()) {
             return allVehicles.get(currentDriver.vehicleId);
         }

@@ -450,24 +450,20 @@ public class AdminDashboard extends JFrame {
         contentPanel.setBackground(BG_LIGHT);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // 检查 panelCache 是否已填充
         if (panelCache.isEmpty()) {
             System.err.println("ERROR: panelCache is empty! Creating fallback panels.");
-            // 创建后备面板
             JPanel errorPanel = createErrorPanel("Modules failed to load. Please check console for errors.");
             contentPanel.add(errorPanel, "ORDER");
             contentPanel.add(errorPanel, "VEHICLE");
             contentPanel.add(errorPanel, "DRIVER");
             contentPanel.add(errorPanel, "MAINTENANCE");
         } else {
-            // 添加所有缓存的面板
             for (Map.Entry<String, JPanel> entry : panelCache.entrySet()) {
                 contentPanel.add(entry.getValue(), entry.getKey());
                 System.out.println("Added panel for: " + entry.getKey());
             }
         }
 
-        // 默认显示 ORDER
         if (panelCache.containsKey("ORDER")) {
             cardLayout.show(contentPanel, "ORDER");
         } else {

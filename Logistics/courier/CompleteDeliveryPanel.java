@@ -708,9 +708,6 @@ public class CompleteDeliveryPanel extends JPanel {
         }
     }
     
-    /**
-     * DIRECT FILE SAVE - writes the order directly to orders.txt
-     */
     private boolean saveOrderDirectlyToFile(Order order) {
         BufferedReader reader = null;
         PrintWriter writer = null;

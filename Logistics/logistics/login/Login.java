@@ -1124,7 +1124,6 @@ public class Login extends JFrame {
         centerPanel.add(resultPanel, gbc);
         panel.add(centerPanel, BorderLayout.CENTER);
         
-        // 每次搜索都重新加载数据，确保获取最新状态
         searchBtn.addActionListener(e -> {
             String id = searchField.getText().trim();
             if (id.isEmpty()) {
@@ -1132,7 +1131,6 @@ public class Login extends JFrame {
                 return;
             }
             
-            // 创建新的 DriverStorage 实例，从文件重新加载数据
             DriverStorage freshStorage = new DriverStorage();
             Driver driver = freshStorage.findDriver(id);
             

@@ -1,4 +1,3 @@
-// ProfilePanel.java (courier)
 package courier;
 
 import logistics.driver.Driver;
@@ -133,7 +132,6 @@ public class ProfilePanel extends JPanel {
     private VehicleData getAssignedVehicle() {
         if (currentDriver == null) return null;
         
-        // 通过 driverName 查找
         for (VehicleData vehicle : vehicleDataMap.values()) {
             if (vehicle.assignedTo != null && !vehicle.assignedTo.equals("Unassigned")) {
                 if (vehicle.assignedTo.equalsIgnoreCase(currentDriver.name)) {
@@ -313,7 +311,7 @@ public class ProfilePanel extends JPanel {
         phoneField.setBackground(new Color(240, 240, 240));
         contentPanel.add(phoneField, gbc);
         
-        // License Type - 只显示驾照类型
+        // License Type
         gbc.gridx = 0; gbc.gridy = row;
         JLabel licenseLabel = new JLabel("License Type:");
         licenseLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));

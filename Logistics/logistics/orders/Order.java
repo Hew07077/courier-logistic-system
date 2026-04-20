@@ -24,10 +24,10 @@ public class Order {
     public String reason;
     
     // Status timestamps
-    public String pickupTime;        // Picked Up 时间
-    public String inTransitTime;     // In Transit 时间  
-    public String outForDeliveryTime; // Out for Delivery 时间 - 默认为 null，不是 "0"
-    public String deliveryTime;       // Delivered 时间
+    public String pickupTime;        
+    public String inTransitTime;       
+    public String outForDeliveryTime;
+    public String deliveryTime;      
     
     public double distance;
     public double fuelUsed;
@@ -40,7 +40,6 @@ public class Order {
     public String transactionId;
     public String paymentDate;
     
-    // ========== 构造函数 - 确保所有 timestamp 字段为 null ==========
     
     public Order() {
         this.orderDate = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
@@ -51,10 +50,6 @@ public class Order {
         cal.add(Calendar.DAY_OF_MONTH, 3);
         this.estimatedDelivery = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
         this.onTime = true;
-        
-        // 重要：所有 timestamp 字段保持 null，不设置任何默认值
-        // 不要设置 pickupTime, inTransitTime, outForDeliveryTime, deliveryTime
-        // 它们默认为 null，不是 "0" 也不是空字符串
     }
     
     public Order(String id, String customerName, String customerPhone, 
@@ -79,8 +74,6 @@ public class Order {
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.DAY_OF_MONTH, 3);
         this.estimatedDelivery = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-        
-        // 重要：所有 timestamp 字段保持 null
     }
     
     public Order(String id, String customerName, String customerPhone, 
@@ -103,11 +96,7 @@ public class Order {
         this.estimatedDelivery = estimatedDelivery;
         this.paymentStatus = "Pending";
         this.onTime = true;
-        
-        // 重要：所有 timestamp 字段保持 null
     }
-
-    // ========== fromSenderOrder - 确保新订单没有 timestamp ==========
     
     public static Order fromSenderOrder(Object senderOrder) {
         try {
@@ -144,11 +133,9 @@ public class Order {
             order.paymentMethod = paymentMethod;
             order.transactionId = transactionId;
             order.paymentDate = paymentDate;
-            
-            // ========== 关键：确保所有 timestamp 字段为 null ==========
             order.pickupTime = null;
             order.inTransitTime = null;
-            order.outForDeliveryTime = null;  // 确保 outForDeliveryTime 为 null
+            order.outForDeliveryTime = null;  
             order.deliveryTime = null;
             order.actualDelivery = null;
             order.reason = null;
@@ -171,8 +158,6 @@ public class Order {
             return null;
         }
     }
-
-    // ========== toFileString - 保存到文件 ==========
     
     public String toFileString() {
         String[] fields = new String[31];
@@ -212,12 +197,9 @@ public class Order {
     }
     
     private String safeString(String s) {
-        // null 或空字符串都转为空字符串
         return (s != null && !s.isEmpty()) ? s : "";
     }
 
-    // ========== fromFileString - 从文件读取 ==========
-    
     public static Order fromFileString(String line) {
         try {
             String[] parts = line.split("\\|", -1);
@@ -383,15 +365,15 @@ public class Order {
     public String getFormattedCustomerStatus() {
         String icon;
         switch(getCustomerStatus()) {
-            case "Pending": icon = "⏳"; break;
-            case "Assigned": icon = "👤"; break;
-            case "Picked Up": icon = "📦"; break;
-            case "In Transit": icon = "🚚"; break;
-            case "Out for Delivery": icon = "🚛"; break;
-            case "Delayed": icon = "⚠️"; break;
-            case "Delivered": icon = "✅"; break;
-            case "Failed": icon = "❌"; break;
-            default: icon = "📋";
+            case "Pending": icon = ""; break;
+            case "Assigned": icon = ""; break;
+            case "Picked Up": icon = ""; break;
+            case "In Transit": icon = ""; break;
+            case "Out for Delivery": icon = ""; break;
+            case "Delayed": icon = ""; break;
+            case "Delivered": icon = ""; break;
+            case "Failed": icon = ""; break;
+            default: icon = "";
         }
         return icon + " " + getCustomerStatus();
     }

@@ -98,30 +98,23 @@ public abstract class AdminManagementModule extends JPanel implements Management
     
     // ==================== OPTIONAL OVERRIDABLE METHODS FOR INTEGRATION ====================
     
-    /**
-     * Override this method if the module needs to access DriverManagement
-     */
+    //Override this method if the module needs to access DriverManagement
     protected DriverManagement getDriverManagement() {
         return null;
     }
     
-    /**
-     * Override this method if the module needs to access VehicleManagement
-     */
+    //Override this method if the module needs to access VehicleManagement
     protected VehicleManagement getVehicleManagement() {
         return null;
     }
     
-    /**
-     * Override this method if the module needs to access OrderManagement
-     */
+    //Override this method if the module needs to access OrderManagement
     protected OrderManagement getOrderManagement() {
         return null;
     }
     
-    /**
-     * Override this method if the module needs to access MaintenanceManagement
-     */
+    //Override this method if the module needs to access MaintenanceManagement
+     
     protected MaintenanceManagement getMaintenanceManagement() {
         return null;
     }

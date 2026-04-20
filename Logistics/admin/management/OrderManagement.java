@@ -80,7 +80,7 @@ public class OrderManagement extends AdminManagementModule {
         createButtonPanel();
         createStatusBar();
         
-        // Create stats panel with 8 columns
+        // Create status panel
         statsPanel = createStatsPanelContainer(8);
         String[] titles = {"Total", "Pending", "Assigned", "Pickup", "In Transit", "Out Delivery", "Delayed", "Failed"};
         String[] descriptions = {"All orders", "Awaiting assign", "Driver assigned", "Picked up", "On the way", "Out for delivery", "Behind schedule", "Delivery failed"};
@@ -1077,7 +1077,7 @@ public class OrderManagement extends AdminManagementModule {
             BorderFactory.createLineBorder(INFO), "Delivery Timeline",
             TitledBorder.LEFT, TitledBorder.TOP, HEADER_FONT, INFO));
         
-        // Order Created - Always completed
+        // Order Created
         timelinePanel.add(createTimelineEvent("Order Created", "Order has been placed", 
             order.orderDate != null ? order.orderDate : "-", true));
         timelinePanel.add(createTimelineConnector(hasValidTime(order.pickupTime)));

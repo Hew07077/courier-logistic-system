@@ -76,34 +76,21 @@ public class MaintenanceManagement {
     
     private static final String[] TABLE_COLUMNS = {"ID", "Vehicle", "Description", "Status", "Date", "Notes"};
     
-    /**
-     * Listener interface for dashboard updates
-     */
+
     public interface DashboardUpdateListener {
         void onMaintenanceDataChanged();
         void onStatusCountsUpdated(int scheduled, int inProgress, int completed);
     }
-    
-    /**
-     * Constructs a new MaintenanceManagement instance
-     */
+
     public MaintenanceManagement() {
         this(null, null);
     }
-    
-    /**
-     * Constructs a new MaintenanceManagement instance with a dashboard listener
-     * @param listener The dashboard update listener
-     */
+
     public MaintenanceManagement(DashboardUpdateListener listener) {
         this(listener, null);
     }
     
-    /**
-     * Constructs a new MaintenanceManagement instance with VehicleManagement integration
-     * @param listener The dashboard update listener
-     * @param vehicleMgmt The VehicleManagement instance
-     */
+
     public MaintenanceManagement(DashboardUpdateListener listener, VehicleManagement vehicleMgmt) {
         this.dashboardListener = listener;
         this.vehicleManagement = vehicleMgmt;
@@ -111,19 +98,13 @@ public class MaintenanceManagement {
         loadMaintenanceRecords();
         initializeUI();
     }
-    
-    /**
-     * Sets the VehicleManagement instance for integration
-     * @param vehicleMgmt The VehicleManagement instance
-     */
+
     public void setVehicleManagement(VehicleManagement vehicleMgmt) {
         this.vehicleManagement = vehicleMgmt;
         syncWithVehicleManagement();
     }
     
-    /**
-     * Initializes the UI
-     */
+
     private void initializeUI() {
         mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -143,9 +124,8 @@ public class MaintenanceManagement {
         SwingUtilities.invokeLater(this::updateStats);
     }
     
-    /**
-     * Resets borders of all stat cards
-     */
+    //Resets borders of all stat cards
+    
     private void resetCardBorders() {
         if (statCards != null) {
             for (int i = 0; i < statCards.length; i++) {
@@ -157,9 +137,7 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Loads maintenance records from file or creates sample data
-     */
+    //Loads maintenance record
     private void loadMaintenanceRecords() {
         File file = new File(MAINTENANCE_FILE);
         if (file.exists()) {
@@ -179,9 +157,7 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Saves maintenance records to file
-     */
+    //Saves maintenance records to file
     private void saveMaintenanceRecords() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(MAINTENANCE_FILE))) {
             writer.write("// Format: ID|VehicleID|Description|Status|Date|Notes");
@@ -201,11 +177,7 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Parses a maintenance record from a line of text
-     * @param line The line to parse
-     * @return The parsed MaintenanceRecord or null if parsing fails
-     */
+
     private MaintenanceRecord parseMaintenanceRecord(String line) {
         try {
             String[] parts = line.split("\\|");
@@ -225,9 +197,7 @@ public class MaintenanceManagement {
         return null;
     }
     
-    /**
-     * Synchronizes with VehicleManagement to track vehicles in maintenance
-     */
+
     private void syncWithVehicleManagement() {
         if (vehicleManagement == null) return;
         
@@ -237,7 +207,7 @@ public class MaintenanceManagement {
             .map(v -> v.id)
             .collect(Collectors.toSet());
         
-        // Also get all vehicles that are active
+        // get active
         List<VehicleManagement.Vehicle> activeVehicles = vehicleManagement.getVehiclesByStatus("Active");
         Set<String> activeVehicleIds = activeVehicles.stream()
             .map(v -> v.id)
@@ -245,7 +215,6 @@ public class MaintenanceManagement {
         
         boolean changed = false;
         
-        // Complete any active maintenance records for vehicles that are now active
         for (MaintenanceRecord record : maintenanceRecords) {
             if (!record.status.equals("Completed") && activeVehicleIds.contains(record.vehicleId)) {
                 record.status = "Completed";
@@ -254,13 +223,11 @@ public class MaintenanceManagement {
             }
         }
         
-        // Create records for vehicles in maintenance that don't have active records
         for (String vehicleId : maintenanceVehicleIds) {
             boolean hasActiveRecord = maintenanceRecords.stream()
                 .anyMatch(r -> r.vehicleId.equals(vehicleId) && !r.status.equals("Completed"));
             
             if (!hasActiveRecord) {
-                // Find vehicle model if possible
                 String model = maintenanceVehicles.stream()
                     .filter(v -> v.id.equals(vehicleId))
                     .map(v -> v.model)
@@ -278,23 +245,11 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Called when a vehicle is sent to maintenance from VehicleManagement
-     * @param vehicleId The vehicle ID
-     * @param vehicleModel The vehicle model
-     * @param description Maintenance description
-     */
     public void addVehicleToMaintenance(String vehicleId, String vehicleModel, String description) {
         addVehicleToMaintenance(vehicleId, vehicleModel, description, true);
     }
     
-    /**
-     * Called when a vehicle is sent to maintenance from VehicleManagement
-     * @param vehicleId The vehicle ID
-     * @param vehicleModel The vehicle model
-     * @param description Maintenance description
-     * @param showMessage Whether to show a message dialog
-     */
+
     private void addVehicleToMaintenance(String vehicleId, String vehicleModel, String description, boolean showMessage) {
         // Check if vehicle already has an active maintenance record
         boolean hasActiveRecord = maintenanceRecords.stream()
@@ -331,10 +286,7 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Completes all active maintenance records for a vehicle
-     * @param vehicleId The vehicle ID
-     */
+
     public void completeMaintenanceForVehicle(String vehicleId) {
         boolean updated = false;
         for (MaintenanceRecord record : maintenanceRecords) {
@@ -355,21 +307,14 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Gets all active maintenance records (not completed)
-     * @return List of active maintenance records
-     */
+
     public List<MaintenanceRecord> getActiveMaintenanceRecords() {
         return maintenanceRecords.stream()
             .filter(r -> !r.status.equals("Completed"))
             .collect(Collectors.toList());
     }
     
-    /**
-     * Gets maintenance records for a specific vehicle
-     * @param vehicleId The vehicle ID
-     * @return List of maintenance records for the vehicle
-     */
+
     public List<MaintenanceRecord> getVehicleMaintenanceHistory(String vehicleId) {
         return maintenanceRecords.stream()
             .filter(r -> r.vehicleId.equals(vehicleId))
@@ -377,19 +322,12 @@ public class MaintenanceManagement {
             .collect(Collectors.toList());
     }
     
-    /**
-     * Checks if a vehicle is currently in maintenance
-     * @param vehicleId The vehicle ID
-     * @return true if vehicle has active maintenance
-     */
     public boolean isVehicleInMaintenance(String vehicleId) {
         return maintenanceRecords.stream()
             .anyMatch(r -> r.vehicleId.equals(vehicleId) && !r.status.equals("Completed"));
     }
-    
-    /**
-     * Initializes sample data for demonstration purposes
-     */
+
+    //Sample record
     private void initializeSampleData() {
         try {
             Calendar cal = Calendar.getInstance();
@@ -457,9 +395,8 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Creates the header panel with title
-     */
+
+    //headpanel
     private JPanel createHeaderPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(BG_COLOR);
@@ -483,9 +420,8 @@ public class MaintenanceManagement {
         return panel;
     }
     
-    /**
-     * Creates the statistics panel showing counts by status
-     */
+
+    //status panel
     private JPanel createStatsPanel() {
         statsPanel = new JPanel(new GridLayout(1, 4, 15, 0));
         statsPanel.setBackground(BG_COLOR);
@@ -513,9 +449,8 @@ public class MaintenanceManagement {
         return statsPanel;
     }
     
-    /**
-     * Creates an individual stat card - CLICKABLE
-     */
+
+    //clickable status card
     private JPanel createStatCard(String title, String description, 
                                   String value, Color color, Color bgColor, int index) {
         JPanel card = new JPanel();
@@ -549,7 +484,7 @@ public class MaintenanceManagement {
         
         statLabels[index] = valueLabel;
         
-        // Make all cards clickable
+        // cards clickable
         card.setCursor(new Cursor(Cursor.HAND_CURSOR));
         final String filterStatus = title;
         
@@ -584,7 +519,6 @@ public class MaintenanceManagement {
                     applyFilter(null);
                     // No highlight for Total card
                 } else {
-                    // Toggle filter if clicking same card
                     if (title.equals(currentFilter)) {
                         currentFilter = null;
                         applyFilter(null);
@@ -604,7 +538,6 @@ public class MaintenanceManagement {
                         ));
                         card.setBackground(color.brighter());
                         
-                        // Apply filter to table
                         applyFilter(filterStatus);
                     }
                 }
@@ -614,9 +547,7 @@ public class MaintenanceManagement {
         return card;
     }
     
-    /**
-     * Applies filter to the table
-     */
+
     private void applyFilter(String status) {
         if (status == null) {
             rowSorter.setRowFilter(null);
@@ -631,9 +562,8 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Creates the table panel
-     */
+
+    //table panel
     private JPanel createTablePanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(CARD_BG);
@@ -658,9 +588,8 @@ public class MaintenanceManagement {
         return corner;
     }
     
-    /**
-     * Creates the maintenance table - FIXED SELECTION
-     */
+
+    //create table
     private JTable createTable() {
         tableModel = new DefaultTableModel(TABLE_COLUMNS, 0) {
             @Override
@@ -685,24 +614,20 @@ public class MaintenanceManagement {
         maintenanceTable.setIntercellSpacing(new Dimension(10, 5));
         maintenanceTable.setFillsViewportHeight(true);
         
-        // CRITICAL: Enable row selection
         maintenanceTable.setRowSelectionAllowed(true);
         maintenanceTable.setColumnSelectionAllowed(false);
         maintenanceTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        
-        // Table header styling
+
         JTableHeader header = maintenanceTable.getTableHeader();
         header.setFont(new Font("Segoe UI", Font.BOLD, 13));
         header.setBackground(new Color(245, 245, 245));
         header.setForeground(TEXT_PRIMARY);
         header.setPreferredSize(new Dimension(header.getWidth(), 45));
         header.setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY));
-        
-        // Row sorter
+
         rowSorter = new TableRowSorter<>(tableModel);
         maintenanceTable.setRowSorter(rowSorter);
-        
-        // Set column widths
+
         maintenanceTable.getColumnModel().getColumn(0).setPreferredWidth(80);
         maintenanceTable.getColumnModel().getColumn(1).setPreferredWidth(90);
         maintenanceTable.getColumnModel().getColumn(2).setPreferredWidth(280);
@@ -710,11 +635,9 @@ public class MaintenanceManagement {
         maintenanceTable.getColumnModel().getColumn(4).setPreferredWidth(140);
         maintenanceTable.getColumnModel().getColumn(5).setPreferredWidth(400);
         
-        // Set custom renderers
         maintenanceTable.getColumnModel().getColumn(3).setCellRenderer(new StatusCellRenderer());
         maintenanceTable.getColumnModel().getColumn(4).setCellRenderer(new DateCellRenderer());
         
-        // FIXED: Mouse listener for row selection
         maintenanceTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -732,7 +655,6 @@ public class MaintenanceManagement {
             }
         });
         
-        // Add keyboard selection support
         maintenanceTable.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -750,9 +672,6 @@ public class MaintenanceManagement {
         return maintenanceTable;
     }
     
-    /**
-     * Custom cell renderer for status column
-     */
     private class StatusCellRenderer extends DefaultTableCellRenderer {
         private final JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         private final JLabel label = new JLabel();
@@ -805,9 +724,6 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Custom cell renderer for date column
-     */
     private class DateCellRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
@@ -854,10 +770,7 @@ public class MaintenanceManagement {
             return this;
         }
     }
-    
-    /**
-     * Shows detailed view of a selected record - FIXED
-     */
+
     private void showRecordDetails() {
         int selectedRow = maintenanceTable.getSelectedRow();
         System.out.println("showRecordDetails - selected row: " + selectedRow);
@@ -928,9 +841,6 @@ public class MaintenanceManagement {
         panel.add(valueComp, gbc);
     }
     
-    /**
-     * Refreshes the table data from the records list
-     */
     private void refreshTableData() {
         tableModel.setRowCount(0);
         for (MaintenanceRecord record : maintenanceRecords) {
@@ -953,9 +863,6 @@ public class MaintenanceManagement {
         System.out.println("Table refreshed with " + maintenanceRecords.size() + " records");
     }
     
-    /**
-     * Updates the statistics labels
-     */
     private void updateStats() {
         SwingUtilities.invokeLater(() -> {
             long scheduled = maintenanceRecords.stream().filter(r -> r.status.equals("Scheduled")).count();
@@ -977,9 +884,8 @@ public class MaintenanceManagement {
         });
     }
     
-    /**
-     * Creates the button panel with action buttons
-     */
+
+    //button
     private JPanel createButtonPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
         panel.setBackground(BG_COLOR);
@@ -1039,11 +945,7 @@ public class MaintenanceManagement {
         return btn;
     }
     
-    // ========== CRUD OPERATIONS ==========
-    
-    /**
-     * Shows dialog to add a new maintenance record
-     */
+
     private void showAddDialog() {
         JDialog dialog = createBaseDialog("Add Maintenance Record", 600, 650);
         
@@ -1135,9 +1037,6 @@ public class MaintenanceManagement {
         dialog.setVisible(true);
     }
     
-    /**
-     * Shows dialog to edit an existing maintenance record
-     */
     private void showEditDialog() {
         int selectedRow = maintenanceTable.getSelectedRow();
         if (!validateRowSelection(selectedRow, "Select a record to edit")) {
@@ -1251,9 +1150,7 @@ public class MaintenanceManagement {
         dialog.setVisible(true);
     }
     
-    /**
-     * Deletes the selected record
-     */
+    //delete record
     private void deleteRecord() {
         int selectedRow = maintenanceTable.getSelectedRow();
         if (!validateRowSelection(selectedRow, "Select a record to delete")) {
@@ -1282,10 +1179,8 @@ public class MaintenanceManagement {
         }
     }
     
-    /**
-     * Updates the status of the selected record
-     * @param newStatus The new status to set
-     */
+
+    //update status
     private void updateStatus(String newStatus) {
         int selectedRow = maintenanceTable.getSelectedRow();
         if (!validateRowSelection(selectedRow, "Select a record to update")) {
@@ -1322,12 +1217,6 @@ public class MaintenanceManagement {
         showSuccess("Status updated to: " + record.status);
     }
     
-    /**
-     * Validates that a row is selected
-     * @param selectedRow The selected row index
-     * @param message The message to show if no row is selected
-     * @return true if a row is selected, false otherwise
-     */
     private boolean validateRowSelection(int selectedRow, String message) {
         if (selectedRow == -1) {
             showWarning(message);
@@ -1336,11 +1225,6 @@ public class MaintenanceManagement {
         return true;
     }
     
-    /**
-     * Gets the selected record from the table - FIXED
-     * @param selectedRow The selected row index
-     * @return The selected MaintenanceRecord or null if invalid
-     */
     private MaintenanceRecord getSelectedRecord(int selectedRow) {
         try {
             // Convert view row index to model row index (accounting for sorting/filtering)
@@ -1356,10 +1240,8 @@ public class MaintenanceManagement {
         return null;
     }
     
-    /**
-     * Generates a new maintenance ID
-     * @return A unique maintenance ID
-     */
+
+    //generate id
     private String generateMaintenanceId() {
         int maxId = maintenanceRecords.stream()
             .mapToInt(r -> {
@@ -1384,7 +1266,6 @@ public class MaintenanceManagement {
     }
     
     // ========== HELPER METHODS ==========
-    
     private JPanel createDatePicker(Date initialDate) {
         JPanel panel = new JPanel(new BorderLayout(5, 0));
         panel.setBackground(CARD_BG);
@@ -1566,10 +1447,6 @@ public class MaintenanceManagement {
         JOptionPane.showMessageDialog(mainPanel, msg, "Success", JOptionPane.INFORMATION_MESSAGE);
     }
     
-    /**
-     * Gets overdue maintenance records
-     * @return List of overdue records
-     */
     public List<MaintenanceRecord> getOverdueRecords() {
         Date today = new Date();
         return maintenanceRecords.stream()
@@ -1577,63 +1454,38 @@ public class MaintenanceManagement {
             .collect(Collectors.toList());
     }
     
-    /**
-     * Refreshes the panel data
-     */
     public void refreshData() {
         refreshTableData();
     }
     
-    /**
-     * Gets the refreshed panel
-     * @return The main panel with refreshed data
-     */
     public JPanel getRefreshedPanel() {
         refreshData();
         return mainPanel;
     }
     
-    /**
-     * Gets the main panel
-     * @return The main panel
-     */
     public JPanel getMainPanel() {
         return mainPanel;
     }
     
-    /**
-     * Gets the count of scheduled records
-     * @return Scheduled count
-     */
     public int getScheduledCount() {
         return (int) maintenanceRecords.stream()
             .filter(r -> r.status.equals("Scheduled"))
             .count();
     }
     
-    /**
-     * Gets the count of in-progress records
-     * @return In-progress count
-     */
     public int getInProgressCount() {
         return (int) maintenanceRecords.stream()
             .filter(r -> r.status.equals("In Progress"))
             .count();
     }
     
-    /**
-     * Gets the count of completed records
-     * @return Completed count
-     */
     public int getCompletedCount() {
         return (int) maintenanceRecords.stream()
             .filter(r -> r.status.equals("Completed"))
             .count();
     }
     
-    /**
-     * Maintenance Record class representing a single maintenance task
-     */
+
     public static class MaintenanceRecord {
         public String maintenanceId;
         public String vehicleId;
